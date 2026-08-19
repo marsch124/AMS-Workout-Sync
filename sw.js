@@ -20,6 +20,7 @@ const SHELL = [
     'js/xlsx.js',
     'js/mapping.js',
     'js/plan.js',
+    'js/extras.js',
     'js/dropbox.js',
     'js/sync.js',
     'js/ui.js',

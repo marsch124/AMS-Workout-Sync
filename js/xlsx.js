@@ -585,6 +585,77 @@ const AmsXlsx = (function () {
             this.sheetCache.delete(sheetName);
         }
 
+        /*
+         * Add a worksheet to the workbook.
+         *
+         * Four parts have to agree for Excel to accept a new sheet: the sheet
+         * XML itself, an entry in [Content_Types].xml so the part is recognised,
+         * a relationship in the workbook's rels, and a <sheet> in workbook.xml
+         * pointing at that relationship. Miss any one and Excel reports the
+         * file as corrupt rather than telling you which.
+         */
+        async createSheet(name, headers) {
+            if (this.findSheet(name)) return this.findSheet(name);
+
+            // A part name and a relationship id nobody is using.
+            let index = 1;
+            while (this.archive.has('xl/worksheets/sheet' + index + '.xml')) index++;
+            const path = 'xl/worksheets/sheet' + index + '.xml';
+
+            const relsPath = 'xl/_rels/workbook.xml.rels';
+            let rels = await this.archive.text(relsPath);
+            if (!rels) throw new Error('This workbook has no relationships part, so a sheet cannot be added.');
+            let relIndex = 1;
+            while (rels.indexOf('Id="rId' + relIndex + '"') !== -1) relIndex++;
+            const relId = 'rId' + relIndex;
+
+            const header = (headers || []).map((text, i) =>
+                '<c r="' + makeRef(i + 1, 1) + '" t="inlineStr"><is><t>' + escapeXml(text) + '</t></is></c>'
+            ).join('');
+
+            const sheetXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+                + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+                + '<dimension ref="A1:' + makeRef(Math.max((headers || []).length, 1), 1) + '"/>'
+                + '<sheetViews><sheetView workbookViewId="0">'
+                + '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>'
+                + '</sheetView></sheetViews>'
+                + '<sheetFormatPr defaultRowHeight="15"/>'
+                + '<sheetData>' + (header ? '<row r="1">' + header + '</row>' : '') + '</sheetData>'
+                + '</worksheet>';
+            this.archive.set(path, sheetXml);
+
+            let types = await this.archive.text('[Content_Types].xml');
+            if (types && types.indexOf('/' + path) === -1) {
+                types = types.replace('</Types>',
+                    '<Override PartName="/' + path + '" ContentType="application/vnd.openxmlformats-'
+                    + 'officedocument.spreadsheetml.worksheet+xml"/></Types>');
+                this.archive.set('[Content_Types].xml', types);
+            }
+
+            rels = rels.replace('</Relationships>',
+                '<Relationship Id="' + relId + '" Type="http://schemas.openxmlformats.org/officeDocument/'
+                + '2006/relationships/worksheet" Target="worksheets/sheet' + index + '.xml"/></Relationships>');
+            this.archive.set(relsPath, rels);
+
+            let workbookXml = await this.archive.text('xl/workbook.xml');
+            let sheetId = 1;
+            while (workbookXml.indexOf('sheetId="' + sheetId + '"') !== -1) sheetId++;
+            const entry = '<sheet name="' + escapeXml(name) + '" sheetId="' + sheetId
+                + '" r:id="' + relId + '"/>';
+            if (workbookXml.indexOf('</sheets>') !== -1) {
+                workbookXml = workbookXml.replace('</sheets>', entry + '</sheets>');
+            } else {
+                workbookXml = workbookXml.replace('<sheets/>', '<sheets>' + entry + '</sheets>');
+            }
+            this.archive.set('xl/workbook.xml', workbookXml);
+
+            const meta = { name: name, path: path, hidden: false };
+            this.sheets.push(meta);
+            this.dirtySheets.add(name);
+            this.sheetCache.delete(name);
+            return meta;
+        }
+
         get isDirty() {
             return this.dirtySheets.size > 0;
         }

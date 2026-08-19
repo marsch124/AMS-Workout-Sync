@@ -27,6 +27,10 @@ existing cells.
 - **Move** — a session can be moved to another day, or swapped with another one
   when you did the two the other way round. Only the date and weekday cells are
   rewritten, and the weekday is spelled the way your sheet already spells it.
+- **Something else** — an unplanned run, a hike, a meditation. These go on their
+  own `Extras` sheet, created on first use, with a column saying whether each one
+  counts as training load. They are never written into the plan, so planned-versus-
+  actual keeps meaning what it says.
 - **Sheet setup** — the app works out which column is which from your headings, in
   English or German, and lets you correct the guess once. If you want to record
   something the sheet has no column for, it appends one — headed and formatted like
@@ -98,6 +102,7 @@ Without Dropbox at all, **Open a file** and **Save a copy** do the same job by h
     ├── xlsx.js         # xlsx parsing + surgical cell writes
     ├── mapping.js      # works out which column is which
     ├── plan.js         # workouts, disciplines, units, log fields
+    ├── extras.js       # unplanned sessions, on their own sheet
     ├── dropbox.js      # OAuth PKCE + file download/upload
     ├── sync.js         # the offline queue and replay-on-sync
     ├── db.js           # IndexedDB

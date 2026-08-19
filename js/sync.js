@@ -18,6 +18,8 @@ const AmsSync = (function () {
         workbook: null,
         mapping: null,
         plan: [],
+        extras: [],
+        pendingExtras: [],
         meta: null,
         source: null,      // 'dropbox' | 'cache' | 'file'
         lastError: null,
@@ -157,6 +159,7 @@ const AmsSync = (function () {
         state.mapping = mapping;
 
         state.plan = mapping ? await buildPlan(state.workbook, mapping) : [];
+        state.extras = await AmsExtras.read(state.workbook);
         await overlayQueue();
         emit('plan', { plan: state.plan, source: source });
         return state;
@@ -256,9 +259,63 @@ const AmsSync = (function () {
         }
     }
 
+    /*
+     * Record something the plan never asked for. Queued exactly like a logged
+     * session, but it belongs to no row, so replay appends it to the Extras
+     * sheet instead of writing into the plan.
+     */
+    async function logExtra(entry) {
+        const record = await AmsDb.queue({
+            extra: true,
+            dayKey: entry.date,
+            values: { extra: entry }
+        });
+
+        // Refresh the pending list, or what was just saved would not appear
+        // until the next full load.
+        await overlayQueue();
+        emit('queued', { entry: record });
+        emit('plan', { plan: state.plan });
+
+        if (await AmsDropbox.isConnected()) sync().catch(() => {});
+        return record;
+    }
+
+    /* Write one queued extra into the workbook, creating the sheet if needed. */
+    async function applyExtra(workbook, entry) {
+        const value = entry.values.extra;
+        await AmsExtras.ensureSheet(workbook);
+        const sheet = await workbook.readSheet(AmsExtras.SHEET_NAME);
+
+        // Appending is not idempotent the way writing to a known row is, so a
+        // replay must not add the same thing twice.
+        if (AmsExtras.alreadyRecorded(sheet, value)) return true;
+
+        let weekdayNames = {};
+        try {
+            const mapping = await getMapping();
+            if (mapping && mapping.sheets) {
+                const planSheet = await workbook.readSheet(mapping.sheets[0]);
+                weekdayNames = AmsPlan.learnWeekdayNames(planSheet, mapping);
+            }
+        } catch (err) { /* fall back to English short names */ }
+
+        const built = AmsExtras.buildEdits(sheet, value, weekdayNames);
+        if (!built.edits.length) return false;
+        await workbook.writeCells(AmsExtras.SHEET_NAME, built.edits);
+        return true;
+    }
+
     /* Show queued entries on the plan as though they were already in the file. */
     async function overlayQueue() {
         const queued = await AmsDb.listQueue();
+
+        // Extras belong to no row, so they are surfaced separately rather than
+        // being matched onto a workout.
+        state.pendingExtras = queued
+            .filter((entry) => entry.extra)
+            .map((entry) => Object.assign({ pending: true }, entry.values.extra));
+
         const byKey = new Map();
         for (const entry of queued) byKey.set(entry.workoutKey, entry);
 
@@ -294,6 +351,7 @@ const AmsSync = (function () {
      * spreadsheet gained a row in the meantime.
      */
     function matchEntry(queued, workout) {
+        queued = queued.filter((entry) => !entry.extra);
         return queued.find((entry) => entry.workoutKey === workout.key)
             || queued.find((entry) => entry.dayKey === workout.dayKey
                 && entry.disciplineId === workout.discipline.id
@@ -350,6 +408,12 @@ const AmsSync = (function () {
             const failed = [];
 
             for (const entry of queued) {
+                if (entry.extra) {
+                    const ok = await applyExtra(workbook, entry);
+                    if (ok) written.push(entry);
+                    else await AmsDb.unqueue(entry.id);
+                    continue;
+                }
                 const workout = findWorkoutFor(entry, plan);
                 if (!workout) {
                     entry.attempts = (entry.attempts || 0) + 1;
@@ -474,6 +538,10 @@ const AmsSync = (function () {
         let count = 0;
 
         for (const entry of queued) {
+            if (entry.extra) {
+                if (await applyExtra(workbook, entry)) count++;
+                continue;
+            }
             const workout = findWorkoutFor(entry, plan);
             if (!workout) continue;
             const edits = AmsPlan.buildEdits(workout, entry.values, mapping);
@@ -528,6 +596,7 @@ const AmsSync = (function () {
         load,
         loadFromFile,
         logWorkout,
+        logExtra,
         markMissed,
         rescheduleWorkout,
         swapWorkouts,

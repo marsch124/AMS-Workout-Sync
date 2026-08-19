@@ -67,7 +67,7 @@ const AmsUi = (function () {
 
     /* ---------- navigation ---------- */
 
-    const DETAIL_SCREENS = new Set(['workoutScreen', 'logScreen', 'setupScreen', 'rescheduleScreen']);
+    const DETAIL_SCREENS = new Set(['workoutScreen', 'logScreen', 'setupScreen', 'rescheduleScreen', 'extraScreen']);
     const history_ = [];
 
     function showScreen(id, options) {
@@ -234,6 +234,7 @@ const AmsUi = (function () {
             body.innerHTML = emptyState('icon-check', 'Rest day',
                 'Nothing is scheduled for today in the workbook.',
                 '')
+                + extrasBlock()
                 + (next.length
                     ? '<div class="day-heading"><h2>Coming up</h2></div>'
                         + next.map((w) => workoutCard(w, { showDate: true })).join('')
@@ -269,7 +270,50 @@ const AmsUi = (function () {
                         + '<button class="btn btn-small" data-move="' + esc(workout.key) + '">Move</button>'
                       + '</div>')
                 + '</div>';
-        }).join('');
+        }).join('') + extrasBlock();
+    }
+
+    /*
+     * What was done today outside the plan, and the way to add more. Shown on
+     * rest days too — a rest day is exactly when a breathing session happens.
+     */
+    function extrasBlock() {
+        const state = AmsSync.getState();
+        const today = AmsSync.todayKey();
+        const saved = (state.extras || []).filter((e) => e.dayKey === today);
+        const pending = (state.pendingExtras || []).filter((e) => e.date === today);
+
+        const rows = pending.map((e) => ({
+            label: AmsExtras.activity(e.activity).label,
+            what: e.what,
+            minutes: e.minutes,
+            pending: true,
+            colour: AmsExtras.activity(e.activity).color
+        })).concat(saved.map((e) => ({
+            label: e.label,
+            what: e.what,
+            minutes: e.minutes,
+            pending: false,
+            colour: AmsExtras.activity(e.activity).color
+        })));
+
+        return (rows.length
+            ? '<div class="day-heading"><h2>Also today</h2></div>'
+                + rows.map((r) =>
+                    '<div class="card workout-card" style="--sport: ' + r.colour + '">'
+                    + '<div class="workout-card-titles">'
+                    + '<p class="workout-card-sport">' + esc(r.label) + '</p>'
+                    + (r.what ? '<p class="workout-card-title">' + esc(r.what) + '</p>' : '')
+                    + '</div>'
+                    + '<div class="workout-card-meta">'
+                    + (r.minutes ? '<span class="pill strong">' + r.minutes + 'm</span>' : '')
+                    + (r.pending ? '<span class="pill pending">Waiting to sync</span>'
+                                 : '<span class="pill done">Logged</span>')
+                    + '</div></div>').join('')
+            : '')
+            + '<button class="btn btn-block" data-extra="1" style="margin-top:0.6rem">'
+            + '＋ Log something else</button>'
+            + '<p class="hint-inline">A walk, a meditation, an unplanned run — anything the plan did not ask for.</p>';
     }
 
     function emptyState(icon, title, text, action) {
@@ -695,6 +739,154 @@ const AmsUi = (function () {
             renderPlan();
         } catch (err) {
             toast(err.message || 'That could not be saved.', 'bad');
+        }
+    }
+
+    /* ---------- things the plan did not ask for ---------- */
+
+    let extraDraft = null;
+
+    function openExtra() {
+        const state = AmsSync.getState();
+        if (!state.workbook) {
+            toast('Load a workbook first.', 'bad');
+            return;
+        }
+        extraDraft = Object.assign({
+            date: AmsSync.todayKey(),
+            activity: 'walk',
+            what: '',
+            duration: '',
+            distance: '',
+            avgHr: '',
+            effort: '',
+            notes: ''
+        }, extraDraft && extraDraft.keep ? extraDraft : {});
+        extraDraft.keep = false;
+        renderExtra();
+        showScreen('extraScreen');
+    }
+
+    function renderExtra() {
+        const chosen = AmsExtras.activity(extraDraft.activity);
+        const metrics = AmsExtras.wantsMetrics(extraDraft.activity);
+        const isTraining = extraDraft.isTraining === undefined
+            ? chosen.kind === 'training'
+            : extraDraft.isTraining;
+
+        const options = AmsExtras.ACTIVITIES.map((a) =>
+            '<option value="' + a.id + '"' + (a.id === extraDraft.activity ? ' selected' : '') + '>'
+            + esc(a.label) + '</option>').join('');
+
+        $('extraBody').innerHTML =
+            '<div class="prose"><p>Recorded on its own <strong>Extras</strong> sheet, never in the training '
+            + 'plan — so your planned-versus-actual figures keep meaning what they say.</p></div>'
+
+            + '<div class="field"><label for="extraActivity">What was it</label>'
+            + '<select id="extraActivity">' + options + '</select></div>'
+
+            + '<div class="field"><label for="extraDate">When</label>'
+            + '<input id="extraDate" type="date" value="' + esc(extraDraft.date) + '"></div>'
+
+            + '<div class="field"><label for="extraWhat">Describe it <span class="field-unit">(optional)</span></label>'
+            + '<input id="extraWhat" type="text" placeholder="e.g. morning sit, breath focus" value="'
+            + esc(extraDraft.what) + '"></div>'
+
+            + '<div class="field"><label for="extraDuration">Duration</label>'
+            + '<input id="extraDuration" type="text" placeholder="e.g. 20min, 1:15" value="'
+            + esc(extraDraft.duration) + '"></div>'
+
+            + (metrics
+                ? '<div class="field"><label for="extraDistance">Distance <span class="field-unit">(km)</span></label>'
+                    + '<input id="extraDistance" type="number" inputmode="decimal" step="any" value="'
+                    + esc(extraDraft.distance) + '"></div>'
+                    + '<div class="field-row">'
+                    + '<div class="field"><label for="extraAvgHr">Avg HR <span class="field-unit">(bpm)</span></label>'
+                    + '<input id="extraAvgHr" type="number" inputmode="numeric" value="' + esc(extraDraft.avgHr) + '"></div>'
+                    + '<div class="field"><label for="extraEffort">Effort <span class="field-unit">(1-10)</span></label>'
+                    + '<input id="extraEffort" type="number" inputmode="numeric" value="' + esc(extraDraft.effort) + '"></div>'
+                    + '</div>'
+                : '')
+
+            + '<div class="field"><label for="extraIsTraining">Counts as training load</label>'
+            + '<select id="extraIsTraining">'
+            + '<option value="no"' + (isTraining ? '' : ' selected') + '>No — it does not add load</option>'
+            + '<option value="yes"' + (isTraining ? ' selected' : '') + '>Yes — count it as training</option>'
+            + '</select>'
+            + '<p class="field-hint">Set from what you picked, and yours to change — a four-hour hike is load '
+            + 'whatever the app assumes.</p></div>'
+
+            + '<div class="field"><label for="extraNotes">Notes <span class="field-unit">(optional)</span></label>'
+            + '<textarea id="extraNotes" placeholder="How it felt, anything worth remembering">'
+            + esc(extraDraft.notes) + '</textarea></div>';
+
+        $('extraActivity').addEventListener('change', (event) => {
+            collectExtra();
+            extraDraft.activity = event.target.value;
+            // The default follows the kind until you say otherwise.
+            extraDraft.isTraining = AmsExtras.activity(extraDraft.activity).kind === 'training';
+            renderExtra();
+        });
+    }
+
+    function collectExtra() {
+        const value = (id) => {
+            const node = $(id);
+            return node ? String(node.value || '').trim() : '';
+        };
+        extraDraft.date = value('extraDate') || extraDraft.date;
+        extraDraft.what = value('extraWhat');
+        extraDraft.duration = value('extraDuration');
+        extraDraft.distance = value('extraDistance');
+        extraDraft.avgHr = value('extraAvgHr');
+        extraDraft.effort = value('extraEffort');
+        extraDraft.notes = value('extraNotes');
+        const training = $('extraIsTraining');
+        if (training) extraDraft.isTraining = training.value === 'yes';
+        return extraDraft;
+    }
+
+    async function saveExtra() {
+        collectExtra();
+
+        const seconds = AmsPlan.parseDuration(extraDraft.duration);
+        if (!seconds && !extraDraft.what && !extraDraft.notes) {
+            toast('Give it at least a duration or a description.', 'bad');
+            return;
+        }
+
+        const button = $('saveExtraButton');
+        button.disabled = true;
+        button.textContent = 'Saving…';
+
+        const toNumber = (text) => {
+            if (text === '' || text === undefined) return null;
+            const n = parseFloat(String(text).replace(',', '.'));
+            return isNaN(n) ? null : n;
+        };
+
+        try {
+            await AmsSync.logExtra({
+                date: extraDraft.date,
+                activity: extraDraft.activity,
+                what: extraDraft.what,
+                minutes: seconds ? Math.round(seconds / 60) : null,
+                distance: toNumber(extraDraft.distance),
+                avgHr: toNumber(extraDraft.avgHr),
+                effort: toNumber(extraDraft.effort),
+                isTraining: !!extraDraft.isTraining,
+                notes: extraDraft.notes
+            });
+            const connected = await AmsDropbox.isConnected();
+            toast(connected ? 'Saved — writing it to the Extras sheet.' : 'Saved on this phone.', 'good');
+            extraDraft = null;
+            goBack();
+            renderToday();
+        } catch (err) {
+            toast(err.message || 'That could not be saved.', 'bad');
+        } finally {
+            button.disabled = false;
+            button.textContent = 'Save it';
         }
     }
 
@@ -1395,6 +1587,8 @@ const AmsUi = (function () {
             const swap = event.target.closest('[data-swap]');
             if (swap) { doSwap(swap.dataset.swap); return; }
 
+            if (event.target.closest('[data-extra]')) { openExtra(); return; }
+
             const go = event.target.closest('[data-go]');
             if (go) {
                 if (go.dataset.go === 'setup') openSetup();
@@ -1406,6 +1600,7 @@ const AmsUi = (function () {
         $('markMissedButton').addEventListener('click', () => markMissed());
         $('saveLogButton').addEventListener('click', saveLog);
         $('saveSetupButton').addEventListener('click', saveSetup);
+        $('saveExtraButton').addEventListener('click', saveExtra);
         $('syncButton').addEventListener('click', () => runSync(true));
 
         document.querySelectorAll('.segment').forEach((segment) => {
