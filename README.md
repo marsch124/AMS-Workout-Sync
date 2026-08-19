@@ -15,7 +15,10 @@ existing cells.
   what has already been logged.
 - **Log** — a form that asks only for the numbers that suit the sport (pace for a
   run, power and cadence for a ride, per-100m pace for a swim, duration and effort
-  for mobility) and only for the ones your sheet has a column for.
+  for mobility) and only for the ones your sheet has a column for. Each field says
+  which column it writes to.
+- **Missed** — a session that did not happen is marked as such in one tap, writing
+  only the missed marker and leaving every metric cell untouched.
 - **Sheet setup** — the app works out which column is which from your headings, in
   English or German, and lets you correct the guess once.
 
@@ -44,8 +47,14 @@ Three details make that safe:
   them recalculate the moment the file opens.
 
 Durations are converted to whatever the sheet already uses — decimal hours, minutes,
-or a real Excel time value — inferred from the data already in the column and
-overridable in Sheet setup.
+or a real Excel time value — read from the column heading where it says so
+("Duration (min)"), otherwise inferred from the data, and overridable in Sheet setup.
+
+The marker written to a completed column is not assumed either. A plan that counts
+its own sessions with `=COUNTIFS(...,$K:$K,"✓")` needs exactly that character, and
+"Yes" would leave the tally silently at zero — so the workbook's own COUNTIF
+criteria are read to discover both the completed and the missed marker. Both are
+shown in Sheet setup for correction.
 
 ## Connecting Dropbox
 

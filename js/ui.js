@@ -113,6 +113,38 @@ const AmsUi = (function () {
 
     /* ---------- rendering pieces ---------- */
 
+    /*
+     * What a workout's row already says about itself: logged, missed, or
+     * waiting to be written. A session marked missed carries the workbook's own
+     * missed marker in its completed column, so it is recognised on the way
+     * back in as well as on the way out.
+     */
+    function statusOf(workout) {
+        const mapping = AmsSync.getState().mapping || {};
+
+        if (workout.pending) {
+            return workout.pending.values && workout.pending.values.missed
+                ? { kind: 'missed', pending: true, label: 'Missed — waiting to sync' }
+                : { kind: 'logged', pending: true, label: 'Waiting to sync' };
+        }
+
+        const done = workout.results && workout.results.done;
+        if (done && mapping.missedValue
+            && AmsMapping.normalise(done.text) === AmsMapping.normalise(mapping.missedValue)) {
+            return { kind: 'missed', pending: false, label: 'Missed' };
+        }
+
+        if (workout.logged) return { kind: 'logged', pending: false, label: 'Logged' };
+        return null;
+    }
+
+    function statusPill(workout) {
+        const status = statusOf(workout);
+        if (!status) return '';
+        const cls = status.pending ? 'pending' : (status.kind === 'missed' ? 'missed' : 'done');
+        return '<span class="pill ' + cls + '">' + esc(status.label) + '</span>';
+    }
+
     function sportStyle(workout) {
         return 'style="--sport: ' + workout.discipline.color + '"';
     }
@@ -130,11 +162,7 @@ const AmsUi = (function () {
         if (workout.planned && workout.planned.intensity) {
             pills.push('<span class="pill">' + esc(workout.planned.intensity) + '</span>');
         }
-        if (workout.pending) {
-            pills.push('<span class="pill pending">Waiting to sync</span>');
-        } else if (workout.logged) {
-            pills.push('<span class="pill done">Logged</span>');
-        }
+        pills.push(statusPill(workout));
         if (opts.showDate) {
             pills.unshift('<span class="pill">' + esc(shortDay(workout.date)) + '</span>');
         }
@@ -226,15 +254,16 @@ const AmsUi = (function () {
                 +   (planned ? '<span class="pill strong">' + esc(AmsPlan.formatDuration(planned)) + '</span>' : '')
                 +   (workout.planned && workout.planned.distanceRaw
                         ? '<span class="pill">' + esc(formatDistance(workout.planned.distanceRaw, state2.mapping)) + '</span>' : '')
-                +   (workout.pending ? '<span class="pill pending">Waiting to sync</span>'
-                        : workout.logged ? '<span class="pill done">Logged</span>' : '')
+                +   statusPill(workout)
                 + '</div>'
                 + '<div style="margin-top:0.9rem">' + sectionsHtml(workout) + '</div>'
                 + (workout.discipline.id === 'rest'
                     ? '<p class="hint-inline">Nothing to log — the adaptation happens now.</p>'
                     : '<div class="button-row" style="margin-top:0.4rem">'
                         + '<button class="btn btn-primary" data-log="' + esc(workout.key) + '">'
-                        + (workout.logged ? 'Log again' : 'Log this session') + '</button>'
+                        + (statusOf(workout) && statusOf(workout).kind === 'logged' ? 'Log again' : 'Log this session')
+                        + '</button>'
+                        + '<button class="btn btn-small" data-missed="' + esc(workout.key) + '">Missed</button>'
                       + '</div>')
                 + '</div>';
         }).join('');
@@ -373,15 +402,29 @@ const AmsUi = (function () {
             + '</div>';
 
         const logButton = $('openLogButton');
+        const missedButton = $('markMissedButton');
         const isRest = workout.discipline.id === 'rest';
         logButton.hidden = isRest;
-        logButton.textContent = workout.logged ? 'Log again' : 'Log this session';
+        missedButton.hidden = isRest;
+        // "Log again" only makes sense if something was actually logged — a
+        // session marked missed has nothing to repeat, though it can still be
+        // logged if it turns out you did it after all.
+        const status = statusOf(workout);
+        logButton.textContent = (status && status.kind === 'logged') ? 'Log again' : 'Log this session';
         showScreen('workoutScreen');
     }
 
     function loggedSummary(workout) {
         const rows = [];
         const state = AmsSync.getState();
+
+        if (workout.pending && workout.pending.values && workout.pending.values.missed) {
+            return '<div class="card"><p class="section-label" style="color:var(--color-danger-text)">'
+                + 'Marked missed — waiting to sync</p>'
+                + (workout.pending.values.notes
+                    ? '<p class="section-text">' + esc(workout.pending.values.notes) + '</p>' : '')
+                + '</div>';
+        }
 
         if (workout.pending) {
             const values = workout.pending.values || {};
@@ -562,6 +605,33 @@ const AmsUi = (function () {
         } finally {
             button.disabled = false;
             button.textContent = 'Save to the workbook';
+        }
+    }
+
+    async function markMissed(key) {
+        const workout = key ? AmsSync.byKey(key) : currentWorkout;
+        if (!workout) return;
+
+        const mapping = AmsSync.getState().mapping || {};
+        if (!mapping.columns || !mapping.columns.done) {
+            toast('Your sheet has no column to record that in — add one in Sheet setup.', 'bad');
+            return;
+        }
+
+        const label = workout.discipline.label + ' on ' + shortDay(workout.date);
+        if (!confirm('Mark "' + label + '" as missed?\n\n"' + (mapping.missedValue || 'Missed')
+            + '" is written to its completed column. Nothing else is touched.')) return;
+
+        try {
+            await AmsSync.markMissed(workout);
+            const connected = await AmsDropbox.isConnected();
+            toast(connected ? 'Marked missed — writing it into the workbook.' : 'Marked missed.', 'good');
+            const active = document.querySelector('.screen.active');
+            if (active && active.id === 'workoutScreen') openWorkout(workout.key);
+            renderToday();
+            renderPlan();
+        } catch (err) {
+            toast(err.message || 'That could not be saved.', 'bad');
         }
     }
 
@@ -943,6 +1013,10 @@ const AmsUi = (function () {
                     + '<p class="field-hint">Written into the ' + esc(headingFor(draft, 'done'))
                     + ' column. If your sheet counts completed sessions, this has to be exactly what those '
                     + 'formulas look for — the app reads them and fills this in for you.</p></div>'
+                    + '<div class="field"><label for="setupMissedValue">Mark a session missed with</label>'
+                    + '<input id="setupMissedValue" type="text" autocapitalize="off" spellcheck="false" value="'
+                    + esc(draft.missedValue || 'Missed') + '">'
+                    + '<p class="field-hint">Written to the same column when you mark a session missed.</p></div>'
                 : '')
             + '</div>';
 
@@ -1002,6 +1076,10 @@ const AmsUi = (function () {
         if (target.id === 'setupDistance') { setupDraft.units.distance = target.value; return; }
         if (target.id === 'setupDoneValue') {
             setupDraft.doneValue = String(target.value || '').trim() || 'Yes';
+            return;
+        }
+        if (target.id === 'setupMissedValue') {
+            setupDraft.missedValue = String(target.value || '').trim() || 'Missed';
             return;
         }
 
@@ -1094,12 +1172,15 @@ const AmsUi = (function () {
 
         document.body.addEventListener('click', (event) => {
             const card = event.target.closest('[data-workout]');
-            if (card && !event.target.closest('[data-log]')) {
+            if (card && !event.target.closest('[data-log]') && !event.target.closest('[data-missed]')) {
                 openWorkout(card.dataset.workout);
                 return;
             }
             const log = event.target.closest('[data-log]');
             if (log) { openLog(log.dataset.log); return; }
+
+            const missed = event.target.closest('[data-missed]');
+            if (missed) { markMissed(missed.dataset.missed); return; }
 
             const go = event.target.closest('[data-go]');
             if (go) {
@@ -1109,6 +1190,7 @@ const AmsUi = (function () {
         });
 
         $('openLogButton').addEventListener('click', () => openLog());
+        $('markMissedButton').addEventListener('click', () => markMissed());
         $('saveLogButton').addEventListener('click', saveLog);
         $('saveSetupButton').addEventListener('click', saveSetup);
         $('syncButton').addEventListener('click', () => runSync(true));

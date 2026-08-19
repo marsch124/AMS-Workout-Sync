@@ -461,9 +461,17 @@ const AmsPlan = (function () {
     const AFFIRMATIVE = ['\u2713', '\u2714', '\u2705', 'x', 'yes', 'y', 'ja', 'done', 'ok',
                          'erledigt', 'fertig', 'complete', 'completed', 'true', '1'];
 
-    async function detectDoneValue(workbook, mapping) {
+    const NEGATIVE = ['missed', 'miss', 'skipped', 'skip', 'verpasst', 'ausgefallen', 'versaumt',
+                      'nein', 'no', 'not done', 'dnf', 'abgebrochen', 'false', '0'];
+
+    /*
+     * Both markers the completed column understands, read out of the workbook's
+     * own formulas — the criteria its COUNTIFs test for are a plan's own
+     * statement of what it expects to be written there.
+     */
+    async function detectDoneMarkers(workbook, mapping) {
         const col = mapping.columns && mapping.columns.done;
-        if (!col) return null;
+        if (!col) return { done: null, missed: null };
 
         const letter = AmsXlsx.indexToCol(col);
         const found = [];
@@ -486,11 +494,14 @@ const AmsPlan = (function () {
             }
         }
 
-        if (!found.length) return null;
+        let done = null;
+        let missed = null;
         for (const candidate of found) {
-            if (AFFIRMATIVE.indexOf(candidate.toLowerCase()) !== -1) return candidate;
+            const key = candidate.toLowerCase();
+            if (!done && AFFIRMATIVE.indexOf(key) !== -1) done = candidate;
+            if (!missed && NEGATIVE.indexOf(key) !== -1) missed = candidate;
         }
-        return null;
+        return { done: done, missed: missed };
     }
 
     /*
@@ -571,6 +582,20 @@ const AmsPlan = (function () {
             edits.push({ ref: AmsXlsx.makeRef(col, row), kind, value, field: fieldId });
         }
 
+        /*
+         * A missed session has no numbers to record — only the fact of it. It
+         * writes the missed marker (and a note, if one was given) and leaves
+         * every metric cell exactly as it was.
+         */
+        if (entry.missed) {
+            if (columns.done) push('done', 'text', mapping.missedValue || 'Missed');
+            if (entry.notes) push('notes', 'text', String(entry.notes).trim());
+            if (columns.completedAt) {
+                push('completedAt', 'date', entry.completedAt ? new Date(entry.completedAt) : new Date());
+            }
+            return edits;
+        }
+
         const seconds = parseDuration(entry.actualDuration);
         if (seconds !== null) push('actualDuration', 'number', durationToCell(seconds, units.duration));
 
@@ -648,7 +673,7 @@ const AmsPlan = (function () {
         parsePace,
         build,
         inferUnits,
-        detectDoneValue,
+        detectDoneMarkers,
         unitFromHeading,
         distanceUnitFromHeading,
         inferDurationUnitFromData,

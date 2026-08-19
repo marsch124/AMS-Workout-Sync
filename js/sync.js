@@ -83,8 +83,10 @@ const AmsSync = (function () {
     async function prepareMapping(workbook, mapping) {
         if (!mapping) return mapping;
         if (!mapping.units) await AmsPlan.inferUnits(workbook, mapping);
-        if (!mapping.doneValue) {
-            mapping.doneValue = (await AmsPlan.detectDoneValue(workbook, mapping)) || 'Yes';
+        if (!mapping.doneValue || !mapping.missedValue) {
+            const markers = await AmsPlan.detectDoneMarkers(workbook, mapping);
+            if (!mapping.doneValue) mapping.doneValue = markers.done || 'Yes';
+            if (!mapping.missedValue) mapping.missedValue = markers.missed || 'Missed';
         }
         return mapping;
     }
@@ -210,6 +212,14 @@ const AmsSync = (function () {
             sync().catch(() => {});
         }
         return record;
+    }
+
+    /*
+     * Record that a session did not happen. Queued and synced by exactly the
+     * same path as a logged one — the difference is only in what gets written.
+     */
+    async function markMissed(workout, note) {
+        return logWorkout(workout, { missed: true, notes: note || '' });
     }
 
     /* Show queued entries on the plan as though they were already in the file. */
@@ -469,6 +479,7 @@ const AmsSync = (function () {
         load,
         loadFromFile,
         logWorkout,
+        markMissed,
         overlayQueue,
         sync,
         persistWorkbookEdits,

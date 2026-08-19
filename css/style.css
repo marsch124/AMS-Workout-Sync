@@ -261,6 +261,7 @@ body {
 
 .pill.done { color: var(--color-success); border-color: var(--color-success); }
 .pill.pending { color: var(--color-warning); border-color: var(--color-warning); }
+.pill.missed { color: var(--color-danger-text); border-color: var(--color-danger-text); }
 .pill.strong { color: var(--sport, var(--accent)); border-color: var(--sport, var(--accent)); }
 
 /* ---------- sections of a workout ---------- */
@@ -393,6 +394,11 @@ body {
 }
 
 .button-row .btn { flex: 1; min-width: 8rem; }
+
+/* A secondary action in a row alongside a primary one should not compete with
+   it for attention — "Missed" is the exception, not the intent. */
+.button-row .btn-small { flex: 0 0 auto; min-width: 0; }
+.screen-footer .button-row .btn:not(.btn-primary) { flex: 0 0 auto; min-width: 6rem; }
 
 /* ---------- forms ---------- */
 
