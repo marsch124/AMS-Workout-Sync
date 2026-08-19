@@ -6,28 +6,31 @@
  * never cached — a stale workbook would be worse than no workbook.
  */
 const CACHE_NAME = 'ams-workout-sync-v1';
-const BASE = '/AMS-Workout-Sync/';
+// Taken from the worker's own URL rather than hard-coded, so the app works
+// wherever it is published — any repository name, a project page, or localhost —
+// and a rename never leaves a stale path behind.
+const BASE = new URL('./', self.location).href;
 
 const SHELL = [
-    BASE,
-    BASE + 'index.html',
-    BASE + 'css/style.css',
-    BASE + 'js/db.js',
-    BASE + 'js/zip.js',
-    BASE + 'js/xlsx.js',
-    BASE + 'js/mapping.js',
-    BASE + 'js/plan.js',
-    BASE + 'js/dropbox.js',
-    BASE + 'js/sync.js',
-    BASE + 'js/ui.js',
-    BASE + 'js/app.js',
-    BASE + 'manifest.json',
-    BASE + 'icons/icon-192.png',
-    BASE + 'icons/icon-512.png',
-    BASE + 'icons/icon-512-maskable.png',
-    BASE + 'icons/apple-touch-icon.png',
-    BASE + 'icons/favicon-64.png'
-];
+    '',
+    'index.html',
+    'css/style.css',
+    'js/db.js',
+    'js/zip.js',
+    'js/xlsx.js',
+    'js/mapping.js',
+    'js/plan.js',
+    'js/dropbox.js',
+    'js/sync.js',
+    'js/ui.js',
+    'js/app.js',
+    'manifest.json',
+    'icons/icon-192.png',
+    'icons/icon-512.png',
+    'icons/icon-512-maskable.png',
+    'icons/apple-touch-icon.png',
+    'icons/favicon-64.png'
+].map((path) => new URL(path, BASE).href);
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
@@ -68,7 +71,7 @@ self.addEventListener('fetch', (event) => {
             })
             .catch(() => caches.match(event.request).then((cached) => {
                 if (cached) return cached;
-                if (event.request.mode === 'navigate') return caches.match(BASE + 'index.html');
+                if (event.request.mode === 'navigate') return caches.match(new URL('index.html', BASE).href);
                 return new Response('', { status: 504, statusText: 'Offline' });
             }))
     );

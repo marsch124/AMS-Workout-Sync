@@ -4,7 +4,7 @@ A mobile-first PWA that reads your training plan straight out of an Excel workbo
 in Dropbox, and writes what you log after a session back into that same workbook's
 existing cells.
 
-**Live:** https://marsch124.github.io/AMS-Workout-Sync/
+**Live:** https://marsch124.github.io/AMS-Workout-Sync-/
 
 ## What it does
 
