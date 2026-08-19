@@ -360,9 +360,17 @@ const AmsPlan = (function () {
                 continue;
             }
 
-            const lastRow = mapping.lastDataRow
-                ? Math.max(mapping.lastDataRow, mapping.firstDataRow)
-                : sheet.maxRow;
+            /*
+             * Recomputed on every read rather than taken from the mapping.
+             * A training plan is a living document — a week gets extended, a
+             * block gets added — and a ceiling worked out once and remembered
+             * would leave those rows invisible until the layout happened to be
+             * saved again.
+             */
+            const lastRow = Math.max(
+                AmsMapping.findLastDataRow(sheet, mapping.firstDataRow, mapping.columns.date),
+                mapping.firstDataRow
+            );
 
             let carriedDate = null;
             let group = null;
