@@ -36,6 +36,18 @@ existing cells.
   something the sheet has no column for, it appends one — headed and formatted like
   the columns already there, and sized to suit what goes in it.
 
+## Version
+
+Current release is recorded in `js/version.js`, which also carries the changelog
+shown in the app under Settings → Version → What's new. The service worker names
+its cache after the version, so shipping a release retires the previous cached
+copy rather than leaving a phone on older code — keep `APP_VERSION` in `sw.js` in
+step with `AmsVersion.CURRENT`.
+
+Settings → How this works is a guide to what the app reads, what it writes, and
+what it will never touch. It reflects the workbook actually loaded, naming its
+sheet, its units and its completed marker.
+
 ## Install it
 
 Open the live URL on your phone and add it to the home screen — iOS: Share → Add to
@@ -103,6 +115,7 @@ Without Dropbox at all, **Open a file** and **Save a copy** do the same job by h
     ├── mapping.js      # works out which column is which
     ├── plan.js         # workouts, disciplines, units, log fields
     ├── extras.js       # unplanned sessions, on their own sheet
+    ├── version.js      # version number and changelog
     ├── dropbox.js      # OAuth PKCE + file download/upload
     ├── sync.js         # the offline queue and replay-on-sync
     ├── db.js           # IndexedDB

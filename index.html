@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="64x64" href="icons/favicon-64.png">
     <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="css/style.css?v=1.0">
+    <link rel="stylesheet" href="css/style.css?v=1.4.0">
 </head>
 <body data-tab="today">
 
@@ -181,6 +181,34 @@
         </div>
     </div>
 
+    <!-- ===================== HOW THIS WORKS ===================== -->
+    <div id="guideScreen" class="screen">
+        <header class="app-header detail">
+            <button class="icon-button" data-back="true" aria-label="Back">
+                <svg class="icon"><use href="#icon-back"></use></svg>
+            </button>
+            <div class="app-header-main">
+                <p class="app-eyebrow">AMS Workout Sync</p>
+                <h1 class="app-title">How this works</h1>
+            </div>
+        </header>
+        <div class="screen-body" id="guideBody"></div>
+    </div>
+
+    <!-- ===================== WHAT'S NEW ===================== -->
+    <div id="versionScreen" class="screen">
+        <header class="app-header detail">
+            <button class="icon-button" data-back="true" aria-label="Back">
+                <svg class="icon"><use href="#icon-back"></use></svg>
+            </button>
+            <div class="app-header-main">
+                <p class="app-eyebrow" id="versionEyebrow">—</p>
+                <h1 class="app-title">What's new</h1>
+            </div>
+        </header>
+        <div class="screen-body" id="versionBody"></div>
+    </div>
+
     <!-- ===================== SOMETHING ELSE ===================== -->
     <div id="extraScreen" class="screen">
         <header class="app-header detail">
@@ -254,15 +282,16 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="js/db.js?v=1.0"></script>
-    <script src="js/zip.js?v=1.0"></script>
-    <script src="js/xlsx.js?v=1.0"></script>
-    <script src="js/mapping.js?v=1.0"></script>
-    <script src="js/plan.js?v=1.0"></script>
-    <script src="js/extras.js?v=1.0"></script>
-    <script src="js/dropbox.js?v=1.0"></script>
-    <script src="js/sync.js?v=1.0"></script>
-    <script src="js/ui.js?v=1.0"></script>
-    <script src="js/app.js?v=1.0"></script>
+    <script src="js/version.js?v=1.4.0"></script>
+    <script src="js/db.js?v=1.4.0"></script>
+    <script src="js/zip.js?v=1.4.0"></script>
+    <script src="js/xlsx.js?v=1.4.0"></script>
+    <script src="js/mapping.js?v=1.4.0"></script>
+    <script src="js/plan.js?v=1.4.0"></script>
+    <script src="js/extras.js?v=1.4.0"></script>
+    <script src="js/dropbox.js?v=1.4.0"></script>
+    <script src="js/sync.js?v=1.4.0"></script>
+    <script src="js/ui.js?v=1.4.0"></script>
+    <script src="js/app.js?v=1.4.0"></script>
 </body>
 </html>

@@ -67,7 +67,8 @@ const AmsUi = (function () {
 
     /* ---------- navigation ---------- */
 
-    const DETAIL_SCREENS = new Set(['workoutScreen', 'logScreen', 'setupScreen', 'rescheduleScreen', 'extraScreen']);
+    const DETAIL_SCREENS = new Set(['workoutScreen', 'logScreen', 'setupScreen', 'rescheduleScreen',
+        'extraScreen', 'guideScreen', 'versionScreen']);
     const history_ = [];
 
     function showScreen(id, options) {
@@ -372,8 +373,19 @@ const AmsUi = (function () {
 
         let workouts;
         if (currentRange === 'upcoming') {
+            /*
+             * Still to do: dated today or later, and not yet recorded. A logged
+             * or missed session has been dealt with and belongs under Done —
+             * leaving it here made the two lists overlap and left the tab
+             * showing work that no longer needed doing. A session that has only
+             * been moved is still outstanding, so it stays.
+             */
             const today = AmsSync.todayKey();
-            workouts = state.plan.filter((w) => w.dayKey >= today);
+            workouts = state.plan.filter((w) => {
+                if (w.dayKey < today) return false;
+                const status = statusOf(w);
+                return !(status && (status.kind === 'logged' || status.kind === 'missed'));
+            });
         } else if (currentRange === 'past') {
             /*
              * "Done" means recorded, not merely past. Filtering by date meant a
@@ -393,7 +405,7 @@ const AmsUi = (function () {
         if (!workouts.length) {
             body.innerHTML = emptyState('icon-today', 'Nothing here',
                 currentRange === 'upcoming'
-                    ? 'There are no sessions dated from today onwards in the workbook.'
+                    ? 'Nothing left to do from today onwards — everything scheduled has been recorded.'
                     : currentRange === 'past'
                         ? 'Nothing logged yet. Sessions appear here once you log them or mark them missed.'
                         : 'This workbook has no sessions.', '');
@@ -1118,10 +1130,14 @@ const AmsUi = (function () {
 
         /* --- about --- */
         parts.push('<div class="settings-group"><h2>About</h2>'
-            + '<div class="prose">'
-            + '<p>AMS Workout Sync reads your training plan straight out of the Excel file in Dropbox and writes what you log back into the same cells — the ones your totals and charts already point at.</p>'
-            + '<p>It only ever rewrites the cells you fill in. Formulas, formatting, charts and every other sheet are passed through untouched.</p>'
-            + '</div>'
+            + '<div class="settings-row"><div class="settings-row-main">'
+            + '<div class="settings-row-title">How this works</div>'
+            + '<div class="settings-row-sub">What the app reads, what it writes, and what it will never touch</div>'
+            + '</div><button class="btn btn-small" data-go="guide">Read</button></div>'
+            + '<div class="settings-row"><div class="settings-row-main">'
+            + '<div class="settings-row-title">Version ' + esc(AmsVersion.CURRENT) + '</div>'
+            + '<div class="settings-row-sub">' + esc(AmsVersion.CHANGELOG[0].headline) + '</div>'
+            + '</div><button class="btn btn-small" data-go="version">What’s new</button></div>'
             + '<div class="button-row" style="margin-top:0.6rem">'
             + '<button class="btn btn-small btn-danger" id="resetButton">Reset the app</button></div>'
             + '<p class="hint-inline">Resetting clears the Dropbox connection, the cached workbook and the saved layout from this phone. Your workbook in Dropbox is not touched.</p>'
@@ -1269,6 +1285,128 @@ const AmsUi = (function () {
                 location.reload();
             });
         }
+    }
+
+    /* ---------- the guide, and the version log ---------- */
+
+    function section(title, body) {
+        return '<details class="guide-section"><summary>' + esc(title) + '</summary>'
+            + '<div class="prose">' + body + '</div></details>';
+    }
+
+    function renderGuide() {
+        const state = AmsSync.getState();
+        const mapping = state.mapping || {};
+        const sheet = AmsMapping.isComplete(mapping) ? mapping.sheets.join(', ') : null;
+        const units = mapping.units || {};
+
+        $('guideBody').innerHTML =
+            '<div class="prose"><p>The short version: your Excel workbook stays the source of truth. '
+            + 'This app reads today’s session out of it, and writes what you did back into the same cells '
+            + 'your totals and charts already point at. It never keeps a copy of your training anywhere else.</p></div>'
+
+            + section('The three tabs',
+                '<p><strong>Today</strong> — what is planned for today, broken into warm-up, intervals, '
+                + 'technique and cool-down, plus anything you did that was not planned.</p>'
+                + '<p><strong>Plan</strong> — the whole schedule. <em>Upcoming</em> is what is still to do, '
+                + '<em>Done</em> is what you have recorded, <em>All</em> is everything including sessions in '
+                + 'the past you never got round to logging.</p>'
+                + '<p><strong>Settings</strong> — the Dropbox connection, which workbook to use, and how its '
+                + 'columns are read.</p>')
+
+            + section('How it reads your plan',
+                '<p>On first use the app looks at your headings and works out which column holds the date, '
+                + 'which the sport, which the planned duration, and which are for results. It understands '
+                + 'English and German headings, and copes with the heading row being anywhere near the top.</p>'
+                + '<p>The guess is shown on <strong>Sheet setup</strong> for you to correct. It is asked once '
+                + 'and then remembered.</p>'
+                + (sheet ? '<p>Right now it is reading <strong>' + esc(sheet) + '</strong>, heading row '
+                    + mapping.headerRow + '.</p>' : ''))
+
+            + section('How it writes — and what it will not touch',
+                '<p>An <code>.xlsx</code> is a zip of XML parts. Rather than rebuild your workbook, the app '
+                + 'rewrites only the cells you filled in and copies every other part across untouched. In '
+                + 'testing, logging a session changed one part of a nineteen-part file.</p>'
+                + '<p>So charts, conditional formatting, column widths, number formats and the formulas in '
+                + 'columns you are not logging into all survive. A cell you log into that held a formula '
+                + 'loses it — a stale formula would recompute over your value — and Excel is asked to '
+                + 'recalculate on open, so weekly totals and the figures your charts are drawn from update '
+                + 'the moment you open the file.</p>'
+                + '<p>Columns your sheet computes for itself are never offered as inputs. A compliance column '
+                + 'is a formula; writing a number into it would stop it tracking anything.</p>')
+
+            + section('Units, and the completed marker',
+                '<p>Duration columns differ: some hold decimal hours, some minutes, some real Excel times. '
+                + 'The app reads the unit from the heading where it says so — “Duration (min)” — and otherwise '
+                + 'infers it from what is already in the column. Getting this wrong would corrupt every total, '
+                + 'so it is also settable by hand in Sheet setup.</p>'
+                + '<p>The same goes for the completed column. A plan that counts its sessions with '
+                + '<code>COUNTIFS(…,"✓")</code> needs exactly that character — “Yes” would leave the tally at '
+                + 'zero — so the app reads your own formulas to find out what to write.</p>'
+                + (units.duration ? '<p>This workbook stores durations in <strong>' + esc(units.duration)
+                    + '</strong> and distances in <strong>' + esc(units.distance || 'km') + '</strong>'
+                    + (mapping.doneValue ? ', and marks a session complete with <strong>'
+                        + esc(mapping.doneValue) + '</strong>' : '') + '.</p>' : ''))
+
+            + section('Logging, missing, moving',
+                '<p><strong>Log</strong> asks first for the numbers that suit the sport; every other column '
+                + 'your sheet has is one tap away, and once you ask for the full set it keeps showing it. '
+                + 'Anything left blank leaves that cell exactly as it was.</p>'
+                + '<p><strong>Missed</strong> writes the missed marker and nothing else. Leaving the metric '
+                + 'cells empty is what keeps the session out of your actual-hours totals rather than scoring '
+                + 'it zero.</p>'
+                + '<p><strong>Move</strong> sends a session to another day; <strong>swap</strong> exchanges '
+                + 'two sessions’ days, which is what fits doing one in the other’s place. Only the date and '
+                + 'weekday cells change.</p>')
+
+            + section('Things the plan did not ask for',
+                '<p>An unplanned run, a hike, a meditation goes on a separate <strong>Extras</strong> sheet, '
+                + 'created the first time you use it, with a column saying whether it counts as training '
+                + 'load.</p>'
+                + '<p>They are kept out of the plan on purpose. Compliance means actual training divided by '
+                + 'planned training — twenty minutes of meditation is not twenty minutes of training, and '
+                + 'folding it in would make the one number the plan exists to produce meaningless.</p>')
+
+            + section('Offline, and how syncing works',
+                '<p>Logging never waits for a network. An entry is saved on the phone and shown immediately; '
+                + 'syncing then downloads the workbook <em>as it stands now</em>, replays the queue onto that '
+                + 'copy, and uploads.</p>'
+                + '<p>Replaying rather than uploading a locally edited copy is what stops the app overwriting '
+                + 'a change you made in Excel meanwhile. The upload also carries the version marker of the '
+                + 'copy it read, so if the file moved on in between, Dropbox refuses the write and the app '
+                + 'starts again on the newer version.</p>'
+                + '<p>The last workbook read is kept on the phone, so today’s session is readable with no '
+                + 'signal at all.</p>')
+
+            + section('Dropbox, and your privacy',
+                '<p>The app is a static page with no server behind it, so it signs in to Dropbox using PKCE — '
+                + 'a scheme designed for exactly that, where the app key is public by design and there is no '
+                + 'secret to leak. Your Dropbox tokens are stored on this phone and nowhere else.</p>'
+                + '<p>No account, no analytics, no backend. Your training data lives in your Dropbox and on '
+                + 'your phone.</p>')
+
+            + section('If something looks wrong',
+                '<p><strong>A logged duration came out wrong</strong> — Sheet setup, “Units in this workbook”. '
+                + 'A minutes column written as hours is the usual cause.</p>'
+                + '<p><strong>No sessions appear</strong> — Sheet setup: the date and sport columns both need '
+                + 'to be mapped.</p>'
+                + '<p><strong>Something is stuck on “waiting to sync”</strong> — Settings → Syncing → Sync now. '
+                + 'If it refuses, the workbook probably changed in Dropbox; syncing again resolves it.</p>'
+                + '<p><strong>An update has not arrived</strong> — close the app fully and reopen it. It caches '
+                + 'itself to work offline, so a new version is picked up on the next launch.</p>');
+    }
+
+    function renderVersionLog() {
+        $('versionEyebrow').textContent = 'Version ' + AmsVersion.CURRENT;
+        $('versionBody').innerHTML = AmsVersion.CHANGELOG.map((entry, index) =>
+            '<div class="settings-group">'
+            + '<h2>' + esc(entry.version) + (index === 0 ? ' · current' : '') + '</h2>'
+            + '<div class="card">'
+            + '<p class="workout-card-title">' + esc(entry.headline) + '</p>'
+            + '<p class="map-row-sub" style="margin-bottom:0.6rem">' + esc(entry.date) + '</p>'
+            + '<ul class="change-list">'
+            + entry.items.map((item) => '<li>' + esc(item) + '</li>').join('')
+            + '</ul></div></div>').join('');
     }
 
     /* ---------- sheet setup ---------- */
@@ -1592,6 +1730,8 @@ const AmsUi = (function () {
             const go = event.target.closest('[data-go]');
             if (go) {
                 if (go.dataset.go === 'setup') openSetup();
+                else if (go.dataset.go === 'guide') { renderGuide(); showScreen('guideScreen'); }
+                else if (go.dataset.go === 'version') { renderVersionLog(); showScreen('versionScreen'); }
                 else openTab(go.dataset.go);
             }
         });

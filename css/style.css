@@ -743,3 +743,62 @@ body.detail-open .tab-bar { display: none; }
     font-weight: 600;
     color: var(--color-text-secondary);
 }
+
+/* ---------- the guide ---------- */
+
+.guide-section {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    margin-bottom: 0.6rem;
+    overflow: hidden;
+}
+
+.guide-section > summary {
+    padding: 0.85rem 1rem;
+    font-size: 0.95rem;
+    font-weight: 650;
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.guide-section > summary::-webkit-details-marker { display: none; }
+
+/* A caret that turns, drawn rather than imported. */
+.guide-section > summary::before {
+    content: '';
+    flex-shrink: 0;
+    width: 0.42rem;
+    height: 0.42rem;
+    border-right: 2px solid var(--accent);
+    border-bottom: 2px solid var(--accent);
+    transform: rotate(-45deg);
+    transition: transform 0.15s ease;
+}
+
+.guide-section[open] > summary::before { transform: rotate(45deg); }
+.guide-section[open] > summary { color: var(--accent); }
+
+.guide-section .prose {
+    padding: 0 1rem 0.9rem;
+    border-top: 1px solid var(--color-border);
+    padding-top: 0.8rem;
+}
+
+.guide-section .prose p:last-child { margin-bottom: 0; }
+
+/* ---------- the version log ---------- */
+
+.change-list {
+    margin: 0;
+    padding-left: 1.05rem;
+    font-size: 0.86rem;
+    line-height: 1.55;
+    color: var(--color-text-secondary);
+}
+
+.change-list li { margin-bottom: 0.45rem; }
+.change-list li:last-child { margin-bottom: 0; }

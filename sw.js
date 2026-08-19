@@ -5,7 +5,11 @@
  * plan itself is already on the device in IndexedDB. Dropbox is deliberately
  * never cached — a stale workbook would be worse than no workbook.
  */
-const CACHE_NAME = 'ams-workout-sync-v1';
+// Named after the app version, so shipping a release retires the old cache
+// instead of leaving a phone on last week's code. Keep in step with
+// AmsVersion.CURRENT in js/version.js.
+const APP_VERSION = '1.4.0';
+const CACHE_NAME = 'ams-workout-sync-' + APP_VERSION;
 // Taken from the worker's own URL rather than hard-coded, so the app works
 // wherever it is published — any repository name, a project page, or localhost —
 // and a rename never leaves a stale path behind.
@@ -19,6 +23,7 @@ const SHELL = [
     'js/zip.js',
     'js/xlsx.js',
     'js/mapping.js',
+    'js/version.js',
     'js/plan.js',
     'js/extras.js',
     'js/dropbox.js',
