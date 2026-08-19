@@ -222,6 +222,40 @@ const AmsSync = (function () {
         return logWorkout(workout, { missed: true, notes: note || '' });
     }
 
+    /*
+     * Move a session to another day, and swap two sessions' days.
+     *
+     * A swap is simply two moves, which keeps the replay logic to one case and
+     * means a half-applied swap is still coherent.
+     */
+    async function rescheduleWorkout(workout, toDayKey) {
+        const state = getState();
+        const weekdayNames = await weekdayNamesFor(workout.sheet);
+        return logWorkout(workout, { moveTo: toDayKey, weekdayNames: weekdayNames });
+    }
+
+    async function swapWorkouts(a, b) {
+        // Both days must be read before either move: queueing the first one
+        // immediately rewrites a.dayKey on the plan so the move shows straight
+        // away, and reading it afterwards would send both sessions to the same
+        // day instead of exchanging them.
+        const aDay = a.dayKey;
+        const bDay = b.dayKey;
+        const first = await rescheduleWorkout(a, bDay);
+        const second = await rescheduleWorkout(b, aDay);
+        return [first, second];
+    }
+
+    async function weekdayNamesFor(sheetName) {
+        if (!state.workbook || !state.mapping) return {};
+        try {
+            const sheet = await state.workbook.readSheet(sheetName);
+            return AmsPlan.learnWeekdayNames(sheet, state.mapping);
+        } catch (err) {
+            return {};
+        }
+    }
+
     /* Show queued entries on the plan as though they were already in the file. */
     async function overlayQueue() {
         const queued = await AmsDb.listQueue();
@@ -231,11 +265,26 @@ const AmsSync = (function () {
         for (const workout of state.plan) {
             const entry = matchEntry(queued, workout);
             workout.pending = null;
-            if (entry) {
-                workout.pending = entry;
+            workout.movedTo = null;
+            if (!entry) continue;
+
+            workout.pending = entry;
+
+            // A queued move should show on the day it was moved to, not the day
+            // the sheet still says, or the app would look like it ignored you.
+            if (entry.values && entry.values.moveTo) {
+                const moved = AmsPlan.parseDayKey(entry.values.moveTo);
+                if (moved) {
+                    workout.date = moved;
+                    workout.dayKey = entry.values.moveTo;
+                    workout.movedTo = entry.values.moveTo;
+                }
+            } else {
                 workout.logged = true;
             }
         }
+
+        state.plan.sort((a, b) => (a.date - b.date) || a.row - b.row);
         return queued;
     }
 
@@ -480,6 +529,8 @@ const AmsSync = (function () {
         loadFromFile,
         logWorkout,
         markMissed,
+        rescheduleWorkout,
+        swapWorkouts,
         overlayQueue,
         sync,
         persistWorkbookEdits,

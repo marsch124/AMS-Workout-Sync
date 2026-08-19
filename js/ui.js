@@ -67,7 +67,7 @@ const AmsUi = (function () {
 
     /* ---------- navigation ---------- */
 
-    const DETAIL_SCREENS = new Set(['workoutScreen', 'logScreen', 'setupScreen']);
+    const DETAIL_SCREENS = new Set(['workoutScreen', 'logScreen', 'setupScreen', 'rescheduleScreen']);
     const history_ = [];
 
     function showScreen(id, options) {
@@ -123,7 +123,9 @@ const AmsUi = (function () {
         const mapping = AmsSync.getState().mapping || {};
 
         if (workout.pending) {
-            return workout.pending.values && workout.pending.values.missed
+            const values = workout.pending.values || {};
+            if (values.moveTo) return { kind: 'moved', pending: true, label: 'Moved — waiting to sync' };
+            return values.missed
                 ? { kind: 'missed', pending: true, label: 'Missed — waiting to sync' }
                 : { kind: 'logged', pending: true, label: 'Waiting to sync' };
         }
@@ -264,6 +266,7 @@ const AmsUi = (function () {
                         + (statusOf(workout) && statusOf(workout).kind === 'logged' ? 'Log again' : 'Log this session')
                         + '</button>'
                         + '<button class="btn btn-small" data-missed="' + esc(workout.key) + '">Missed</button>'
+                        + '<button class="btn btn-small" data-move="' + esc(workout.key) + '">Move</button>'
                       + '</div>')
                 + '</div>';
         }).join('');
@@ -398,6 +401,9 @@ const AmsUi = (function () {
                     + esc(workout.planned.description) + '</p></div>'
                 : '')
             + logged
+            + (workout.discipline.id === 'rest' ? ''
+                : '<button class="btn btn-block" data-move="' + esc(workout.key) + '" style="margin-top:0.6rem">'
+                    + 'Move to another day</button>')
             + '<p class="hint-inline">From <strong>' + esc(workout.sheet) + '</strong>, row ' + workout.row + '.</p>'
             + '</div>';
 
@@ -632,6 +638,124 @@ const AmsUi = (function () {
             renderPlan();
         } catch (err) {
             toast(err.message || 'That could not be saved.', 'bad');
+        }
+    }
+
+    /* ---------- rescheduling ---------- */
+
+    let rescheduleTarget = null;
+
+    /*
+     * Two ways to move a session, because there are two situations. Either it
+     * simply happens on a different day (move it), or you did today's other
+     * session instead and the two want exchanging (swap them). A swap keeps the
+     * week's shape intact, which is usually what a training plan wants.
+     */
+    function openReschedule(key) {
+        const workout = key ? AmsSync.byKey(key) : currentWorkout;
+        if (!workout) return;
+        rescheduleTarget = workout;
+
+        const state = AmsSync.getState();
+        if (!state.mapping || !state.mapping.columns.date) {
+            toast('The date column is not mapped, so sessions cannot be moved.', 'bad');
+            return;
+        }
+
+        $('rescheduleEyebrow').textContent = workout.discipline.label + ' · ' + shortDay(workout.date);
+
+        // Candidates to swap with: nearby sessions, nearest first.
+        const here = Date.parse(workout.dayKey + 'T00:00:00Z');
+        const nearby = state.plan
+            .filter((w) => w.key !== workout.key && w.discipline.id !== 'rest')
+            .map((w) => ({ w: w, gap: Math.round((Date.parse(w.dayKey + 'T00:00:00Z') - here) / 86400000) }))
+            .filter((c) => Math.abs(c.gap) <= 10)
+            .sort((a, b) => Math.abs(a.gap) - Math.abs(b.gap) || a.gap - b.gap)
+            .slice(0, 12);
+
+        $('rescheduleBody').innerHTML =
+            '<div class="card workout-card" ' + sportStyle(workout) + '>'
+            + '<p class="workout-card-sport">' + esc(workout.discipline.label) + '</p>'
+            + '<p class="workout-card-title">' + esc(workout.title) + '</p>'
+            + '<div class="workout-card-meta"><span class="pill">' + esc(longDay(workout.date)) + '</span></div>'
+            + '</div>'
+
+            + '<div class="settings-group"><h2>Move it to</h2>'
+            + '<div class="field"><label for="moveToDate">New day</label>'
+            + '<input id="moveToDate" type="date" value="' + esc(workout.dayKey) + '"></div>'
+            + '<button class="btn btn-primary btn-block" id="doMoveButton">Move the session</button>'
+            + '<p class="hint-inline">Only the date is rewritten. The session keeps its place in every weekly '
+            + 'total, because your sheet counts by week number and sport, never by date.</p>'
+            + '</div>'
+
+            + (nearby.length
+                ? '<div class="settings-group"><h2>Or swap it with</h2>'
+                    + '<div class="prose"><p>Exchanges the two days — for when you did one session in the '
+                    + 'other\u2019s place.</p></div>'
+                    + nearby.map((c) =>
+                        '<button class="file-option" data-swap="' + esc(c.w.key) + '">'
+                        + esc(c.w.discipline.label) + ' — ' + esc(c.w.title.slice(0, 46))
+                        + '<small>' + esc(shortDay(c.w.date))
+                        + (c.gap === 0 ? ' · same day' : c.gap > 0 ? ' · in ' + c.gap + ' day' + (c.gap === 1 ? '' : 's')
+                            : ' · ' + (-c.gap) + ' day' + (c.gap === -1 ? '' : 's') + ' ago')
+                        + '</small></button>').join('')
+                    + '</div>'
+                : '');
+
+        $('doMoveButton').addEventListener('click', doMove);
+        showScreen('rescheduleScreen');
+    }
+
+    async function doMove() {
+        if (!rescheduleTarget) return;
+        const value = $('moveToDate').value;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+            toast('Pick a day first.', 'bad');
+            return;
+        }
+        if (value === rescheduleTarget.dayKey) {
+            toast('That is the day it is already on.', 'bad');
+            return;
+        }
+
+        const button = $('doMoveButton');
+        button.disabled = true;
+        try {
+            await AmsSync.rescheduleWorkout(rescheduleTarget, value);
+            toast('Moved to ' + longDay(AmsPlan.parseDayKey(value)) + '.', 'good');
+            afterReschedule();
+        } catch (err) {
+            toast(err.message || 'That could not be moved.', 'bad');
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    async function doSwap(otherKey) {
+        const other = AmsSync.byKey(otherKey);
+        if (!rescheduleTarget || !other) return;
+
+        if (!confirm('Swap these two?\n\n' + rescheduleTarget.discipline.label + ' \u2192 '
+            + shortDay(other.date) + '\n' + other.discipline.label + ' \u2192 '
+            + shortDay(rescheduleTarget.date))) return;
+
+        try {
+            await AmsSync.swapWorkouts(rescheduleTarget, other);
+            toast('Swapped.', 'good');
+            afterReschedule();
+        } catch (err) {
+            toast(err.message || 'That could not be swapped.', 'bad');
+        }
+    }
+
+    function afterReschedule() {
+        goBack();
+        renderToday();
+        renderPlan();
+        const active = document.querySelector('.screen.active');
+        if (active && active.id === 'workoutScreen' && rescheduleTarget) {
+            const refreshed = AmsSync.byKey(rescheduleTarget.key);
+            if (refreshed) openWorkout(refreshed.key);
         }
     }
 
@@ -1197,7 +1321,8 @@ const AmsUi = (function () {
 
         document.body.addEventListener('click', (event) => {
             const card = event.target.closest('[data-workout]');
-            if (card && !event.target.closest('[data-log]') && !event.target.closest('[data-missed]')) {
+            if (card && !event.target.closest('[data-log]') && !event.target.closest('[data-missed]')
+                && !event.target.closest('[data-move]') && !event.target.closest('[data-swap]')) {
                 openWorkout(card.dataset.workout);
                 return;
             }
@@ -1206,6 +1331,12 @@ const AmsUi = (function () {
 
             const missed = event.target.closest('[data-missed]');
             if (missed) { markMissed(missed.dataset.missed); return; }
+
+            const move = event.target.closest('[data-move]');
+            if (move) { openReschedule(move.dataset.move); return; }
+
+            const swap = event.target.closest('[data-swap]');
+            if (swap) { doSwap(swap.dataset.swap); return; }
 
             const go = event.target.closest('[data-go]');
             if (go) {

@@ -19,6 +19,9 @@ existing cells.
   which column it writes to.
 - **Missed** — a session that did not happen is marked as such in one tap, writing
   only the missed marker and leaving every metric cell untouched.
+- **Move** — a session can be moved to another day, or swapped with another one
+  when you did the two the other way round. Only the date and weekday cells are
+  rewritten, and the weekday is spelled the way your sheet already spells it.
 - **Sheet setup** — the app works out which column is which from your headings, in
   English or German, and lets you correct the guess once. If you want to record
   something the sheet has no column for, it appends one — headed and formatted like

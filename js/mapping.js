@@ -25,6 +25,11 @@ const AmsMapping = (function () {
         // --- what is planned ---
         { id: 'date', label: 'Date', group: 'plan', required: true,
           synonyms: ['date', 'datum', 'day', 'tag', 'when', 'workout date', 'trainingstag'] },
+        // Sits next to the date and repeats it in words. Worth knowing about only
+        // so that a rescheduled session does not end up dated Thursday and
+        // labelled "Wed".
+        { id: 'weekday', label: 'Weekday', group: 'plan',
+          synonyms: ['day', 'weekday', 'tag', 'wochentag', 'week day'] },
         { id: 'discipline', label: 'Discipline', group: 'plan', required: true,
           synonyms: ['discipline', 'sport', 'sportart', 'activity', 'aktivitat', 'type', 'art',
                      'workout type', 'trainingsart', 'disziplin'] },

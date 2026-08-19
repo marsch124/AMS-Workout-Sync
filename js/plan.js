@@ -250,6 +250,28 @@ const AmsPlan = (function () {
         return seen > 0 && hits >= seen / 2;
     }
 
+    /*
+     * How this sheet spells its weekdays. Rather than assume English, or guess
+     * from the phone's locale, read the pairs the sheet already contains: a
+     * plan with a row for every day tells us all seven soon enough.
+     */
+    function learnWeekdayNames(sheet, mapping) {
+        const names = {};
+        const dateCol = mapping.columns.date;
+        const dayCol = mapping.columns.weekday;
+        if (!dateCol || !dayCol) return names;
+
+        const last = Math.min(mapping.lastDataRow || sheet.maxRow, mapping.firstDataRow + 400);
+        for (let r = mapping.firstDataRow; r <= last; r++) {
+            const date = readDate(sheet, r, dateCol);
+            const text = sheet.textAt(r, dayCol);
+            if (!date || !text) continue;
+            const index = date.getUTCDay();
+            if (names[index] === undefined) names[index] = text;
+        }
+        return names;
+    }
+
     /* ---------- building the plan ---------- */
 
     function cellText(sheet, row, col) {
@@ -583,6 +605,24 @@ const AmsPlan = (function () {
         }
 
         /*
+         * Rescheduling only restates when the session happens. Nothing in a
+         * plan of this shape keys on the date — totals key on the week number,
+         * the sport, or fixed row ranges — so this is descriptive, and the
+         * session keeps its place in every figure it was already counted in.
+         */
+        if (entry.moveTo) {
+            const moved = parseDayKey(entry.moveTo);
+            if (moved) {
+                push('date', 'date', moved);
+                if (columns.weekday && entry.weekdayNames) {
+                    const name = entry.weekdayNames[moved.getUTCDay()];
+                    if (name) push('weekday', 'text', name);
+                }
+            }
+            return edits;
+        }
+
+        /*
          * A missed session has no numbers to record — only the fact of it. It
          * writes the missed marker (and a note, if one was given) and leaves
          * every metric cell exactly as it was.
@@ -630,6 +670,13 @@ const AmsPlan = (function () {
         return edits;
     }
 
+    /* "2026-08-20" -> a UTC-anchored Date, matching how dates are read in. */
+    function parseDayKey(key) {
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(key || '').trim());
+        if (!m) return null;
+        return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    }
+
     /* "4:52" or "4:52 /km" -> seconds per unit. */
     function parsePace(input) {
         const m = /(\d+):([0-5]?\d)/.exec(String(input || ''));
@@ -667,6 +714,8 @@ const AmsPlan = (function () {
         FIELD_PREFERENCE,
         classifyDiscipline,
         classifySection,
+        learnWeekdayNames,
+        parseDayKey,
         parseDuration,
         formatDuration,
         formatClock,
