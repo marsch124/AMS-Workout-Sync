@@ -20,7 +20,9 @@ existing cells.
 - **Missed** — a session that did not happen is marked as such in one tap, writing
   only the missed marker and leaving every metric cell untouched.
 - **Sheet setup** — the app works out which column is which from your headings, in
-  English or German, and lets you correct the guess once.
+  English or German, and lets you correct the guess once. If you want to record
+  something the sheet has no column for, it appends one — headed and formatted like
+  the columns already there, and sized to suit what goes in it.
 
 ## Install it
 

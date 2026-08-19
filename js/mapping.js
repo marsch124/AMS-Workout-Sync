@@ -393,10 +393,30 @@ const AmsMapping = (function () {
      * right of the sheet. Used when a plan has no "actual" columns at all.
      * Returns the cell edits needed to write the new headings.
      */
+    /*
+     * Give unmapped result fields a home by appending columns to the right of
+     * the sheet. The new headings borrow the style of the existing ones, so an
+     * added column looks like it was always there rather than like something
+     * bolted on.
+     *
+     * Returns the cell edits, and the columns that were added with the width
+     * each wants.
+     */
     function appendResultColumns(mapping, sheet, fieldIds) {
         const used = new Set(Object.values(mapping.columns));
         let next = Math.max(sheet.maxCol, ...used, 1) + 1;
+
+        // The look of the rightmost heading, to copy onto the new ones.
+        let headerStyle = -1;
+        const headerCells = readRow(sheet, mapping.headerRow);
+        if (headerCells.length) {
+            const last = sheet.cell(mapping.headerRow, headerCells[headerCells.length - 1].col);
+            if (last) headerStyle = last.styleIndex;
+        }
+
         const edits = [];
+        const added = [];
+
         for (const id of fieldIds) {
             const field = FIELD_BY_ID.get(id);
             if (!field || mapping.columns[id]) continue;
@@ -404,11 +424,15 @@ const AmsMapping = (function () {
             edits.push({
                 ref: AmsXlsx.makeRef(next, mapping.headerRow),
                 kind: 'text',
+                styleIndex: headerStyle,
                 value: field.unit ? field.label + ' (' + field.unit + ')' : field.label
             });
+            // Free text needs room; a number does not.
+            added.push({ id: id, col: next, width: field.kind === 'text' ? 44 : 14 });
             next++;
         }
-        return edits;
+
+        return { edits: edits, added: added };
     }
 
     return {

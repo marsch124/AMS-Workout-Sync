@@ -932,13 +932,16 @@ const AmsUi = (function () {
 
         const headings = AmsMapping.headingsFor(setupSheet, draft);
 
-        function columnSelect(fieldId) {
+        function columnSelect(fieldId, canAdd) {
             const selected = draft.columns[fieldId] || '';
             const options = ['<option value="">— not in my sheet —</option>'].concat(
                 headings.map((h) =>
                     '<option value="' + h.col + '"' + (Number(selected) === h.col ? ' selected' : '') + '>'
                     + esc(h.letter + (h.heading ? ': ' + h.heading : ''))
                     + '</option>'));
+            // Offered only where there is nothing to point at yet: picking it
+            // appends a single new column rather than all the missing ones.
+            if (canAdd && !selected) options.push('<option value="new">＋ add a column for this</option>');
             return '<select data-map="' + fieldId + '">' + options.join('') + '</select>';
         }
 
@@ -950,7 +953,7 @@ const AmsUi = (function () {
                 + (sample ? '<div class="map-row-sub">e.g. ' + esc(sample) + '</div>'
                           : field.unit ? '<div class="map-row-sub">' + esc(field.unit) + '</div>' : '')
                 + '</div>'
-                + columnSelect(field.id) + '</div>';
+                + columnSelect(field.id, field.group === 'result') + '</div>';
         }
 
         const byGroup = (group) => AmsMapping.FIELDS.filter((f) => f.group === group);
@@ -987,9 +990,11 @@ const AmsUi = (function () {
             + '<div class="prose"><p>These are the cells the app writes into after a session.</p></div>'
             + byGroup('result').map(fieldRow).join('')
             + (unmappedResults.length
-                ? '<button class="btn btn-small btn-block" id="addColumnsButton" style="margin-top:0.7rem">'
-                    + 'Add ' + unmappedResults.length + ' missing column' + (unmappedResults.length === 1 ? '' : 's') + ' to the sheet</button>'
-                    + '<p class="hint-inline">Appends new headed columns to the right of your sheet for the results that have nowhere to go.</p>'
+                ? '<p class="hint-inline" style="margin-top:0.7rem">To record something your sheet has no column for — '
+                    + 'notes, say — pick <strong>＋ add a column for this</strong> above and one is appended, '
+                    + 'headed and formatted like your existing columns.</p>'
+                    + '<button class="btn btn-small btn-block" id="addColumnsButton" style="margin-top:0.5rem">'
+                    + 'Or add all ' + unmappedResults.length + ' missing columns</button>'
                 : '')
             + '</div>'
 
@@ -1040,13 +1045,29 @@ const AmsUi = (function () {
     }
 
     async function onAddColumns() {
-        const state = AmsSync.getState();
         const missing = AmsMapping.RESULT_FIELDS.filter((id) => !setupDraft.columns[id]);
-        const edits = AmsMapping.appendResultColumns(setupDraft, setupSheet, missing);
-        if (!edits.length) return;
+        await addColumnsFor(missing);
+    }
+
+    /*
+     * Append columns to the sheet for the given result fields, style their
+     * headings like the existing ones and give them a usable width.
+     */
+    async function addColumnsFor(fieldIds) {
+        const state = AmsSync.getState();
+        if (!state.workbook || !fieldIds.length) return;
+
+        const result = AmsMapping.appendResultColumns(setupDraft, setupSheet, fieldIds);
+        if (!result.edits.length) return;
+
         try {
-            await state.workbook.writeCells(setupDraft.sheets[0], edits);
-            toast('Columns added — save the layout to keep them.', 'good');
+            await state.workbook.writeCells(setupDraft.sheets[0], result.edits);
+            for (const column of result.added) {
+                await state.workbook.setColumnWidth(setupDraft.sheets[0], column.col, column.width);
+            }
+            const names = result.added
+                .map((c) => AmsMapping.FIELD_BY_ID.get(c.id).label + ' (' + AmsXlsx.indexToCol(c.col) + ')');
+            toast('Added ' + names.join(', ') + ' — save the layout to keep it.', 'good');
             await renderSetup();
         } catch (err) {
             toast(err.message, 'bad');
@@ -1084,6 +1105,10 @@ const AmsUi = (function () {
         }
 
         if (target.dataset.map) {
+            if (target.value === 'new') {
+                await addColumnsFor([target.dataset.map]);
+                return;
+            }
             const value = target.value ? parseInt(target.value, 10) : null;
             if (value) setupDraft.columns[target.dataset.map] = value;
             else delete setupDraft.columns[target.dataset.map];

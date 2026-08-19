@@ -386,8 +386,12 @@ const AmsXlsx = (function () {
         buildCell(pos, edit, existing) {
             const ref = makeRef(pos.col, pos.row);
             // Keep whatever formatting the cell already carried, so a value
-            // typed into a "1:23:45" column still shows as a duration.
-            const styleIndex = existing && existing.styleIndex >= 0 ? existing.styleIndex : -1;
+            // typed into a "1:23:45" column still shows as a duration. A cell
+            // that does not exist yet can be given one — that is how an
+            // appended column gets a header that matches the others.
+            const styleIndex = existing && existing.styleIndex >= 0
+                ? existing.styleIndex
+                : (typeof edit.styleIndex === 'number' && edit.styleIndex >= 0 ? edit.styleIndex : -1);
             const s = styleIndex >= 0 ? ' s="' + styleIndex + '"' : '';
 
             if (edit.kind === 'blank' || edit.value === null || edit.value === undefined || edit.value === '') {
@@ -541,6 +545,44 @@ const AmsXlsx = (function () {
             const start = parts.length > 1 ? parts[0] : 'A1';
             const widened = start + ':' + makeRef(Math.max(end.col, maxCol), Math.max(end.row, maxRow));
             return xml.replace(m[0], '<dimension ref="' + widened + '"/>');
+        }
+
+        /*
+         * Give a column an explicit width. A notes column left at the default
+         * eight characters is not much use for notes.
+         */
+        async setColumnWidth(sheetName, col, width) {
+            const meta = this.findSheet(sheetName);
+            if (!meta) return;
+            let xml = await this.archive.text(meta.path);
+            if (!xml) return;
+
+            const entry = '<col min="' + col + '" max="' + col + '" width="' + width + '" customWidth="1"/>';
+            const openIdx = xml.indexOf('<cols');
+
+            if (openIdx === -1) {
+                // No <cols> block at all: it must sit between sheetFormatPr and
+                // sheetData, or Excel rejects the file.
+                const at = xml.indexOf('<sheetData');
+                if (at === -1) return;
+                xml = xml.slice(0, at) + '<cols>' + entry + '</cols>' + xml.slice(at);
+            } else {
+                const existing = new RegExp('<col[^>]*\\smin="' + col + '"[^>]*/>');
+                if (existing.test(xml)) {
+                    xml = xml.replace(existing, entry);
+                } else {
+                    const openEnd = xml.indexOf('>', openIdx);
+                    if (xml[openEnd - 1] === '/') {
+                        xml = xml.slice(0, openEnd - 1) + '>' + entry + '</cols>' + xml.slice(openEnd + 1);
+                    } else {
+                        xml = xml.slice(0, openEnd + 1) + entry + xml.slice(openEnd + 1);
+                    }
+                }
+            }
+
+            this.archive.set(meta.path, xml);
+            this.dirtySheets.add(sheetName);
+            this.sheetCache.delete(sheetName);
         }
 
         get isDirty() {
