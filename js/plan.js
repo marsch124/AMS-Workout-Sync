@@ -33,16 +33,30 @@ const AmsPlan = (function () {
                      'rumpf', 'stabilisation', 'stabi', 'athletik'] }
     ];
 
+    /* A brick is listed before the single sports so that "Bike + Run" is read
+       as one session rather than as whichever word matched longest. */
+    const COMPOUND_DISCIPLINES = [
+        { id: 'brick', label: 'Brick', icon: 'bike', color: 'var(--sport-bike)',
+          synonyms: ['brick', 'bike run', 'bike + run', 'rad lauf', 'koppeltraining', 'koppel'] },
+        { id: 'race', label: 'Race', icon: 'other', color: 'var(--sport-race)',
+          synonyms: ['race', 'rennen', 'wettkampf', 'ironman', 'event', 'competition'] }
+    ];
+
+    /* A rest day is planned, shown, and never logged — there is nothing to log. */
+    const REST_DISCIPLINE = { id: 'rest', label: 'Rest', icon: 'check', color: 'var(--sport-rest)',
+        synonyms: ['rest', 'rest day', 'ruhetag', 'ruhe', 'pause', 'frei', 'off', 'day off', 'recovery day'] };
+
     const OTHER_DISCIPLINE = { id: 'other', label: 'Other', icon: 'other', color: 'var(--sport-other)', synonyms: [] };
 
-    const DISCIPLINE_BY_ID = new Map(DISCIPLINES.concat([OTHER_DISCIPLINE]).map((d) => [d.id, d]));
+    const ALL_DISCIPLINES = COMPOUND_DISCIPLINES.concat([REST_DISCIPLINE]).concat(DISCIPLINES);
+    const DISCIPLINE_BY_ID = new Map(ALL_DISCIPLINES.concat([OTHER_DISCIPLINE]).map((d) => [d.id, d]));
 
     function classifyDiscipline(raw) {
         const text = AmsMapping.normalise(raw);
         if (!text) return OTHER_DISCIPLINE;
         let best = null;
         let bestLen = 0;
-        for (const discipline of DISCIPLINES) {
+        for (const discipline of ALL_DISCIPLINES) {
             for (const synonym of discipline.synonyms) {
                 const s = AmsMapping.normalise(synonym);
                 if (!s) continue;
@@ -61,16 +75,22 @@ const AmsPlan = (function () {
      */
     const FIELD_PREFERENCE = {
         swim:       ['actualDuration', 'actualDistance', 'avgPace', 'avgHr', 'maxHr', 'rpe', 'calories', 'notes'],
-        bike:       ['actualDuration', 'actualDistance', 'avgSpeed', 'avgPower', 'avgHr', 'maxHr', 'cadence', 'elevation', 'rpe', 'calories', 'notes'],
+        bike:       ['actualDuration', 'actualDistance', 'avgPace', 'avgSpeed', 'avgPower', 'avgHr', 'maxHr', 'cadence', 'elevation', 'rpe', 'calories', 'notes'],
         run:        ['actualDuration', 'actualDistance', 'avgPace', 'avgHr', 'maxHr', 'cadence', 'elevation', 'rpe', 'calories', 'notes'],
         strength:   ['actualDuration', 'rpe', 'avgHr', 'calories', 'notes'],
         mobility:   ['actualDuration', 'rpe', 'notes'],
         stretching: ['actualDuration', 'rpe', 'notes'],
-        other:      ['actualDuration', 'actualDistance', 'avgHr', 'maxHr', 'rpe', 'calories', 'notes']
+        other:      ['actualDuration', 'actualDistance', 'avgHr', 'maxHr', 'rpe', 'calories', 'notes'],
+        // A single column headed "Avg Pace/Pwr" serves both, so a ride must be
+        // offered the pace field too or that column is unreachable on the bike.
+        brick:      ['actualDuration', 'actualDistance', 'avgPace', 'avgSpeed', 'avgPower', 'avgHr', 'maxHr', 'rpe', 'calories', 'notes'],
+        race:       ['actualDuration', 'actualDistance', 'avgPace', 'avgHr', 'maxHr', 'rpe', 'calories', 'notes'],
+        rest:       []
     };
 
     /* The unit a distance is entered in, per discipline — swimmers count metres. */
-    const DEFAULT_DISTANCE_UNIT = { swim: 'm', bike: 'km', run: 'km', other: 'km', strength: 'km', mobility: 'km', stretching: 'km' };
+    const DEFAULT_DISTANCE_UNIT = { swim: 'm', bike: 'km', run: 'km', other: 'km', strength: 'km',
+        mobility: 'km', stretching: 'km', brick: 'km', race: 'km', rest: 'km' };
 
     const SECTION_ORDER = ['warmup', 'intervals', 'technique', 'cooldown'];
     const SECTION_LABELS = {
@@ -156,12 +176,35 @@ const AmsPlan = (function () {
     }
 
     /*
+     * The most reliable statement of a column's unit is the heading, which
+     * routinely says so outright: "Duration (min)", "Actual (h)". Worth trying
+     * before guessing from the numbers — and essential for a results column
+     * that is still empty, where there are no numbers to guess from.
+     */
+    function unitFromHeading(heading) {
+        const text = AmsMapping.normalise(heading);
+        if (!text) return null;
+        if (/\b(min|mins|minute|minutes|minuten)\b/.test(text)) return 'minutes';
+        if (/\b(h|hr|hrs|hour|hours|std|stunden)\b/.test(text)) return 'hours';
+        if (/\b(hh|hh mm|hh mm ss|h mm)\b/.test(text)) return 'time';
+        return null;
+    }
+
+    function distanceUnitFromHeading(heading) {
+        const text = AmsMapping.normalise(heading);
+        if (!text) return null;
+        if (/\b(km|kilometer|kilometre|kilometers|kilometres)\b/.test(text)) return 'km';
+        if (/\b(m|meter|metre|meters|metres|meilen)\b/.test(text)) return 'm';
+        return null;
+    }
+
+    /*
      * Decide how a duration column stores its numbers, by looking at what is
      * already in it. A column of Excel time values is unmistakable; otherwise
      * values that cluster above 10 are minutes and below are hours.
      */
-    function inferDurationUnit(workbook, sheet, col, mapping) {
-        if (!col) return 'hours';
+    function inferDurationUnitFromData(workbook, sheet, col, mapping) {
+        if (!col) return null;
         const samples = [];
         let timeFormatted = 0;
         const last = Math.min(mapping.lastDataRow || sheet.maxRow, mapping.firstDataRow + 200);
@@ -172,21 +215,21 @@ const AmsPlan = (function () {
             if (typeof cell.number === 'number' && cell.number > 0) samples.push(cell.number);
         }
         if (timeFormatted >= 1 && timeFormatted >= samples.length / 2) return 'time';
-        if (!samples.length) return 'hours';
+        if (!samples.length) return null;
         samples.sort((a, b) => a - b);
         const median = samples[Math.floor(samples.length / 2)];
         return median >= 10 ? 'minutes' : 'hours';
     }
 
-    function inferDistanceUnit(sheet, col, mapping, disciplineId) {
-        if (!col) return DEFAULT_DISTANCE_UNIT[disciplineId] || 'km';
+    function inferDistanceUnitFromData(sheet, col, mapping) {
+        if (!col) return null;
         const samples = [];
         const last = Math.min(mapping.lastDataRow || sheet.maxRow, mapping.firstDataRow + 200);
         for (let r = mapping.firstDataRow; r <= last; r++) {
             const cell = sheet.cell(r, col);
             if (cell && typeof cell.number === 'number' && cell.number > 0) samples.push(cell.number);
         }
-        if (!samples.length) return DEFAULT_DISTANCE_UNIT[disciplineId] || 'km';
+        if (!samples.length) return null;
         samples.sort((a, b) => a - b);
         const median = samples[Math.floor(samples.length / 2)];
         return median >= 400 ? 'm' : 'km';
@@ -247,9 +290,16 @@ const AmsPlan = (function () {
             if (text) sections.push({ kind: id, label: SECTION_LABELS[id], text });
         }
         if (!sections.length) {
+            // No section columns: fall back to whatever prose the row has, and
+            // label it with that column's own heading ("Purpose", "Details")
+            // rather than a generic word, so it reads as it does in the sheet.
             const text = cellText(sheet, row, mapping.columns.description)
                 || cellText(sheet, row, mapping.columns.title);
-            if (text) sections.push({ kind: 'main', label: SECTION_LABELS.main, text });
+            if (text) {
+                const heading = mapping.columns.description
+                    ? sheet.textAt(mapping.headerRow, mapping.columns.description) : '';
+                sections.push({ kind: 'main', label: heading || SECTION_LABELS.main, text, fromDescription: true });
+            }
         }
         return sections;
     }
@@ -305,7 +355,18 @@ const AmsPlan = (function () {
                 const anyContent = disciplineRaw || title
                     || SECTION_ORDER.some((id) => cellText(sheet, row, mapping.columns[id]))
                     || cellText(sheet, row, mapping.columns.description);
-                if (!date || !anyContent) { if (!anyContent) group = null; continue; }
+
+                // A session must name a sport. Plans are full of rows that
+                // carry text but are not workouts — "Weekly total", phase
+                // banners, blank spacers — and every one of them would
+                // otherwise become a phantom session on the day above it.
+                // (In one-row-per-section mode the sport may sit only on the
+                // group's first row, so continuation rows are exempt.)
+                const needsDiscipline = mapping.mode !== 'section-rows';
+                if (!date || !anyContent || (needsDiscipline && !disciplineRaw)) {
+                    if (!anyContent) group = null;
+                    continue;
+                }
 
                 if (mapping.mode === 'section-rows') {
                     const key = AmsXlsx.dayKey(date) + '|' + AmsMapping.normalise(disciplineRaw || (group && group.disciplineRaw) || '');
@@ -389,24 +450,82 @@ const AmsPlan = (function () {
     }
 
     /*
+     * What should be written to mark a session complete?
+     *
+     * "Yes" is a fair default but a wrong one for any plan that counts its
+     * completions, because COUNTIFS matches the criterion literally — write
+     * "Yes" into a sheet whose dashboard counts "✓" and the tally silently
+     * stays at zero. So ask the workbook: scan its formulas for COUNTIF/SUMIFS
+     * criteria applied to the done column and adopt the affirmative one.
+     */
+    const AFFIRMATIVE = ['\u2713', '\u2714', '\u2705', 'x', 'yes', 'y', 'ja', 'done', 'ok',
+                         'erledigt', 'fertig', 'complete', 'completed', 'true', '1'];
+
+    async function detectDoneValue(workbook, mapping) {
+        const col = mapping.columns && mapping.columns.done;
+        if (!col) return null;
+
+        const letter = AmsXlsx.indexToCol(col);
+        const found = [];
+
+        for (const meta of workbook.sheets) {
+            let sheet;
+            try {
+                sheet = await workbook.readSheet(meta.name);
+            } catch (err) {
+                continue;
+            }
+            for (const [, row] of sheet.rows) {
+                for (const [, cell] of row) {
+                    if (!cell.formula || cell.formula.indexOf('COUNTIF') === -1) continue;
+                    // ...'Weekly Schedules'!$K:$K,"✓"...
+                    const re = new RegExp('\\$' + letter + '(?::\\$' + letter + ')?\\s*,\\s*"([^"]{1,24})"', 'g');
+                    let m;
+                    while ((m = re.exec(cell.formula))) found.push(m[1]);
+                }
+            }
+        }
+
+        if (!found.length) return null;
+        for (const candidate of found) {
+            if (AFFIRMATIVE.indexOf(candidate.toLowerCase()) !== -1) return candidate;
+        }
+        return null;
+    }
+
+    /*
      * Units for this workbook, inferred once and then stored in the mapping so
      * the guess is stable (and correctable on the setup screen).
      */
     async function inferUnits(workbook, mapping) {
         const sheet = await workbook.readSheet(mapping.sheets[0]);
         const units = Object.assign({ duration: 'auto', distance: 'auto', paceIsTime: null }, mapping.units || {});
+        const heading = (col) => (col ? sheet.textAt(mapping.headerRow, col) : '');
 
         if (units.duration === 'auto') {
-            const col = mapping.columns.actualDuration || mapping.columns.plannedDuration;
-            units.duration = inferDurationUnit(workbook, sheet, col, mapping);
+            // Headings first — and note the results column is consulted before
+            // the planned one, since that is where values will be written.
+            units.duration = unitFromHeading(heading(mapping.columns.actualDuration))
+                || unitFromHeading(heading(mapping.columns.plannedDuration))
+                // Then the data. A results column is usually empty on day one,
+                // so fall through to the planned column when it tells us nothing.
+                || inferDurationUnitFromData(workbook, sheet, mapping.columns.actualDuration, mapping)
+                || inferDurationUnitFromData(workbook, sheet, mapping.columns.plannedDuration, mapping)
+                || 'hours';
         }
+
         if (units.distance === 'auto') {
-            const col = mapping.columns.actualDistance || mapping.columns.plannedDistance;
-            units.distance = inferDistanceUnit(sheet, col, mapping, 'other');
+            units.distance = distanceUnitFromHeading(heading(mapping.columns.actualDistance))
+                || distanceUnitFromHeading(heading(mapping.columns.plannedDistance))
+                || inferDistanceUnitFromData(sheet, mapping.columns.actualDistance, mapping)
+                || inferDistanceUnitFromData(sheet, mapping.columns.plannedDistance, mapping)
+                || 'km';
         }
+
         if (units.paceIsTime === null) {
             units.paceIsTime = columnIsTimeFormatted(workbook, sheet, mapping.columns.avgPace, mapping);
         }
+
         mapping.units = units;
         return units;
     }
@@ -480,7 +599,7 @@ const AmsPlan = (function () {
         }
 
         if (entry.notes) push('notes', 'text', String(entry.notes).trim());
-        if (columns.done) push('done', 'text', entry.doneLabel || 'Yes');
+        if (columns.done) push('done', 'text', entry.doneLabel || mapping.doneValue || 'Yes');
         if (columns.completedAt) push('completedAt', 'date', entry.completedAt ? new Date(entry.completedAt) : new Date());
 
         return edits;
@@ -529,8 +648,11 @@ const AmsPlan = (function () {
         parsePace,
         build,
         inferUnits,
-        inferDurationUnit,
-        inferDistanceUnit,
+        detectDoneValue,
+        unitFromHeading,
+        distanceUnitFromHeading,
+        inferDurationUnitFromData,
+        inferDistanceUnitFromData,
         columnIsTimeFormatted,
         durationToCell,
         durationFromCell,

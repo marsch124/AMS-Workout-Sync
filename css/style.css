@@ -32,6 +32,8 @@
     --sport-stretch: #d946ef;
     --sport-strength: #f59e0b;
     --sport-other: #8b5cf6;
+    --sport-rest: #64748b;   /* deliberately quiet — a rest day is not a session */
+    --sport-race: #ef4444;
 
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);

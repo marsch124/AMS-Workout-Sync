@@ -274,6 +274,10 @@ const AmsXlsx = (function () {
                 const styleIndex = parseInt(attr(attrs, 's') || '-1', 10);
                 const type = attr(attrs, 't') || 'n';
                 const hasFormula = content.indexOf('<f') !== -1;
+                // The formula text is kept, not just its presence: a plan's own
+                // COUNTIFS are the best evidence of what its "done" column
+                // expects to be filled in with.
+                const fMatch = hasFormula ? /<f(?:\s[^>]*)?>([\s\S]*?)<\/f>/.exec(content) : null;
 
                 const vMatch = /<v(?:\s[^>]*)?>([\s\S]*?)<\/v>/.exec(content);
                 const rawValue = vMatch ? unescapeXml(vMatch[1]) : '';
@@ -284,6 +288,7 @@ const AmsXlsx = (function () {
                     col: pos.col,
                     styleIndex,
                     hasFormula,
+                    formula: fMatch ? unescapeXml(fMatch[1]) : '',
                     type,
                     text: '',
                     number: null,

@@ -42,9 +42,9 @@ const AmsMapping = (function () {
           // Nothing as generic as "plan" here: it would swallow "Delta vs plan"
           // and any other column that merely mentions the word.
           synonyms: ['description', 'details', 'detail', 'beschreibung', 'inhalt', 'content',
-                     'ubung', 'vorgabe', 'aufgabe', 'programm'] },
+                     'ubung', 'vorgabe', 'aufgabe', 'programm', 'purpose', 'zweck', 'focus'] },
         { id: 'plannedIntensity', label: 'Planned intensity', group: 'plan',
-          synonyms: ['intensity', 'intensitat', 'zone', 'effort', 'target zone', 'zielzone',
+          synonyms: ['intensity', 'intensitat', 'zone', 'target zone', 'zielzone',
                      'belastung', 'target hr', 'ziel puls', 'target', 'ziel', 'pace target'] },
 
         // --- how the session breaks down ---
@@ -60,8 +60,11 @@ const AmsMapping = (function () {
         { id: 'technique', label: 'Technique', group: 'section',
           synonyms: ['technique', 'technik', 'drills', 'drill', 'form', 'technikubungen',
                      'skills', 'koordination'] },
+        // Deliberately narrow: "Phase" and "Block" name a stretch of the *plan*
+        // (Base 1, Build 2), not a section of a single session, and matching
+        // them would wrongly put the whole sheet into one-row-per-section mode.
         { id: 'sectionLabel', label: 'Section (one row each)', group: 'section',
-          synonyms: ['section', 'abschnitt', 'teil', 'phase', 'block', 'part'] },
+          synonyms: ['section', 'abschnitt', 'teil', 'part'] },
 
         // --- what the app writes back ---
         // `unit` labels the spreadsheet column, not the input box — durations are
@@ -69,7 +72,11 @@ const AmsMapping = (function () {
         { id: 'actualDuration', label: 'Duration', group: 'result', write: true, kind: 'duration',
           unit: 'hours', synonyms: ['actual duration', 'duration actual', 'ist dauer', 'dauer ist',
                      'real duration', 'tatsachliche dauer', 'actual time', 'ist zeit', 'gesamtzeit',
-                     'moving time', 'elapsed time'] },
+                     'moving time', 'elapsed time',
+                     // Plans commonly name the unit rather than the quantity:
+                     // "Actual (min)" folds to "actual min".
+                     'actual min', 'actual mins', 'actual minutes', 'actual h', 'actual hours',
+                     'actual hrs', 'ist min', 'ist minuten'] },
         { id: 'actualDistance', label: 'Distance', group: 'result', write: true, kind: 'number',
           unit: 'km', synonyms: ['actual distance', 'ist distanz', 'distanz ist', 'gelaufen',
                      'real distance', 'tatsachliche distanz', 'actual km'] },
@@ -175,24 +182,35 @@ const AmsMapping = (function () {
             if (cell.date) return null;   // a row with a real date in it is data
         }
 
-        // field id -> { col, score }
-        const claims = new Map();
-        let total = 0;
-
+        /*
+         * Assign headings to fields by best score overall, rather than letting
+         * each heading claim its own favourite and lose.
+         *
+         * Consider a sheet with both "Intensity" and "Effort": both match the
+         * planned-intensity field, "Intensity" more strongly. Claiming per
+         * heading meant "Effort" lost that contest and was then dropped
+         * altogether — even though it was the obvious match for RPE, which
+         * nothing else wanted. Scoring every pairing and taking them in
+         * descending order lets it fall through to its next-best field.
+         */
+        const pairs = [];
         for (const cell of cells) {
-            let bestField = null;
-            let bestScore = 0;
             for (const field of FIELDS) {
                 const score = scoreHeading(cell.text, field);
-                if (score > bestScore) { bestScore = score; bestField = field; }
+                if (score > 0) pairs.push({ col: cell.col, fieldId: field.id, score });
             }
-            if (!bestField || bestScore === 0) continue;
+        }
+        pairs.sort((a, b) => b.score - a.score);
 
-            const held = claims.get(bestField.id);
-            if (!held || bestScore > held.score) {
-                claims.set(bestField.id, { col: cell.col, score: bestScore });
-            }
-            total += bestScore;
+        const claims = new Map();
+        const takenColumns = new Set();
+        let total = 0;
+
+        for (const pair of pairs) {
+            if (claims.has(pair.fieldId) || takenColumns.has(pair.col)) continue;
+            claims.set(pair.fieldId, { col: pair.col, score: pair.score });
+            takenColumns.add(pair.col);
+            total += pair.score;
         }
 
         if (!claims.size) return null;
@@ -206,6 +224,31 @@ const AmsMapping = (function () {
        per week, say) that share the same layout. */
     function signatureOf(sheet, headerRow) {
         return readRow(sheet, headerRow).map((c) => normalise(c.text)).join('|');
+    }
+
+    /*
+     * A heading alone is not enough to believe a column really holds section
+     * names — plenty of plans have a column of free text with a section-ish
+     * title. Check the values: at least a few of them should actually read as
+     * "warm-up", "main set", "cool-down" or "technique".
+     */
+    function looksLikeSectionColumn(sheet, col, firstDataRow) {
+        if (!col) return false;
+        const sectionSynonyms = [];
+        for (const id of SECTION_FIELDS) {
+            for (const synonym of FIELD_BY_ID.get(id).synonyms) sectionSynonyms.push(normalise(synonym));
+        }
+
+        let seen = 0;
+        let matched = 0;
+        const last = Math.min(sheet.maxRow, firstDataRow + 120);
+        for (let r = firstDataRow; r <= last; r++) {
+            const text = normalise(sheet.textAt(r, col));
+            if (!text) continue;
+            seen++;
+            if (sectionSynonyms.some((s) => s && (text === s || text.indexOf(s) !== -1))) matched++;
+        }
+        return seen >= 3 && matched >= Math.max(3, seen * 0.4);
     }
 
     /*
@@ -272,6 +315,13 @@ const AmsMapping = (function () {
 
         const headerRow = scored.rowNum;
         const firstDataRow = headerRow + 1;
+
+        // Drop a "section" column whose contents do not bear the heading out.
+        if (columns.sectionLabel && !looksLikeSectionColumn(sheet, columns.sectionLabel, firstDataRow)) {
+            delete columns.sectionLabel;
+            scored.claims.delete('sectionLabel');
+        }
+
         const mode = detectMode(scored.claims);
 
         // Other tabs with the same headings are part of the same plan.
@@ -372,6 +422,7 @@ const AmsMapping = (function () {
         headingsFor,
         sampleValue,
         isComplete,
+        looksLikeSectionColumn,
         writableFields,
         appendResultColumns,
         findLastDataRow

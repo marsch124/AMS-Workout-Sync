@@ -230,10 +230,12 @@ const AmsUi = (function () {
                         : workout.logged ? '<span class="pill done">Logged</span>' : '')
                 + '</div>'
                 + '<div style="margin-top:0.9rem">' + sectionsHtml(workout) + '</div>'
-                + '<div class="button-row" style="margin-top:0.4rem">'
-                +   '<button class="btn btn-primary" data-log="' + esc(workout.key) + '">'
-                +     (workout.logged ? 'Log again' : 'Log this session') + '</button>'
-                + '</div>'
+                + (workout.discipline.id === 'rest'
+                    ? '<p class="hint-inline">Nothing to log — the adaptation happens now.</p>'
+                    : '<div class="button-row" style="margin-top:0.4rem">'
+                        + '<button class="btn btn-primary" data-log="' + esc(workout.key) + '">'
+                        + (workout.logged ? 'Log again' : 'Log this session') + '</button>'
+                      + '</div>')
                 + '</div>';
         }).join('');
     }
@@ -359,7 +361,10 @@ const AmsUi = (function () {
             '<div ' + sportStyle(workout) + '>'
             + (pills.length ? '<div class="workout-card-meta" style="margin-bottom:1rem">' + pills.join('') + '</div>' : '')
             + sectionsHtml(workout)
+            // Only worth its own card if it is not already one of the sections
+            // above — with no section columns, the description *is* the section.
             + (workout.planned && workout.planned.description
+                && !workout.sections.some((s) => s.text === workout.planned.description)
                 ? '<div class="card"><p class="section-label">Notes on the plan</p><p class="section-text">'
                     + esc(workout.planned.description) + '</p></div>'
                 : '')
@@ -367,7 +372,10 @@ const AmsUi = (function () {
             + '<p class="hint-inline">From <strong>' + esc(workout.sheet) + '</strong>, row ' + workout.row + '.</p>'
             + '</div>';
 
-        $('openLogButton').textContent = workout.logged ? 'Log again' : 'Log this session';
+        const logButton = $('openLogButton');
+        const isRest = workout.discipline.id === 'rest';
+        logButton.hidden = isRest;
+        logButton.textContent = workout.logged ? 'Log again' : 'Log this session';
         showScreen('workoutScreen');
     }
 
@@ -406,13 +414,30 @@ const AmsUi = (function () {
 
     /* ---------- the log form ---------- */
 
-    function openLog(key) {
+    async function openLog(key) {
         const workout = key ? AmsSync.byKey(key) : currentWorkout;
         if (!workout) return;
         currentWorkout = workout;
 
         const state = AmsSync.getState();
         const fields = AmsPlan.formFields(workout, state.mapping || {});
+
+        /*
+         * Each field is captioned with the column it will be written to. It
+         * matters when one column serves two purposes — a heading of
+         * "Avg Pace/Pwr" is what tells you to enter watts on the bike and a
+         * pace on the run.
+         */
+        const destinations = {};
+        try {
+            const sheet = await state.workbook.readSheet(workout.sheet);
+            for (const field of fields) {
+                const col = state.mapping.columns[field.id];
+                if (!col) continue;
+                const heading = sheet.textAt(state.mapping.headerRow, col);
+                destinations[field.id] = AmsXlsx.indexToCol(col) + (heading ? ' · ' + heading : '');
+            }
+        } catch (err) { /* captions are a nicety, not a requirement */ }
 
         $('logEyebrow').textContent = workout.discipline.label + ' · ' + shortDay(workout.date);
 
@@ -446,12 +471,15 @@ const AmsUi = (function () {
             }
 
             const config = inputConfig(field, workout);
+            const hints = [];
+            if (config.hint) hints.push(config.hint);
+            if (destinations[field.id]) hints.push('→ ' + destinations[field.id]);
             return '<div class="field">' + label
                 + '<input id="log-' + field.id + '" data-field="' + field.id + '"'
                 + ' type="' + config.type + '"' + (config.mode ? ' inputmode="' + config.mode + '"' : '')
                 + (config.step ? ' step="' + config.step + '"' : '')
                 + ' placeholder="' + esc(config.placeholder) + '" value="' + esc(value) + '">'
-                + (config.hint ? '<p class="field-hint">' + esc(config.hint) + '</p>' : '')
+                + (hints.length ? '<p class="field-hint">' + esc(hints.join('  ')) + '</p>' : '')
                 + '</div>';
         }).join('');
 
@@ -519,6 +547,14 @@ const AmsUi = (function () {
             const connected = await AmsDropbox.isConnected();
             toast(connected ? 'Saved — writing it into the workbook.' : 'Saved on this phone.', 'good');
             goBack();
+            // Returning to the workout means returning to a view rendered
+            // before the session was logged; re-render it so what was just
+            // entered is actually there. showScreen no-ops on the active
+            // screen, so this does not disturb the back stack.
+            const active = document.querySelector('.screen.active');
+            if (active && active.id === 'workoutScreen' && currentWorkout) {
+                openWorkout(currentWorkout.key);
+            }
             renderToday();
             renderPlan();
         } catch (err) {
@@ -811,6 +847,13 @@ const AmsUi = (function () {
         showScreen('setupScreen');
     }
 
+    function headingFor(draft, fieldId) {
+        const col = draft.columns[fieldId];
+        if (!col || !setupSheet) return 'completed';
+        const heading = setupSheet.textAt(draft.headerRow, col);
+        return heading ? '"' + heading + '"' : AmsXlsx.indexToCol(col);
+    }
+
     async function renderSetup() {
         const state = AmsSync.getState();
         const workbook = state.workbook;
@@ -893,6 +936,14 @@ const AmsUi = (function () {
             + '<option value="m"' + (draft.units.distance === 'm' ? ' selected' : '') + '>Metres</option>'
             + '</select></div>'
             + '<p class="hint-inline">Set from what is already in your sheet. If a logged duration comes out wrong, this is the setting to change.</p>'
+            + (draft.columns.done
+                ? '<div class="field" style="margin-top:0.9rem"><label for="setupDoneValue">Mark a session complete with</label>'
+                    + '<input id="setupDoneValue" type="text" autocapitalize="off" spellcheck="false" value="'
+                    + esc(draft.doneValue || 'Yes') + '">'
+                    + '<p class="field-hint">Written into the ' + esc(headingFor(draft, 'done'))
+                    + ' column. If your sheet counts completed sessions, this has to be exactly what those '
+                    + 'formulas look for — the app reads them and fills this in for you.</p></div>'
+                : '')
             + '</div>';
 
         wireSetup();
@@ -949,6 +1000,10 @@ const AmsUi = (function () {
         if (target.id === 'setupMode') { setupDraft.mode = target.value; return; }
         if (target.id === 'setupDuration') { setupDraft.units.duration = target.value; return; }
         if (target.id === 'setupDistance') { setupDraft.units.distance = target.value; return; }
+        if (target.id === 'setupDoneValue') {
+            setupDraft.doneValue = String(target.value || '').trim() || 'Yes';
+            return;
+        }
 
         if (target.dataset.map) {
             const value = target.value ? parseInt(target.value, 10) : null;

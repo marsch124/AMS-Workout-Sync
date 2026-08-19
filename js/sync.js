@@ -75,9 +75,23 @@ const AmsSync = (function () {
         return AmsXlsx.open(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes));
     }
 
+    /*
+     * Everything a freshly detected mapping needs before it can be used: the
+     * units the workbook keeps its numbers in, and the marker its own formulas
+     * expect in the completed column.
+     */
+    async function prepareMapping(workbook, mapping) {
+        if (!mapping) return mapping;
+        if (!mapping.units) await AmsPlan.inferUnits(workbook, mapping);
+        if (!mapping.doneValue) {
+            mapping.doneValue = (await AmsPlan.detectDoneValue(workbook, mapping)) || 'Yes';
+        }
+        return mapping;
+    }
+
     async function buildPlan(workbook, mapping) {
         if (!AmsMapping.isComplete(mapping)) return [];
-        if (!mapping.units) await AmsPlan.inferUnits(workbook, mapping);
+        await prepareMapping(workbook, mapping);
         return AmsPlan.build(workbook, mapping);
     }
 
@@ -134,7 +148,7 @@ const AmsSync = (function () {
         if (!AmsMapping.isComplete(mapping)) {
             mapping = await AmsMapping.autoDetect(state.workbook);
             if (mapping) {
-                await AmsPlan.inferUnits(state.workbook, mapping);
+                await prepareMapping(state.workbook, mapping);
                 await AmsDb.set('mapping', mapping);
             }
         }
@@ -158,7 +172,7 @@ const AmsSync = (function () {
         let mapping = await getMapping();
         if (!AmsMapping.isComplete(mapping)) {
             mapping = await AmsMapping.autoDetect(state.workbook);
-            if (mapping) await AmsPlan.inferUnits(state.workbook, mapping);
+            if (mapping) await prepareMapping(state.workbook, mapping);
         }
         state.mapping = mapping;
         if (mapping) await AmsDb.set('mapping', mapping);
@@ -266,10 +280,10 @@ const AmsSync = (function () {
             if (!AmsMapping.isComplete(mapping)) {
                 mapping = await AmsMapping.autoDetect(workbook);
                 if (!mapping) throw new Error('The layout of this workbook could not be worked out — open Sheet setup.');
-                await AmsPlan.inferUnits(workbook, mapping);
+                await prepareMapping(workbook, mapping);
                 await AmsDb.set('mapping', mapping);
             }
-            if (!mapping.units) await AmsPlan.inferUnits(workbook, mapping);
+            await prepareMapping(workbook, mapping);
 
             const plan = await AmsPlan.build(workbook, mapping);
 
@@ -394,7 +408,7 @@ const AmsSync = (function () {
         const workbook = await openBytes(cached.bytes);
         let mapping = await getMapping();
         if (!AmsMapping.isComplete(mapping)) throw new Error('Set the sheet layout up first.');
-        if (!mapping.units) await AmsPlan.inferUnits(workbook, mapping);
+        await prepareMapping(workbook, mapping);
 
         const plan = await AmsPlan.build(workbook, mapping);
         const queued = await AmsDb.listQueue();
@@ -451,6 +465,7 @@ const AmsSync = (function () {
         setFile,
         getMapping,
         saveMapping,
+        prepareMapping,
         load,
         loadFromFile,
         logWorkout,
