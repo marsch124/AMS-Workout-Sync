@@ -331,8 +331,17 @@ const AmsUi = (function () {
             const today = AmsSync.todayKey();
             workouts = state.plan.filter((w) => w.dayKey >= today);
         } else if (currentRange === 'past') {
-            const today = AmsSync.todayKey();
-            workouts = state.plan.filter((w) => w.dayKey < today).reverse();
+            /*
+             * "Done" means recorded, not merely past. Filtering by date meant a
+             * session logged today could not appear here at all — it is not in
+             * the past — while an untouched session from last month was listed
+             * as done. A queued move is not a record of anything, so a session
+             * that has only been rescheduled does not count.
+             */
+            workouts = state.plan.filter((w) => {
+                const status = statusOf(w);
+                return status && (status.kind === 'logged' || status.kind === 'missed');
+            }).reverse();
         } else {
             workouts = state.plan.slice();
         }
@@ -341,7 +350,9 @@ const AmsUi = (function () {
             body.innerHTML = emptyState('icon-today', 'Nothing here',
                 currentRange === 'upcoming'
                     ? 'There are no sessions dated from today onwards in the workbook.'
-                    : 'No past sessions in the workbook.', '');
+                    : currentRange === 'past'
+                        ? 'Nothing logged yet. Sessions appear here once you log them or mark them missed.'
+                        : 'This workbook has no sessions.', '');
             return;
         }
 
@@ -364,6 +375,7 @@ const AmsUi = (function () {
                 + '</div>'
                 + group.workouts.map((w) => workoutCard(w)).join('');
         }).join('');
+
     }
 
     /* ---------- workout detail ---------- */
