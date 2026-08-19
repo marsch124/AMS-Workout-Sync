@@ -13,10 +13,15 @@ existing cells.
   stretching, strength.
 - **Plan** — the whole schedule grouped by day, showing what is still to come and
   what has already been logged.
-- **Log** — a form that asks only for the numbers that suit the sport (pace for a
+- **Log** — a form that asks first for the numbers that suit the sport (pace for a
   run, power and cadence for a ride, per-100m pace for a swim, duration and effort
-  for mobility) and only for the ones your sheet has a column for. Each field says
-  which column it writes to.
+  for mobility), with every other column your sheet has one tap away and the choice
+  remembered. Each field says which column it writes to.
+
+  Columns your sheet computes for itself are never offered as inputs. A compliance
+  column of the form `=IF(...,$L6/$G6)` is a formula, and writing a number into it
+  would replace the formula for that row; instead the log form shows the planned
+  duration and, as you type, what percentage of it you are at.
 - **Missed** — a session that did not happen is marked as such in one tap, writing
   only the missed marker and leaving every metric cell untouched.
 - **Move** — a session can be moved to another day, or swapped with another one

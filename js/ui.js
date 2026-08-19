@@ -481,7 +481,10 @@ const AmsUi = (function () {
         currentWorkout = workout;
 
         const state = AmsSync.getState();
-        const fields = AmsPlan.formFields(workout, state.mapping || {});
+        const groups = AmsPlan.formFields(workout, state.mapping || {});
+        // Once you have asked for the full set, you probably want it every time.
+        const showAll = await AmsDb.get('log.showAllFields', false);
+        const fields = showAll ? groups.all : groups.primary;
 
         /*
          * Each field is captioned with the column it will be written to. It
@@ -502,7 +505,7 @@ const AmsUi = (function () {
 
         $('logEyebrow').textContent = workout.discipline.label + ' · ' + shortDay(workout.date);
 
-        if (!fields.length) {
+        if (!groups.all.length) {
             $('logBody').innerHTML = emptyState('icon-plan', 'Nowhere to write',
                 'Your sheet has no columns for results yet — add them in Sheet setup and they will appear here.',
                 '<button class="btn btn-primary" data-go="setup">Open sheet setup</button>');
@@ -515,6 +518,8 @@ const AmsUi = (function () {
 
         const distanceUnit = AmsPlan.DEFAULT_DISTANCE_UNIT[workout.discipline.id] || 'km';
         const previous = workout.pending ? workout.pending.values : null;
+        const plannedSeconds = AmsPlan.plannedDurationSeconds(workout, state.mapping || {});
+        const plannedMinutes = plannedSeconds ? plannedSeconds / 60 : 0;
 
         const html = fields.map((field) => {
             const value = previous && previous[field.id] !== undefined ? previous[field.id] : '';
@@ -544,15 +549,55 @@ const AmsUi = (function () {
                 + '</div>';
         }).join('');
 
+        const hidden = showAll ? 0 : groups.extra.length;
+
         $('logBody').innerHTML =
             '<div class="card" ' + sportStyle(workout) + '>'
             + '<p class="workout-card-sport">' + esc(workout.discipline.label) + '</p>'
             + '<p class="workout-card-title">' + esc(workout.title) + '</p>'
+            + (plannedMinutes ? '<p class="compliance-line" id="complianceLine">'
+                + esc(AmsPlan.formatDuration(plannedMinutes * 60)) + ' planned</p>' : '')
             + '</div>'
             + html
+            + (hidden
+                ? '<button class="btn btn-small btn-block" id="showAllFieldsButton">'
+                    + 'Show ' + hidden + ' more field' + (hidden === 1 ? '' : 's') + '</button>'
+                    + '<p class="hint-inline">' + esc(groups.extra.map((f) => f.label).join(', ')) + '</p>'
+                : '')
             + '<input type="hidden" id="log-distanceUnit" value="' + esc(distanceUnit) + '">'
             + '<p class="hint-inline">Saved into <strong>' + esc(workout.sheet) + '</strong> row ' + workout.row
             + '. Leave anything blank and that cell is left exactly as it is.</p>';
+
+        const showAllButton = $('showAllFieldsButton');
+        if (showAllButton) {
+            showAllButton.addEventListener('click', async () => {
+                await AmsDb.set('log.showAllFields', true);
+                const kept = collectLog();
+                await openLog(workout.key);
+                // Put back anything already typed before the form was rebuilt.
+                for (const [id, value] of Object.entries(kept)) {
+                    const node = document.getElementById('log-' + id);
+                    if (node) node.value = value;
+                }
+            });
+        }
+
+        // Compliance is computed by the sheet, never written by the app — but
+        // showing it as you type is the useful half of knowing it.
+        const durationInput = $('log-actualDuration');
+        if (durationInput && plannedMinutes) {
+            const update = () => {
+                const seconds = AmsPlan.parseDuration(durationInput.value);
+                const line = $('complianceLine');
+                if (!line) return;
+                line.textContent = seconds
+                    ? AmsPlan.formatDuration(plannedMinutes * 60) + ' planned · '
+                        + Math.round((seconds / 60) / plannedMinutes * 100) + '% of plan'
+                    : AmsPlan.formatDuration(plannedMinutes * 60) + ' planned';
+            };
+            durationInput.addEventListener('input', update);
+            update();
+        }
 
         showScreen('logScreen');
     }

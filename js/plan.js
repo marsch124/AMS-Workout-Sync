@@ -687,13 +687,42 @@ const AmsPlan = (function () {
         return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
     }
 
-    /* Which fields to show on the log form for this workout. */
+    /*
+     * Which fields the log form offers, split into the ones that suit this
+     * sport and the rest.
+     *
+     * The split is about ordering, not permission. Every column the sheet has
+     * is reachable on every session — a heart-rate strap does not come off for
+     * a mobility session, and a strength circuit can cover distance. What the
+     * discipline decides is only what gets asked for first.
+     */
     function formFields(workout, mapping) {
         const preference = FIELD_PREFERENCE[workout.discipline.id] || FIELD_PREFERENCE.other;
-        const available = new Set(AmsMapping.writableFields(mapping).map((f) => f.id));
-        return preference
-            .filter((id) => available.has(id))
+        const available = AmsMapping.writableFields(mapping).map((f) => f.id);
+        const availableSet = new Set(available);
+
+        // Never offered: the completed marker is set by logging itself, and the
+        // logged-on date by the clock.
+        const managed = new Set(['done', 'completedAt']);
+
+        const primary = preference
+            .filter((id) => availableSet.has(id) && !managed.has(id))
             .map((id) => AmsMapping.FIELD_BY_ID.get(id));
+
+        const chosen = new Set(primary.map((f) => f.id));
+        const extra = available
+            .filter((id) => !chosen.has(id) && !managed.has(id))
+            .map((id) => AmsMapping.FIELD_BY_ID.get(id));
+
+        // Notes belong at the bottom of a form whatever else is on it, rather
+        // than stranded mid-list once the extra fields are revealed.
+        const all = primary.concat(extra);
+        const notesAt = all.findIndex((f) => f.id === 'notes');
+        if (notesAt !== -1 && notesAt !== all.length - 1) {
+            all.push(all.splice(notesAt, 1)[0]);
+        }
+
+        return { primary: primary, extra: extra, all: all };
     }
 
     /* Planned duration rendered for display, using the workbook's own unit. */

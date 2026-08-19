@@ -734,3 +734,12 @@ body.detail-open .tab-bar { display: none; }
     text-transform: uppercase;
     color: var(--accent);
 }
+
+/* Planned duration, and how the figure being typed compares with it. Shown
+   because the sheet computes compliance itself — the app never writes it. */
+.compliance-line {
+    margin-top: 0.45rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+}
