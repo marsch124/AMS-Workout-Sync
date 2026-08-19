@@ -554,7 +554,13 @@ const AmsUi = (function () {
                 + '<li>Open <code>dropbox.com/developers/apps</code> and choose <strong>Create app</strong>.</li>'
                 + '<li>Pick <strong>Scoped access</strong>, then <strong>Full Dropbox</strong> (or App folder, if you move the workbook into it).</li>'
                 + '<li>On the <strong>Permissions</strong> tab tick <code>files.metadata.read</code>, <code>files.content.read</code> and <code>files.content.write</code>, then submit.</li>'
-                + '<li>On <strong>Settings</strong>, add this exact redirect URI:<br><code>' + esc(AmsDropbox.redirectUri()) + '</code></li>'
+                + '<li>Still on <strong>Settings</strong>, find <strong>OAuth 2 → Redirect URIs</strong>. Paste this in '
+                + 'and press the <strong>Add</strong> button beside it — typing it alone does not register it. '
+                + 'It has to match exactly, trailing slash included:'
+                + '<button type="button" class="copy-field" id="copyRedirect">'
+                +   '<code>' + esc(AmsDropbox.redirectUri()) + '</code>'
+                +   '<span class="copy-field-hint">Tap to copy</span>'
+                + '</button></li>'
                 + '<li>Copy the <strong>App key</strong> and paste it below.</li>'
                 + '</ol>'
                 + '<p>The app key is public by design — there is no secret to leak, and your Dropbox tokens never leave this phone.</p>'
@@ -657,6 +663,28 @@ const AmsUi = (function () {
                     await AmsDropbox.beginAuth();
                 } catch (err) {
                     toast(err.message, 'bad');
+                }
+            });
+        }
+
+        // Copying beats retyping: an exact-match redirect URI is the single
+        // easiest thing to get wrong in the whole Dropbox setup.
+        const copyRedirect = $('copyRedirect');
+        if (copyRedirect) {
+            copyRedirect.addEventListener('click', async () => {
+                const uri = AmsDropbox.redirectUri();
+                try {
+                    await navigator.clipboard.writeText(uri);
+                    toast('Redirect URI copied — paste it into Dropbox and press Add.', 'good');
+                } catch (err) {
+                    // Clipboard access is refused in some in-app browsers; select
+                    // the text instead so it can be copied by hand.
+                    const range = document.createRange();
+                    range.selectNodeContents(copyRedirect.querySelector('code'));
+                    const selection = window.getSelection();
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                    toast('Selected — copy it with a long press.', 'bad');
                 }
             });
         }
