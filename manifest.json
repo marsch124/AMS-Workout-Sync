@@ -1,0 +1,32 @@
+{
+  "name": "AMS Workout Sync",
+  "short_name": "Workout",
+  "description": "Today's training session from your Excel plan, and a quick way to log what you actually did",
+  "start_url": "/AMS-Workout-Sync/",
+  "scope": "/AMS-Workout-Sync/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0a1f1f",
+  "theme_color": "#00C97B",
+  "categories": ["health", "fitness", "productivity"],
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
