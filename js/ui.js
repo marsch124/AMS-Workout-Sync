@@ -971,10 +971,23 @@ const AmsUi = (function () {
 
         await AmsSync.saveMapping(setupDraft);
 
-        // If columns were appended, the workbook in memory has unsaved edits.
+        // Columns appended by "add missing columns" live only in the workbook
+        // held in memory, so they are persisted directly — sync() would start
+        // from a fresh download and lose them.
         if (state.workbook && state.workbook.isDirty) {
-            const result = await AmsSync.sync({ force: true });
-            if (result && result.error) toast(result.error, 'bad');
+            const result = await AmsSync.persistWorkbookEdits();
+            if (result && result.error) {
+                toast(result.error, 'bad');
+                return;
+            }
+            if (result && result.savedLocally) {
+                toast('Layout saved. The new columns are in the copy on this phone — use "Save a copy" to keep them.', 'good');
+                goBack();
+                renderToday();
+                renderPlan();
+                renderSettings();
+                return;
+            }
         }
 
         toast('Layout saved.', 'good');

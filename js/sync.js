@@ -330,6 +330,60 @@ const AmsSync = (function () {
     }
 
     /*
+     * Persist edits made to the workbook held in memory — at present, the
+     * result columns Sheet setup can append to a plan that has none.
+     *
+     * This cannot go through sync(): that deliberately starts from a freshly
+     * downloaded copy and replays the queue onto it, which is right for logged
+     * sessions but would throw these edits away. Here the in-memory workbook
+     * *is* the edit.
+     *
+     * The cached copy is always updated, so the plan on screen and "Save a
+     * copy" both see the new columns even with no Dropbox connection at all.
+     */
+    async function persistWorkbookEdits() {
+        if (!state.workbook || !state.workbook.isDirty) return { skipped: 'nothing-to-do' };
+
+        const blob = await state.workbook.save();
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        const path = await filePath();
+        const connected = await AmsDropbox.isConnected();
+
+        if (path && connected) {
+            try {
+                // The rev we read at, so a change made in Excel meanwhile still
+                // refuses the write rather than being buried.
+                const written = await AmsDropbox.upload(path, blob, state.meta && state.meta.rev);
+                await AmsDb.saveWorkbook(bytes, {
+                    rev: written.rev,
+                    name: written.name,
+                    path: written.path_lower || path,
+                    modified: written.server_modified,
+                    size: written.size
+                });
+                await load();
+                return { uploaded: true };
+            } catch (err) {
+                if (err.isConflict) {
+                    return { error: 'The workbook changed in Dropbox while you were editing the layout. '
+                        + 'Open Sheet setup again and re-add the columns.' };
+                }
+                state.lastError = err.message;
+                return { error: err.message };
+            }
+        }
+
+        // No Dropbox behind this file: keep the edits on the phone.
+        await AmsDb.saveWorkbook(bytes, state.meta || {});
+        state.workbook = await openBytes(bytes);
+        const mapping = await getMapping();
+        state.plan = mapping ? await buildPlan(state.workbook, mapping) : [];
+        await overlayQueue();
+        emit('plan', { plan: state.plan });
+        return { savedLocally: true };
+    }
+
+    /*
      * For the no-Dropbox case: apply the queue to the local copy and hand back
      * a file to save wherever the user likes.
      */
@@ -402,6 +456,7 @@ const AmsSync = (function () {
         logWorkout,
         overlayQueue,
         sync,
+        persistWorkbookEdits,
         exportWorkbook,
         todayKey,
         forDay,
