@@ -8,13 +8,21 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.24.0';
+    const CURRENT = '1.24.1';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.24.1',
+            date: '2026-08-20',
+            headline: 'Step two, as the screen actually looks',
+            items: [
+                'Find Health Samples does not arrive empty: it comes set to Steps, over the last seven days. The instructions now show what does appear, name both blue words that have to change, and say why the date one is not optional — the file carries no dates, so a week of sessions would all arrive as today.'
+            ]
+        },
         {
             version: '1.24.0',
             date: '2026-08-20',
