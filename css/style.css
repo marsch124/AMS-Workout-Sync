@@ -881,16 +881,23 @@ body.detail-open .tab-bar { display: none; }
 
 .week-card { padding: 0.85rem 1rem; }
 
-/* The head is a button because the whole slate is: tapping it opens the key
-   to the drawing below. It should not look like a button, though — the
-   surprise is the point. */
 .week-card-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.55rem;
+}
+
+/* The label and count are a button because the whole slate is: tapping opens
+   the key to the drawing below. It should not look like a button, though —
+   the surprise is the point. */
+.week-card-head-main {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
     gap: 0.5rem;
-    width: 100%;
-    margin-bottom: 0.55rem;
+    flex: 1;
+    min-width: 0;
     padding: 0;
     border: none;
     background: none;
@@ -899,6 +906,27 @@ body.detail-open .tab-bar { display: none; }
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
 }
+
+/* Small, quiet, and out of the way of the tap that opens the key. */
+.week-share {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.9rem;
+    height: 1.9rem;
+    margin: -0.3rem -0.35rem -0.3rem 0;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.week-share .icon { width: 1.05rem; height: 1.05rem; }
+.week-share:active { background: var(--color-surface-2); color: var(--accent); }
 
 .week-card-label {
     font-size: 0.72rem;

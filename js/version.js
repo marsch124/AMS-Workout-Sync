@@ -8,13 +8,23 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.15.0';
+    const CURRENT = '1.16.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.16.0',
+            date: '2026-08-20',
+            headline: 'Send the week to somebody',
+            items: [
+                'A share button on the week card hands the week to the phone’s share sheet — Messages, Mail, WhatsApp, anywhere. It goes as plain text, so whoever receives it needs no app and no access to your workbook.',
+                'A day per block, a line per session with its sport, duration and what it is; rest days named as rest days; the week’s figures at the bottom. Sessions already performed carry a tick and missed ones say so, so a week sent on Thursday reads as both plan and progress.',
+                'Where there is no share sheet — a desktop browser, say — the week goes to the clipboard instead.'
+            ]
+        },
         {
             version: '1.15.0',
             date: '2026-08-20',

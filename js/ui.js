@@ -468,6 +468,84 @@ const AmsUi = (function () {
             + '</div>';
     }
 
+    /*
+     * The week as plain text, for sending to somebody who does not have the
+     * app. Written to be read in a message: no markdown, and no alignment by
+     * spaces — a proportional font would ruin it — so one block per day.
+     *
+     * What is already done is marked, because a week shared on a Thursday is
+     * partly a report. The plan is still the point, so the marks stay small.
+     */
+    function weekShareText() {
+        const days = AmsSync.weekDays();
+        if (!days.length) return '';
+        const week = AmsSync.weekSummary();
+        const mapping = AmsSync.getState().mapping || {};
+
+        const first = days[0].date;
+        const last = days[days.length - 1].date;
+        const range = first && last ? shortDay(first) + ' to ' + shortDay(last) : '';
+
+        const lines = ['Training week' + (range ? ' — ' + range : ''), ''];
+
+        days.forEach((day) => {
+            const heading = day.date
+                ? formatDay(day.date, { weekday: 'long', day: 'numeric', month: 'long' })
+                : day.dayKey;
+
+            if (day.isRest) { lines.push(heading + ' — rest day'); return; }
+            if (!day.training.length) { lines.push(heading + ' — nothing planned'); return; }
+
+            lines.push(heading);
+            day.training.forEach((workout) => {
+                const planned = AmsPlan.formatDuration(
+                    AmsPlan.plannedDurationSeconds(workout, mapping) || 0);
+                const status = statusOf(workout);
+                const mark = status && status.kind === 'logged' ? '  ✓'
+                    : status && status.kind === 'missed' ? '  (missed)'
+                        : '';
+                lines.push('  • ' + workout.discipline.label
+                    + (planned ? ', ' + planned : '')
+                    + (workout.title ? ' — ' + workout.title : '')
+                    + mark);
+            });
+        });
+
+        if (week) {
+            lines.push('');
+            lines.push(weekFigures(week));
+        }
+
+        return lines.join('\n');
+    }
+
+    /*
+     * The share sheet where there is one, the clipboard where there is not.
+     * Cancelling a share is not a failure and says nothing.
+     */
+    async function shareWeek() {
+        const text = weekShareText();
+        if (!text) { toast('There is no week to share yet.', 'bad'); return; }
+
+        if (navigator.share) {
+            try {
+                await navigator.share({ title: 'Training week', text: text });
+                return;
+            } catch (err) {
+                // A refusal is not the same as a cancellation: fall through to
+                // the clipboard for the first, say nothing for the second.
+                if (err && err.name === 'AbortError') return;
+            }
+        }
+
+        try {
+            await navigator.clipboard.writeText(text);
+            toast('The week is on the clipboard — paste it wherever you like.', 'good');
+        } catch (err) {
+            toast('This browser will not let the app share or copy.', 'bad');
+        }
+    }
+
     function weekCard() {
         const week = AmsSync.weekSummary();
         if (!week || !week.plannedSeconds) return '';
@@ -476,13 +554,18 @@ const AmsUi = (function () {
         const width = Math.max(0, Math.min(100, percent));
 
         return '<div class="card week-card" data-legend>'
-            + '<button type="button" class="week-card-head" data-legend'
+            + '<div class="week-card-head">'
+            + '<button type="button" class="week-card-head-main" data-legend'
             + ' aria-expanded="' + (legendOpen ? 'true' : 'false') + '">'
             + '<span class="week-card-label">This week'
             + '<span class="week-legend-cue" aria-hidden="true">?</span></span>'
             + '<span class="week-card-count">' + week.performed + ' of ' + week.sessions + ' sessions'
             + (week.missed ? ' ' + MIDDOT + ' ' + week.missed + ' missed' : '') + '</span>'
             + '</button>'
+            + '<button type="button" class="week-share" data-share-week'
+            + ' aria-label="Share this week">'
+            + '<svg class="icon"><use href="#icon-share"></use></svg></button>'
+            + '</div>'
             + weekStrip()
             + expandedDayBlock()
             + weekLegend()
@@ -1895,7 +1978,9 @@ const AmsUi = (function () {
 
             + section('The three tabs',
                 '<p><strong>Today</strong> — what is planned for today, broken into warm-up, intervals, '
-                + 'technique and cool-down, plus anything you did that was not planned.</p>'
+                + 'technique and cool-down, plus anything you did that was not planned. The share button on '
+                + 'the week card sends the whole week as plain text — a message anyone can read, no app and '
+                + 'no workbook needed at the other end.</p>'
                 + '<p><strong>Plan</strong> — the whole schedule, in four lists. <em>Upcoming</em> is what is '
                 + 'still to do, and leads with anything from before today that was never recorded. '
                 + '<em>Done</em> is what you performed. <em>Missed</em> is what you marked as not done, kept '
@@ -2372,6 +2457,8 @@ const AmsUi = (function () {
                 renderToday();
                 return;
             }
+
+            if (event.target.closest('[data-share-week]')) { shareWeek(); return; }
 
             // Anywhere else on the week slate — but not inside an opened day,
             // which is a read-out rather than a control.
