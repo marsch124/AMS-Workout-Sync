@@ -8,13 +8,22 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.12.0';
+    const CURRENT = '1.12.1';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.12.1',
+            date: '2026-08-20',
+            headline: 'Performed, beside planned',
+            items: [
+                'The week card now reads "31m performed · 3h 05m planned" — both figures, every week, in that order. The planned total used to disappear as soon as anything was recorded, replaced by how much was left to go; now the two sit side by side, the way the session count above them does.',
+                'Meeting the week still says so outright.'
+            ]
+        },
         {
             version: '1.12.0',
             date: '2026-08-20',

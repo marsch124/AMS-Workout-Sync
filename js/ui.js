@@ -312,21 +312,23 @@ const AmsUi = (function () {
      * is met, say so instead of quietly reading 100%.
      */
     function weekFigures(week) {
-        const planned = AmsPlan.formatDuration(week.plannedSeconds);
+        // Both numbers, every week, in that order: what you did, then what the
+        // week asked for. Performed leads because it is the half you earned;
+        // planned stays beside it because a figure with nothing to measure it
+        // against says very little.
+        //
+        // "0s" is what the formatter makes of no time at all, which is not how
+        // anybody says it about a week.
+        const performed = week.actualSeconds ? AmsPlan.formatDuration(week.actualSeconds) : '0m';
+        const line = performed + ' performed ' + MIDDOT + ' '
+            + AmsPlan.formatDuration(week.plannedSeconds) + ' planned';
 
-        // Time logged leads in every state, including nothing. Dropping the
-        // figure whenever it was zero meant a week could show a session
-        // recorded and no minutes anywhere — which reads as a fault, and
-        // is exactly what you opened the card to see.
-        if (!week.actualSeconds) return '0m logged ' + MIDDOT + ' ' + planned + ' planned';
-
-        const done = AmsPlan.formatDuration(week.actualSeconds) + ' logged';
-        const remaining = week.plannedSeconds - week.actualSeconds;
-
-        // Within a minute either way is met, not "1m to go".
-        if (remaining > 60) return done + ' · ' + AmsPlan.formatDuration(remaining) + ' to go';
-        if (remaining < -60) return done + ' · ' + AmsPlan.formatDuration(-remaining) + ' over';
-        return done + ' · week complete';
+        // Meeting the week is worth saying outright rather than leaving to be
+        // worked out from two numbers. Within a minute either way counts.
+        if (week.actualSeconds && week.plannedSeconds - week.actualSeconds <= 60) {
+            return line + ' ' + MIDDOT + ' week complete';
+        }
+        return line;
     }
 
     /*
