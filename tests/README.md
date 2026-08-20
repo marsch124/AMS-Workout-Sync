@@ -19,6 +19,7 @@ node tests/edited-workbook.js
 node tests/calendar-export.js
 node tests/session-share.js
 node tests/watch-inbox.js
+node tests/workout-file.js
 ```
 
 Each script prints what it found and ends with `errors: none`. Nothing is
@@ -68,6 +69,12 @@ workbook by a Shortcut. Checks that it is read, that a run matches the planned
 run, that a walk with nothing to match it is offered as an extra, that tapping
 fills the form and writes nothing, and that a file which is not JSON says so
 without taking the plan down with it.
+
+**`workout-file.js`** — a session exported from Garmin Connect, opened
+directly: a TCX of two laps (summed, with the heart rate averaged by time) and
+a GPX (duration, distance and heart rate worked out from the track). Checks it
+reaches the Today screen, fills the log form, writes nothing, and says
+something useful about a file that is neither.
 
 **`column-collision.js`** — a mapping that points a results column at a column
 the plan lives in. Logging must refuse to write there rather than overwrite the

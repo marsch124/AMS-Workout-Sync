@@ -2028,7 +2028,16 @@ const AmsUi = (function () {
                     || 'A Shortcut can put what Apple Health recorded next to your workbook, and the app '
                         + 'offers it on the Today screen. Nothing is written without you.')
                 + '</div></div>'
-                + '<button class="btn btn-small" data-go="guide">How</button></div></div>');
+                + '<button class="btn btn-small" data-go="guide">How</button></div>'
+                + '<div class="button-row" style="margin-top:0.6rem">'
+                + '<button class="btn btn-small" id="openWorkoutFileButton">Open a workout file</button>'
+                + '</div>'
+                + '<input type="file" id="workoutFileInput" hidden '
+                + 'accept=".tcx,.gpx,.xml,text/xml,application/xml">'
+                + '<p class="hint-inline">A session exported from Garmin Connect '
+                + '(<strong>TCX</strong> or <strong>GPX</strong>) can be opened here instead. '
+                + 'Nothing is written: its numbers are offered on the Today screen like any other.</p>'
+                + '</div>');
         }
 
         /* --- what can be logged outside the plan --- */
@@ -2210,6 +2219,33 @@ const AmsUi = (function () {
                 renderSettings();
                 renderToday();
                 renderPlan();
+            });
+        }
+
+        /*
+         * A file straight from Garmin Connect, for phones where the Shortcuts
+         * route is not available at all.
+         */
+        const openWorkoutFile = $('openWorkoutFileButton');
+        if (openWorkoutFile) openWorkoutFile.addEventListener('click', () => $('workoutFileInput').click());
+
+        const workoutInput = $('workoutFileInput');
+        if (workoutInput) {
+            workoutInput.addEventListener('change', async (event) => {
+                const file = event.target.files && event.target.files[0];
+                workoutInput.value = '';
+                if (!file) return;
+                try {
+                    const entry = AmsWorkoutFile.parse(await file.text(), file.name);
+                    AmsSync.addInboxEntry(entry);
+                    renderToday();
+                    renderSettings();
+                    openTab('today');
+                    toast(entry.discipline.label + ' ' + AmsInbox.describe(entry)
+                        + ' — waiting on the Today screen.', 'good');
+                } catch (err) {
+                    toast(err.message || 'That file could not be read.', 'bad');
+                }
             });
         }
 
@@ -2616,7 +2652,13 @@ const AmsUi = (function () {
                 + 'turbo session was a canoe; you are the better judge, and the app is built to let you be '
                 + 'one.</p>'
 
-                + '<p><strong>What the file is.</strong> One line per session, in plain words and '
+                + '<p><strong>There are two ways in, and one of them always works.</strong> Garmin '
+                + 'Connect can export a session as a file, which you open here — that needs nothing built '
+                + 'and works on any phone. The other way is automatic and needs a Shortcut, but only some '
+                + 'versions of iOS let Shortcuts read workouts at all. Both are written out below; try the '
+                + 'file first.</p>'
+
+                + '<p><strong>What the automatic way writes.</strong> One line per session, in plain words and '
                 + 'numbers: <code>Running, 42 min, 8.12 km, 138 bpm</code>. No quotation marks, no '
                 + 'brackets, and no date needed — the app takes the day from the file itself. Only the '
                 + 'sport or the duration is really required; anything missing is simply missing.</p>'
@@ -2645,141 +2687,77 @@ const AmsUi = (function () {
                 + '<p>The file is read and never altered or deleted. It stays in your Dropbox, like '
                 + 'everything else this app touches.</p>')
 
-            + section('Numbers from your watch — building the Shortcut',
-                '<p>Five actions, about ten minutes, no account and no other app. Take it slowly: '
-                + 'Shortcuts is unfamiliar rather than difficult, and every step below is one tap.</p>'
+            + section('Numbers from your watch — a file from Garmin Connect',
+                '<p>This is the way that always works. No Shortcut, no Apple Health, nothing to build.</p>'
 
-                + '<p><strong>Before you start, know what you are building.</strong> The Shortcut ends up '
-                + 'writing a file that looks like this, and nothing more:</p>'
-                + '<pre>Running, 42 min, 8.12 km, 138 bpm\nStrength Training, 35 min</pre>'
-                + '<p>One line per session. Words and numbers, separated by commas. No quotation marks, no '
-                + 'brackets, no date — the app takes the day from the file itself. If a line ends up with '
-                + 'only a sport and a duration, that is a perfectly good line.</p>'
+                + '<ol>'
+                + '<li>In <strong>Garmin Connect</strong>, open the session.</li>'
+                + '<li>Tap the <strong>⋯</strong> menu and choose <strong>Export</strong>. Pick '
+                + '<strong>TCX</strong> if it is offered, or <strong>GPX</strong>. (A <strong>.fit</strong> '
+                + 'file is Garmin’s own binary format and cannot be read here yet.)</li>'
+                + '<li>In the share sheet, choose <strong>Save to Files</strong> and put it anywhere you '
+                + 'can find again — iCloud Drive or Downloads is fine.</li>'
+                + '<li>Here, go to <strong>Settings → From your watch → Open a workout file</strong> and '
+                + 'pick it.</li>'
+                + '</ol>'
 
-                + '<p><strong>1 · Make a new Shortcut.</strong> Open <strong>Shortcuts</strong>, tap '
-                + '<strong>+</strong> at the top right. Tap the name at the top and call it '
-                + '“Send workouts to AMS”.</p>'
+                + '<p>The session appears under <em>From your watch</em> on the Today screen with its '
+                + 'duration, distance, heart rate and calories, matched to the planned session it belongs '
+                + 'to. Tapping fills the log form; nothing is written until you save it.</p>'
 
-                + '<p><strong>2 · Get today’s workouts.</strong> Tap <strong>Add Action</strong>, type '
-                + '<em>health samples</em> in the search box, and choose <strong>Find Health Samples</strong>.</p>'
+                + '<p>What is read: from a <strong>TCX</strong>, the duration, distance, calories and '
+                + 'heart rate exactly as the watch recorded them — added up across laps, so an interval '
+                + 'session comes out whole rather than as its first repetition. From a <strong>GPX</strong>, '
+                + 'which states nothing outright, the duration comes from the first and last point, the '
+                + 'distance from measuring the line, and the heart rate from the points if a strap was '
+                + 'worn.</p>'
 
-                + '<p>It arrives already filled in, and both of its blue words are wrong for us. It will '
-                + 'say something close to:</p>'
-                + '<pre>Find Health Samples where All of the following are true' + BREAK
-                + '  Type        is  Steps' + BREAK
-                + '  Start Date  is in the last  7  days</pre>'
-                + '<ul>'
-                + '<li>Tap the blue <strong>Steps</strong>. A list opens, and it is <em>enormous</em> — '
-                + 'every kind of thing Health can record, in alphabetical order, from Abdominal Cramps '
-                + 'onwards. What you want is <strong>Workouts</strong>, which is near the very bottom in '
-                + 'the W’s, after Weight and Wheelchair. Drag the thin scroll bar down the right-hand edge '
-                + 'rather than flicking, or you will be scrolling for a while. (Newer versions of iOS put a '
-                + 'search box at the top of that list. If yours has one, type <em>workout</em> instead.)</li>'
-                + '<li>Tap the blue <strong>is in the last</strong> and choose <strong>is today</strong> if '
-                + 'that is offered. If it is not, tap the <strong>7</strong> and change it to '
-                + '<strong>1</strong>. This one matters: the file carries no dates, so everything in it is '
-                + 'taken as today’s. Left at seven days, a week of sessions would all arrive as today.</li>'
-                + '<li>The rows underneath — <em>Unit</em>, <em>Group by</em>, <em>Sort by</em> — can be '
-                + 'ignored, and some of them change or disappear when you switch to Workouts. Leave '
-                + '<strong>Limit</strong> switched off, so a day with two sessions sends both.</li>'
-                + '</ul>'
+                + '<p>One file at a time, and it is read rather than kept: it stays wherever you saved it, '
+                + 'and the app forgets it once the numbers are in the form.</p>')
 
-                + '<p><strong>3 · Go through them one at a time.</strong> Tap <strong>+</strong>, search for '
-                + '<em>repeat</em>, and choose <strong>Repeat with Each</strong>. It will already be set to '
-                + 'repeat over the workouts you just found. You now have a <em>Repeat with each item in…</em> '
-                + 'line and an <em>End Repeat</em> line, with a gap between them. The next action goes in '
-                + 'that gap.</p>'
+            + section('Numbers from your watch — the automatic way, if your phone offers it',
+                '<p><strong>Read the first paragraph before spending time on this.</strong> It depends on '
+                + 'the Shortcuts app being able to read <em>workouts</em> from Apple Health, and on some '
+                + 'versions of iOS it cannot: the <em>Find Health Samples</em> action offers a list of '
+                + 'sample types, and on those versions <em>Workouts</em> is not in it. There is no way to '
+                + 'tell from here which kind of phone you have. Open Shortcuts, add <strong>Find Health '
+                + 'Samples</strong>, tap the blue sample type, and look for <strong>Workouts</strong> — '
+                + 'the list is alphabetical and long. If it is not there, that is the end of this route, '
+                + 'and the file above does the same job.</p>'
 
-                + '<p><strong>4 · Write one line per workout.</strong> Tap the <strong>+</strong> inside the '
-                + 'repeat, search for <em>text</em>, and choose the plain <strong>Text</strong> action. Now '
-                + 'the fiddly part, which is only fiddly the first time:</p>'
-                + '<ul>'
-                + '<li>Tap inside the empty text box. A bar appears just above the keyboard with suggested '
-                + 'variables — one of them says <strong>Repeat Item</strong>. Tap it. A blue chip appears '
-                + 'in your text.</li>'
-                + '<li>Tap that blue chip. A panel opens listing everything known about the workout. Choose '
-                + '<strong>Workout Type</strong>. The chip now reads <em>Repeat Item — Workout Type</em>.</li>'
-                + '<li>Type a comma and a space after it.</li>'
-                + '<li>Tap <strong>Repeat Item</strong> in the bar again, tap the new chip, and this time '
-                + 'choose <strong>Duration</strong>. Comma, space.</li>'
-                + '<li>Once more for <strong>Distance</strong>. Comma, space.</li>'
-                + '<li>And once more for <strong>Average Heart Rate</strong>.</li>'
-                + '</ul>'
-                + '<p>The finished text box reads, in chips and commas:</p>'
-                + '<pre>Workout Type, Duration, Distance, Average Heart Rate</pre>'
-                + '<p>If the panel of details does not offer one of those, leave it out. Two values are '
-                + 'enough to be useful — start with <strong>Workout Type</strong> and <strong>Duration</strong>, '
-                + 'get the whole thing working, and add the others afterwards.</p>'
+                + '<p>If it <em>is</em> there, the rest is worth ten minutes, because it removes the '
+                + 'exporting and the opening entirely: the numbers are simply waiting when you open the '
+                + 'app.</p>'
 
-                + '<p><strong>5 · Join the lines and save the file.</strong> Below <em>End Repeat</em>, tap '
-                + '<strong>+</strong>, search for <em>combine</em>, and choose <strong>Combine Text</strong>. '
-                + 'Set it to combine <em>Repeat Results</em> with <strong>New Lines</strong>. Then tap '
-                + '<strong>+</strong> once more, search for <em>save file</em>, and choose '
-                + '<strong>Save File</strong>. In that action:</p>'
-                + '<ul>'
-                + '<li>Turn <strong>Ask Where to Save</strong> <em>off</em>.</li>'
-                + '<li>Tap the destination and pick your <strong>Dropbox</strong>, then the same folder your '
-                + 'workbook is in.</li>'
-                + '<li>Set the file name to <code>' + esc(AmsInbox.DEFAULT_FILE) + '</code>.</li>'
-                + '<li>Turn <strong>Overwrite If File Exists</strong> <em>on</em>. This matters: the '
-                + 'Shortcut sends today’s workouts every time it runs, so the file should be replaced, not '
-                + 'added to.</li>'
-                + '</ul>'
+                + '<ol>'
+                + '<li>Set the type to <strong>Workouts</strong>, and set the date filter to '
+                + '<strong>is today</strong> — or change <em>is in the last <strong>7</strong> days</em> '
+                + 'to <strong>1</strong>. This matters: the file carries no dates, so everything in it is '
+                + 'taken as today’s.</li>'
+                + '<li>Add <strong>Repeat with Each</strong> over the result.</li>'
+                + '<li>Inside the repeat, add a <strong>Text</strong> action. Tap in the box; a bar above '
+                + 'the keyboard offers <strong>Repeat Item</strong>. Tap it, then tap the blue chip that '
+                + 'appears to choose which detail you meant — <strong>Workout Type</strong>. Then a comma, '
+                + 'and the same again for <strong>Duration</strong>, <strong>Distance</strong> and '
+                + '<strong>Average Heart Rate</strong>. Two of them is enough to start with.</li>'
+                + '<li>After the repeat, <strong>Combine Text</strong> with <strong>New Lines</strong>.</li>'
+                + '<li><strong>Save File</strong> into the same Dropbox folder as your workbook, named '
+                + '<code>' + esc(AmsInbox.DEFAULT_FILE) + '</code>, with <em>Ask Where to Save</em> off and '
+                + '<em>Overwrite</em> on.</li>'
+                + '</ol>'
 
-                + '<p><strong>6 · Try it.</strong> Tap the play button at the bottom. The first run asks '
-                + 'permission to read Health and to use Dropbox — allow both. Then open this app and pull '
-                + 'the Today screen: what your watch recorded should be sitting under '
-                + '<em>From your watch</em>. Settings → <em>From your watch</em> says how many entries it '
-                + 'found, which is the quickest way to tell whether the file arrived.</p>'
+                + '<p>The file it writes is one line per session, and you can make one by hand to test '
+                + 'this end without building anything:</p>'
+                + '<pre>Running, 42 min, 8.12 km, 138 bpm</pre>'
 
-                + '<p>Afterwards, run it from the Shortcuts widget when you finish a session, or set up a '
-                + 'personal automation to run it for you.</p>'
+                + '<p>Any of these, in any order, separated by commas or spaces: the sport; how long '
+                + '(<code>42 min</code>, <code>1.5 h</code>, <code>1:45:00</code>); how far '
+                + '(<code>8.12 km</code>, <code>1800 m</code>); <code>138 bpm</code>; <code>520 kcal</code>; '
+                + 'and a date like <code>2026-08-19</code> if it is not today. Anything left over becomes '
+                + 'the session’s name. Only the sport or the duration is really needed.</p>'
 
-                + '<p><strong>If you would rather not build anything yet</strong>, you can prove the app’s '
-                + 'half works in one minute: make a plain text file called '
-                + '<code>' + esc(AmsInbox.DEFAULT_FILE) + '</code> in the same Dropbox folder as your '
-                + 'workbook, containing one line — <code>Running, 42 min, 8 km, 138 bpm</code> — and open '
-                + 'the app. If it appears, the app end is working and only the Shortcut remains.</p>'
-
-                + '<p><strong>What a line may contain.</strong> Any of these, in any order, separated by '
-                + 'commas or just spaces. Only the sport or the duration is really needed:</p>'
-                + '<ul>'
-                + '<li><strong>The sport</strong> — whatever Apple Health calls it: Running, Cycling, '
-                + 'Pool Swim, Traditional Strength Training, Yoga, Walking. Anything the app does not '
-                + 'recognise is still offered, as something for the Extras sheet.</li>'
-                + '<li><strong>How long</strong> — <code>42 min</code>, <code>1.5 h</code>, '
-                + '<code>1:45:00</code>, or a bare number, which is read as minutes. A two-part clock like '
-                + '<code>1:45</code> is read as an hour and three quarters; <code>42:18</code>, where the '
-                + 'first number is over twelve, as forty-two minutes.</li>'
-                + '<li><strong>How far</strong> — <code>8.12 km</code> or <code>1800 m</code>. The app '
-                + 'converts to whatever your sheet counts in.</li>'
-                + '<li><strong>Heart rate</strong> — <code>138 bpm</code>.</li>'
-                + '<li><strong>Energy</strong> — <code>520 kcal</code>.</li>'
-                + '<li><strong>A date</strong> — only if it is not today: <code>2026-08-19</code> anywhere '
-                + 'in the line.</li>'
-                + '<li>Anything else on the line is kept as the session’s name.</li>'
-                + '</ul>'
-
-                + '<p><strong>If something does not appear.</strong></p>'
-                + '<ul>'
-                + '<li><em>Settings says “Nothing yet”</em> — the file is in a different folder, or has a '
-                + 'different name, or the Save File action asked where to save and put it somewhere else. '
-                + 'Check the folder in Dropbox itself: the file should be sitting beside your workbook.</li>'
-                + '<li><em>The entries are there but the day is wrong</em> — the app uses the day the file '
-                + 'was written when a line does not carry a date. Running the Shortcut the morning after '
-                + 'will date yesterday’s session today; put the date in the line if that matters.</li>'
-                + '<li><em>The sport comes out as “Other”</em> — the app did not recognise that word. The '
-                + 'entry is still offered, as something for the Extras sheet.</li>'
-                + '<li><em>It matched the wrong session</em> — nothing has been written; go back and log the '
-                + 'right one by hand. Two sessions of the same sport on one day are matched by planned '
-                + 'length, which is a guess rather than knowledge.</li>'
-                + '<li>This works when your workbook is in Dropbox. Reading a file from the phone instead '
-                + 'does not go looking for it.</li>'
-                + '</ul>'
-
-                + '<p>The names of things in Shortcuts move around a little between iOS versions. If a '
-                + 'label above does not match what you see, look for the words in bold — the actions '
-                + 'themselves have been there for years.</p>')
+                + '<p>Settings → <em>From your watch</em> says how many entries were found, which is the '
+                + 'quickest way to tell whether the file arrived where the app is looking.</p>')
 
             + section('Things the plan did not ask for',
                 '<p>An unplanned run, a hike, a meditation goes on a separate <strong>Extras</strong> sheet, '

@@ -383,6 +383,20 @@ const AmsSync = (function () {
         return state.inbox;
     }
 
+    /*
+     * An entry from a file the user opened, rather than from Dropbox. It joins
+     * the same list and is offered on the same card; it simply does not survive
+     * a reload, having no file of its own to be read from again.
+     */
+    function addInboxEntry(entry) {
+        if (!entry) return null;
+        state.inbox = (state.inbox || []).filter((existing) => existing.id !== entry.id);
+        state.inbox.push(entry);
+        state.inboxError = null;
+        emit('plan', { plan: state.plan });
+        return entry;
+    }
+
     /* Today's entries, each with the session it belongs to if there is one. */
     function inboxForToday(dayKey) {
         const day = dayKey || todayKey();
@@ -1155,6 +1169,7 @@ const AmsSync = (function () {
         weekDays,
         weekStart,
         readInbox,
+        addInboxEntry,
         inboxForToday
     };
 })();

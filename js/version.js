@@ -8,13 +8,24 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.24.2';
+    const CURRENT = '1.25.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.25.0',
+            date: '2026-08-20',
+            headline: 'Open a workout file from Garmin Connect',
+            items: [
+                'Settings → From your watch → Open a workout file reads a session exported from Garmin Connect as TCX or GPX. It arrives under "From your watch" on the Today screen like anything else: offered, matched to the planned session, written only when you save the form.',
+                'This exists because the Shortcuts route does not work on every phone — on some versions of iOS the Find Health Samples action has no Workouts type at all, and no amount of better instructions makes one appear. This way needs no Shortcut, no Apple Health and no Dropbox: export, open, done.',
+                'From a TCX it reads duration, distance, calories and heart rate as recorded, added up across laps so an interval session comes out whole. From a GPX it works them out: duration from the first and last point, distance by measuring the line, heart rate from the points.',
+                'How this works now leads with the file and treats the Shortcut as the optional automation it is, saying plainly how to tell in one minute whether your phone can do it at all.'
+            ]
+        },
         {
             version: '1.24.2',
             date: '2026-08-20',
