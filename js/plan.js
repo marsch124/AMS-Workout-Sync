@@ -699,7 +699,40 @@ const AmsPlan = (function () {
         if (columns.done) push('done', 'text', entry.doneLabel || mapping.doneValue || 'Yes');
         if (columns.completedAt) push('completedAt', 'date', entry.completedAt ? new Date(entry.completedAt) : new Date());
 
-        return edits;
+        return protectPlanColumns(edits, columns);
+    }
+
+    /*
+     * The last gate before anything is written.
+     *
+     * If a results field has somehow come to share a column with a field that
+     * describes the plan — a mis-detection, a hand-made mapping, a layout saved
+     * by an older version of this app — then logging a session would write a
+     * number over the workout text or the date. That is not recoverable from
+     * the phone: the sheet is the only copy.
+     *
+     * So the edits are checked against the columns the plan itself lives in,
+     * and any that would land on one is dropped and complained about rather
+     * than written. Losing one logged number is a nuisance; losing the plan is
+     * the end of the workbook.
+     */
+    function protectPlanColumns(edits, columns) {
+        const protectedCols = new Map();
+        AmsMapping.PLAN_FIELDS.forEach((id) => {
+            if (AmsMapping.MOVABLE_FIELDS.indexOf(id) !== -1) return;
+            const col = columns[id];
+            if (col) protectedCols.set(col, id);
+        });
+        if (!protectedCols.size) return edits;
+
+        return edits.filter((edit) => {
+            const col = AmsXlsx.parseRef(edit.ref).col;
+            const clash = protectedCols.get(col);
+            if (!clash || clash === edit.field) return true;
+            console.warn('Refusing to write ' + edit.field + ' into ' + edit.ref
+                + ': that column holds the plan\u2019s ' + clash + '.');
+            return false;
+        });
     }
 
     /* "2026-08-20" -> a UTC-anchored Date, matching how dates are read in. */

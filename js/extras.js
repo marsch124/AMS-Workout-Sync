@@ -15,6 +15,7 @@ const AmsExtras = (function () {
     'use strict';
 
     const SHEET_NAME = 'Extras';
+    const ALT_SHEET_NAME = 'AMS Extras';
 
     const COLUMNS = [
         'Date', 'Day', 'Activity', 'What it was', 'Duration (min)', 'Distance (km)',
@@ -128,10 +129,47 @@ const AmsExtras = (function () {
         return activity(activityId).kind !== 'restorative';
     }
 
+    /*
+     * "Extras" is not an unusual name for a sheet, and this app did not ask
+     * before writing into one. Appending a row to somebody else's sheet on the
+     * assumption that column E is a duration would scribble ten cells of their
+     * work per unplanned walk.
+     *
+     * So a sheet of that name is only used when its headings say it is ours.
+     * Anything else keeps its name and we take another.
+     */
+    function looksLikeOurs(sheet) {
+        if (!sheet) return false;
+        const at = (col) => AmsMapping.normalise(sheet.textAt(1, col) || '');
+        return at(COL.date) === 'date'
+            && at(COL.activity) === 'activity'
+            && at(COL.duration).indexOf('duration') === 0;
+    }
+
+    async function sheetNameFor(workbook) {
+        if (!workbook.findSheet(SHEET_NAME)) return SHEET_NAME;
+
+        try {
+            if (looksLikeOurs(await workbook.readSheet(SHEET_NAME))) return SHEET_NAME;
+        } catch (err) { /* unreadable is not ours either */ }
+
+        for (let n = 0; n < 20; n++) {
+            const name = n ? ALT_SHEET_NAME + ' ' + (n + 1) : ALT_SHEET_NAME;
+            if (!workbook.findSheet(name)) return name;
+            try {
+                if (looksLikeOurs(await workbook.readSheet(name))) return name;
+            } catch (err) { /* try the next */ }
+        }
+        throw new Error('There is already a sheet called "' + SHEET_NAME + '" that is not this app\u2019s, '
+            + 'and no free name to use instead.');
+    }
+
     async function ensureSheet(workbook) {
-        const existing = workbook.findSheet(SHEET_NAME);
-        if (existing) return existing;
-        return workbook.createSheet(SHEET_NAME, COLUMNS);
+        const name = await sheetNameFor(workbook);
+        const existing = workbook.findSheet(name);
+        if (existing) return name;
+        await workbook.createSheet(name, COLUMNS);
+        return name;
     }
 
     /* First row with nothing in it. */
@@ -195,15 +233,21 @@ const AmsExtras = (function () {
 
     /* Everything recorded so far, newest first, for the history list. */
     async function read(workbook) {
-        const meta = workbook.findSheet(SHEET_NAME);
-        if (!meta) return [];
-
-        let sheet;
+        let name;
         try {
-            sheet = await workbook.readSheet(SHEET_NAME);
+            name = await sheetNameFor(workbook);
         } catch (err) {
             return [];
         }
+        if (!workbook.findSheet(name)) return [];
+
+        let sheet;
+        try {
+            sheet = await workbook.readSheet(name);
+        } catch (err) {
+            return [];
+        }
+        if (!looksLikeOurs(sheet)) return [];
 
         const out = [];
         for (let row = 2; row <= sheet.maxRow; row++) {
@@ -236,6 +280,7 @@ const AmsExtras = (function () {
 
     return {
         SHEET_NAME: SHEET_NAME,
+        sheetNameFor: sheetNameFor,
         COLUMNS: COLUMNS,
         COL: COL,
         DEFAULT_ACTIVITIES: DEFAULT_ACTIVITIES,

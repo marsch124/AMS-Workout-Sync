@@ -8,13 +8,28 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.16.0';
+    const CURRENT = '1.17.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.17.0',
+            date: '2026-08-20',
+            headline: 'Hardened against the things that actually go wrong',
+            items: [
+                'The workbook the app builds is now opened and re-read before it is uploaded. If it will not open, or the plan has fewer sessions in it than the one that was read, nothing goes to Dropbox and your logging stays queued. The app should never be able to replace a good workbook with a broken one.',
+                'A results column that shares a column with part of the plan — a mis-detection, or a hand-made layout — can no longer overwrite it. Sheet setup refuses to save such a layout, and the writer refuses to act on one even if it is already saved.',
+                'A workbook that already has a sheet called Extras belonging to something else is left alone; the app takes another name rather than appending rows into somebody else\u2019s columns.',
+                'One entry that cannot be written no longer stops the rest of the queue reaching the workbook. It is kept, with the reason, in Settings → Syncing.',
+                'Every request to Dropbox now has a clock on it, so a connection that goes quiet ends in a message rather than a spinner that never stops. Rate limits and server errors are retried briefly; being offline says so plainly.',
+                'A download is proved to open before it is cached, and a cached copy that will not open is discarded rather than re-read on every launch. A phone with no room left no longer takes the whole load down with it.',
+                'Returning to the app re-reads the workbook at most once a minute rather than every single time.',
+                'Failures that used to be silent now say something: a start-up that fails explains itself on the screen instead of showing nothing.'
+            ]
+        },
         {
             version: '1.16.0',
             date: '2026-08-20',

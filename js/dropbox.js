@@ -131,7 +131,7 @@ const AmsDropbox = (function () {
         }
 
         const key = await appKey();
-        const response = await fetch(TOKEN_URL, {
+        const response = await send(TOKEN_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
@@ -163,6 +163,67 @@ const AmsDropbox = (function () {
         return true;
     }
 
+    /* ---------- the network, defensively ---------- */
+
+    /*
+     * A phone loses signal in the middle of a request more often than a laptop
+     * does, and a fetch with no timeout does not fail — it waits, for ever,
+     * with the app's sync flag held and the button spinning. Every call the app
+     * makes therefore carries its own clock.
+     */
+    const REQUEST_TIMEOUT = 45000;
+    const UPLOAD_TIMEOUT = 90000;       /* a whole workbook over a bad connection */
+    const MAX_BACKOFF = 10000;
+
+    function sleep(ms) {
+        return new Promise(function (resolve) { setTimeout(resolve, ms); });
+    }
+
+    async function timedFetch(url, init, timeoutMs) {
+        if (typeof AbortController === 'undefined') return fetch(url, init);
+
+        const controller = new AbortController();
+        const timer = setTimeout(function () { controller.abort(); }, timeoutMs);
+        try {
+            return await fetch(url, Object.assign({}, init, { signal: controller.signal }));
+        } catch (err) {
+            if (err && err.name === 'AbortError') {
+                throw new Error('Dropbox did not answer within '
+                    + Math.round(timeoutMs / 1000) + ' seconds. Nothing was lost — try again.');
+            }
+            // Offline, DNS, a captive portal: all arrive here as a TypeError.
+            throw new Error('Could not reach Dropbox. Anything you have logged is still on the phone.');
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+
+    /*
+     * Rate limits and server errors are the two failures worth trying again
+     * for, and only briefly: the queue is safe on the phone, so a sync that
+     * gives up costs nothing but a later tap. Dropbox says how long to wait
+     * when it means it, and that is honoured up to a sane ceiling.
+     */
+    async function send(url, init, options) {
+        const opts = options || {};
+        const timeout = opts.timeout || REQUEST_TIMEOUT;
+        const retries = opts.retries === undefined ? 1 : opts.retries;
+
+        for (let attempt = 0; ; attempt++) {
+            const response = await timedFetch(url, init, timeout);
+            if (response.ok) return response;
+
+            const worthRetrying = response.status === 429 || response.status >= 500;
+            if (!worthRetrying || attempt >= retries) return response;
+
+            const stated = Number(response.headers.get('retry-after'));
+            const wait = Math.min(
+                isNaN(stated) || stated <= 0 ? 1000 * (attempt + 1) : stated * 1000,
+                MAX_BACKOFF);
+            await sleep(wait);
+        }
+    }
+
     async function storeTokens(data) {
         if (data.refresh_token) await AmsDb.set(KEY_REFRESH, data.refresh_token);
         if (data.access_token) await AmsDb.set(KEY_ACCESS, data.access_token);
@@ -170,16 +231,33 @@ const AmsDropbox = (function () {
         await AmsDb.set(KEY_EXPIRES, Date.now() + (seconds - 120) * 1000);
     }
 
+    /*
+     * One refresh at a time. Several calls can want a token at the same moment
+     * — a sync, a file list and a foreground reload all start together — and
+     * three simultaneous refreshes of the same grant is a good way to have
+     * Dropbox reject two of them.
+     */
+    let refreshing = null;
+
     async function accessToken() {
         const token = await AmsDb.get(KEY_ACCESS, '');
         const expires = await AmsDb.get(KEY_EXPIRES, 0);
         if (token && Date.now() < expires) return token;
 
+        if (!refreshing) {
+            refreshing = refreshAccessToken().then(
+                function (value) { refreshing = null; return value; },
+                function (err) { refreshing = null; throw err; });
+        }
+        return refreshing;
+    }
+
+    async function refreshAccessToken() {
         const refresh = await AmsDb.get(KEY_REFRESH, '');
         if (!refresh) throw new Error('Not connected to Dropbox.');
 
         const key = await appKey();
-        const response = await fetch(TOKEN_URL, {
+        const response = await send(TOKEN_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
@@ -253,7 +331,7 @@ const AmsDropbox = (function () {
 
     async function rpc(endpoint, args) {
         const token = await accessToken();
-        const response = await fetch(API_URL + '/' + endpoint, {
+        const response = await send(API_URL + '/' + endpoint, {
             method: 'POST',
             headers: Object.assign(
                 { Authorization: 'Bearer ' + token },
@@ -302,13 +380,13 @@ const AmsDropbox = (function () {
 
     async function download(path) {
         const token = await accessToken();
-        const response = await fetch(CONTENT_URL + '/files/download', {
+        const response = await send(CONTENT_URL + '/files/download', {
             method: 'POST',
             headers: {
                 Authorization: 'Bearer ' + token,
                 'Dropbox-API-Arg': asciiJson({ path: path })
             }
-        });
+        }, { timeout: UPLOAD_TIMEOUT });
         if (!response.ok) throw await describeError(response);
 
         const info = JSON.parse(response.headers.get('dropbox-api-result') || '{}');
@@ -332,7 +410,7 @@ const AmsDropbox = (function () {
         const token = await accessToken();
         const mode = rev ? { '.tag': 'update', update: rev } : { '.tag': 'overwrite' };
 
-        const response = await fetch(CONTENT_URL + '/files/upload', {
+        const response = await send(CONTENT_URL + '/files/upload', {
             method: 'POST',
             headers: {
                 Authorization: 'Bearer ' + token,
@@ -345,7 +423,7 @@ const AmsDropbox = (function () {
                 })
             },
             body: blob
-        });
+        }, { timeout: UPLOAD_TIMEOUT });
 
         if (!response.ok) {
             const error = await describeError(response);

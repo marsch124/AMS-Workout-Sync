@@ -87,15 +87,39 @@ const AmsDb = (function () {
      * app sends it back on upload so Dropbox refuses the write if the file has
      * changed underneath us.
      */
+    /*
+     * Best effort, deliberately. This copy is a convenience — it makes today's
+     * session readable with no signal — and a phone that is full, or in a
+     * private window, will refuse the write. That must not take down the load
+     * that produced it: the workbook in hand is still perfectly usable, and
+     * failing here used to abandon it and show an error for a file that had
+     * downloaded fine.
+     */
     async function saveWorkbook(bytes, meta) {
-        await set('workbook.bytes', bytes);
-        await set('workbook.meta', Object.assign({ savedAt: Date.now() }, meta || {}));
+        try {
+            await set('workbook.bytes', bytes);
+            await set('workbook.meta', Object.assign({ savedAt: Date.now() }, meta || {}));
+            return true;
+        } catch (err) {
+            console.warn('The workbook could not be cached on this device:', err);
+            // The metadata alone is small and worth keeping if it will go.
+            try {
+                await set('workbook.meta', Object.assign({ savedAt: Date.now(), uncached: true }, meta || {}));
+            } catch (ignored) { /* nothing more to try */ }
+            return false;
+        }
     }
 
     async function getWorkbook() {
-        const bytes = await get('workbook.bytes', null);
-        const meta = await get('workbook.meta', null);
-        return bytes ? { bytes, meta: meta || {} } : null;
+        try {
+            const bytes = await get('workbook.bytes', null);
+            const meta = await get('workbook.meta', null);
+            if (!bytes || !bytes.length) return null;
+            return { bytes, meta: meta || {} };
+        } catch (err) {
+            console.warn('The cached workbook could not be read back:', err);
+            return null;
+        }
     }
 
     /* ---------- the pending queue ---------- */
@@ -116,7 +140,15 @@ const AmsDb = (function () {
             attempts: 0,
             lastError: null
         }, entry);
-        await tx(STORE_QUEUE, 'readwrite', (store) => store.put(record));
+        try {
+            await tx(STORE_QUEUE, 'readwrite', (store) => store.put(record));
+        } catch (err) {
+            // This one is not survivable quietly: the whole promise of logging
+            // offline is that the entry is safe on the phone. If it is not, the
+            // person needs to hear so while they still remember the numbers.
+            throw new Error('This phone would not store the entry, so it was not saved. '
+                + 'Free some space, or check that private browsing is off, and enter it again.');
+        }
         return record;
     }
 

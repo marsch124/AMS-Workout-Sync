@@ -2350,6 +2350,16 @@ const AmsUi = (function () {
             toast('The date and discipline columns are both needed.', 'bad');
             return;
         }
+
+        // Two fields on one column is the mistake that costs a workbook: a
+        // result written into the column the plan lives in overwrites it.
+        const clashes = AmsMapping.collisions(setupDraft);
+        if (clashes.length) {
+            const first = clashes[0];
+            toast(first.fields.join(' and ') + ' are both set to the same column. '
+                + 'Logging would write one over the other in your sheet — change one of them.', 'bad');
+            return;
+        }
         const state = AmsSync.getState();
         setupDraft.sectionColumn = setupDraft.columns.sectionLabel || null;
         setupDraft.lastDataRow = AmsMapping.findLastDataRow(setupSheet, setupDraft.firstDataRow, setupDraft.columns.date);
@@ -2393,10 +2403,21 @@ const AmsUi = (function () {
                 if (explicit) toast('Choose the workbook in Settings first.', 'bad');
             } else if (result.skipped === 'not-connected') {
                 if (explicit) toast('Connect Dropbox in Settings first.', 'bad');
+            } else if (result.skipped === 'already-syncing') {
+                if (explicit) toast('Already syncing — give it a moment.');
             } else if (result.error) {
                 toast(result.error, 'bad');
             } else if (result.written) {
-                toast(result.written + ' session' + (result.written === 1 ? '' : 's') + ' written into the workbook.', 'good');
+                // Entries that could not be written are now kept and reported
+                // rather than taking the whole sync down with them, so the
+                // count of them has to be said out loud or it says nothing.
+                toast(result.written + ' session' + (result.written === 1 ? '' : 's')
+                    + ' written into the workbook.'
+                    + (result.failed ? ' ' + result.failed + ' could not be — see Settings, Syncing.' : ''),
+                    result.failed ? 'bad' : 'good');
+            } else if (result.failed) {
+                toast(result.failed + ' entr' + (result.failed === 1 ? 'y' : 'ies')
+                    + ' could not be written. Settings → Syncing shows why.', 'bad');
             } else if (explicit) {
                 await AmsSync.load();
                 toast('Up to date.', 'good');

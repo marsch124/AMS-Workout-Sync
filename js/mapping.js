@@ -139,6 +139,14 @@ const AmsMapping = (function () {
     const SECTION_FIELDS = ['warmup', 'intervals', 'cooldown', 'technique'];
     const RESULT_FIELDS = FIELDS.filter((f) => f.write).map((f) => f.id);
 
+    /*
+     * Everything that describes the plan rather than records a performance.
+     * These columns are read and never written — except the date and weekday,
+     * which a reschedule restates on purpose.
+     */
+    const PLAN_FIELDS = FIELDS.filter((f) => !f.write).map((f) => f.id);
+    const MOVABLE_FIELDS = ['date', 'weekday'];
+
     /* Fold a heading down to something comparable: lower case, umlauts and
        accents flattened, punctuation dropped, whitespace collapsed. */
     function normalise(text) {
@@ -405,6 +413,43 @@ const AmsMapping = (function () {
     }
 
     /*
+     * Two fields pointing at one column.
+     *
+     * This is the mapping mistake that costs something: point "Actual (min)" at
+     * the column holding the workout text and the first session you log writes
+     * a number over the description of what you were supposed to do — in the
+     * workbook, for good. Detection can be wrong, a heading can be ambiguous,
+     * and the setup screen lets any column be chosen by hand, so the check
+     * belongs here rather than in anyone's care.
+     */
+    function collisions(mapping) {
+        if (!mapping || !mapping.columns) return [];
+
+        const byColumn = new Map();
+        Object.keys(mapping.columns).forEach((id) => {
+            const col = mapping.columns[id];
+            if (!col || !FIELD_BY_ID.has(id)) return;
+            if (!byColumn.has(col)) byColumn.set(col, []);
+            byColumn.get(col).push(id);
+        });
+
+        const out = [];
+        byColumn.forEach((ids, col) => {
+            if (ids.length < 2) return;
+            const writes = ids.filter((id) => RESULT_FIELDS.indexOf(id) !== -1);
+            // Two plan fields sharing a column is odd but harmless: nothing is
+            // written to either. A result field sharing with anything is not.
+            if (!writes.length) return;
+            out.push({
+                column: col,
+                fields: ids.map((id) => FIELD_BY_ID.get(id).label),
+                ids: ids
+            });
+        });
+        return out;
+    }
+
+    /*
      * Give the unmapped result fields a home by appending new columns to the
      * right of the sheet. Used when a plan has no "actual" columns at all.
      * Returns the cell edits needed to write the new headings.
@@ -457,6 +502,9 @@ const AmsMapping = (function () {
         FIELD_BY_ID,
         SECTION_FIELDS,
         RESULT_FIELDS,
+        PLAN_FIELDS,
+        MOVABLE_FIELDS,
+        collisions,
         normalise,
         autoDetect,
         headingsFor,

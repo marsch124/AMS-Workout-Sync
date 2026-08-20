@@ -8,6 +8,27 @@
 (async function () {
     'use strict';
 
+    /*
+     * Anything that gets this far has already escaped a try/catch somewhere it
+     * should not have. Silence is the worst outcome — a tap that does nothing
+     * and no reason given — so it is said out loud once, and repeats are held
+     * back rather than turned into a wall of toasts.
+     */
+    let lastComplaint = 0;
+
+    function complain(what, err) {
+        console.error(what, err);
+        const now = Date.now();
+        if (now - lastComplaint < 8000) return;
+        lastComplaint = now;
+        try {
+            AmsUi.toast('Something went wrong: ' + ((err && err.message) || what), 'bad');
+        } catch (ignored) { /* the UI is not up; the console has it */ }
+    }
+
+    window.addEventListener('error', (event) => complain('unexpected error', event.error || event));
+    window.addEventListener('unhandledrejection', (event) => complain('unexpected error', event.reason));
+
     async function boot() {
         AmsUi.init();
 
@@ -55,18 +76,45 @@
             }).catch(() => {});
         });
 
-        // Coming back to the app is a good moment to check the workbook again.
+        /*
+         * Coming back to the app is a good moment to check the workbook again
+         * — but not every time, and not every few seconds. Switching to the
+         * timer app and back three times during an interval set should not be
+         * three downloads of the whole workbook: that is somebody's data
+         * allowance, their battery, and eventually Dropbox's rate limit.
+         */
+        const REFRESH_FLOOR = 60000;
+        let lastRefresh = Date.now();
+
         document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-                AmsSync.load().catch(() => {});
-            }
+            if (document.visibilityState !== 'visible') return;
+            if (Date.now() - lastRefresh < REFRESH_FLOOR) return;
+            lastRefresh = Date.now();
+            AmsSync.load().catch((err) => console.warn('Refresh on foreground failed:', err));
+        });
+    }
+
+    /*
+     * If start-up itself fails there is no app to show a message in, so the
+     * message has to be put on the page directly. A blank screen tells nobody
+     * anything, least of all whether their logging is still safe.
+     */
+    function bootOrExplain() {
+        boot().catch((err) => {
+            console.error('The app could not start:', err);
+            const body = document.getElementById('todayBody');
+            if (!body) return;
+            body.innerHTML = '<div class="empty-state"><h2>The app could not start</h2>'
+                + '<p>' + String((err && err.message) || err).replace(/[<&]/g, '') + '</p>'
+                + '<p>Anything you logged is still stored on this phone. Closing the app '
+                + 'and opening it again is the first thing to try.</p></div>';
         });
     }
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', boot);
+        document.addEventListener('DOMContentLoaded', bootOrExplain);
     } else {
-        boot();
+        bootOrExplain();
     }
 
     /*

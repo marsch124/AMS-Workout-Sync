@@ -107,6 +107,7 @@ const AmsSync = (function () {
         const opts = options || {};
         const path = await filePath();
         let bytes = null;
+        let workbook = null;
         let meta = null;
         let source = null;
 
@@ -115,36 +116,61 @@ const AmsSync = (function () {
         if (path && connected && navigator.onLine !== false && !opts.cacheOnly) {
             try {
                 const file = await AmsDropbox.download(path);
+
+                /*
+                 * Prove it opens before trusting it, and before caching it. A
+                 * download cut short by a lift or a lock screen is still bytes;
+                 * cached blind, those bytes become what the app reads on every
+                 * launch afterwards, and the way out is a full reset. Opening
+                 * first costs a moment and keeps a bad copy from sticking.
+                 */
+                workbook = await openBytes(file.bytes);
                 bytes = file.bytes;
                 meta = { rev: file.rev, name: file.name, path: file.path, modified: file.modified, size: file.size };
                 source = 'dropbox';
                 await AmsDb.saveWorkbook(bytes, meta);
                 state.lastError = null;
             } catch (err) {
+                workbook = null;
+                bytes = null;
                 state.lastError = err.message;
                 emit('error', { error: err, phase: 'download' });
             }
         }
 
-        if (!bytes) {
+        if (!workbook) {
             const cached = await AmsDb.getWorkbook();
             if (cached) {
-                bytes = cached.bytes;
-                meta = cached.meta;
-                source = 'cache';
+                try {
+                    workbook = await openBytes(cached.bytes);
+                    bytes = cached.bytes;
+                    meta = cached.meta;
+                    source = 'cache';
+                } catch (err) {
+                    // The copy on the phone is unreadable, so it is worse than
+                    // nothing: keeping it would fail this way on every launch.
+                    console.warn('The cached workbook could not be opened; discarding it.', err);
+                    try {
+                        await AmsDb.remove('workbook.bytes');
+                        await AmsDb.remove('workbook.meta');
+                    } catch (ignored) { /* nothing more to do */ }
+                    state.lastError = 'The copy of the workbook on this phone was unreadable and has been '
+                        + 'discarded. Sync to fetch it again.';
+                }
             }
         }
 
-        if (!bytes) {
+        if (!workbook) {
             state.workbook = null;
             state.plan = [];
+            state.extras = [];
             state.meta = null;
             state.source = null;
             emit('plan', { plan: [] });
             return state;
         }
 
-        state.workbook = await openBytes(bytes);
+        state.workbook = workbook;
         state.meta = meta;
         state.source = source;
 
@@ -154,23 +180,53 @@ const AmsSync = (function () {
         // phone that had already been set up once.
         const stale = mapping && mapping.version !== AmsMapping.MAPPING_VERSION;
         if (!AmsMapping.isComplete(mapping) || stale) {
-            const detected = await AmsMapping.autoDetect(state.workbook);
-            if (detected) {
-                await prepareMapping(state.workbook, detected);
-                await AmsDb.set('mapping', detected);
-                mapping = detected;
-                if (stale) emit('remapped', { mapping: detected });
+            try {
+                const detected = await AmsMapping.autoDetect(state.workbook);
+                if (detected) {
+                    await prepareMapping(state.workbook, detected);
+                    await AmsDb.set('mapping', detected);
+                    mapping = detected;
+                    if (stale) emit('remapped', { mapping: detected });
+                }
+            } catch (err) {
+                // A layout that cannot be guessed is not a reason to show
+                // nothing at all: the workbook is open, and Sheet setup can
+                // still be reached to say what is where by hand.
+                console.warn('The layout of this workbook could not be worked out:', err);
+                if (!AmsMapping.isComplete(mapping)) mapping = null;
             }
         }
         state.mapping = mapping;
 
-        state.plan = mapping ? await buildPlan(state.workbook, mapping) : [];
-        state.extras = await AmsExtras.read(state.workbook);
-        await overlayQueue();
+        /*
+         * From here on, one bad part of the workbook must not take the rest of
+         * the app with it. A sheet that will not parse leaves an empty plan and
+         * a message, not a blank screen.
+         */
+        try {
+            state.plan = mapping ? await buildPlan(state.workbook, mapping) : [];
+        } catch (err) {
+            console.warn('The plan could not be read from this workbook:', err);
+            state.plan = [];
+            state.lastError = 'The plan could not be read from this workbook — check Sheet setup.';
+        }
+
+        try {
+            state.extras = await AmsExtras.read(state.workbook);
+        } catch (err) {
+            console.warn('The Extras sheet could not be read:', err);
+            state.extras = [];
+        }
+
+        try {
+            await overlayQueue();
+        } catch (err) {
+            console.warn('The queue could not be overlaid on the plan:', err);
+        }
+
         emit('plan', { plan: state.plan, source: source });
         return state;
     }
-
     /* Open a workbook the user picked from their phone rather than Dropbox. */
     async function loadFromFile(file) {
         const bytes = new Uint8Array(await file.arrayBuffer());
@@ -294,8 +350,10 @@ const AmsSync = (function () {
     /* Write one queued extra into the workbook, creating the sheet if needed. */
     async function applyExtra(workbook, entry) {
         const value = entry.values.extra;
-        await AmsExtras.ensureSheet(workbook);
-        const sheet = await workbook.readSheet(AmsExtras.SHEET_NAME);
+        // The name is resolved rather than assumed: a workbook may already
+        // have a sheet called Extras that has nothing to do with this app.
+        const sheetName = await AmsExtras.ensureSheet(workbook);
+        const sheet = await workbook.readSheet(sheetName);
 
         // Appending is not idempotent the way writing to a known row is, so a
         // replay must not add the same thing twice.
@@ -312,7 +370,7 @@ const AmsSync = (function () {
 
         const built = AmsExtras.buildEdits(sheet, value, weekdayNames);
         if (!built.edits.length) return false;
-        await workbook.writeCells(AmsExtras.SHEET_NAME, built.edits);
+        await workbook.writeCells(sheetName, built.edits);
         return true;
     }
 
@@ -396,6 +454,49 @@ const AmsSync = (function () {
      * than throwing for the ordinary failures, since this runs in the
      * background as often as it runs from a button.
      */
+    /*
+     * Never hand Dropbox a file that cannot be read back.
+     *
+     * The writer is surgical — it rebuilds the cells you filled in and copies
+     * every other part of the zip across untouched — but "surgical" is a claim,
+     * and what it is a claim about is the only copy of a year's training. So
+     * the bytes about to be uploaded are opened again and re-read here, and
+     * anything short of a workbook that still parses stops the upload with the
+     * queue intact. A sync that does not happen costs a tap; a workbook
+     * uploaded broken costs the plan.
+     */
+    async function verifyBeforeUpload(bytes, mapping, sessionsBefore) {
+        let check;
+        try {
+            check = await openBytes(bytes);
+        } catch (err) {
+            throw new Error('The app built a workbook it could not read back, so nothing was uploaded '
+                + 'and your logging is still waiting. (' + (err.message || 'unreadable') + ')');
+        }
+
+        if (!check.sheets.length) {
+            throw new Error('The app built a workbook with no sheets in it, so nothing was uploaded '
+                + 'and your logging is still waiting.');
+        }
+
+        if (!mapping || !AmsMapping.isComplete(mapping)) return;
+
+        let after;
+        try {
+            after = await AmsPlan.build(check, mapping);
+        } catch (err) {
+            throw new Error('The plan could not be read back out of the workbook the app just built, '
+                + 'so nothing was uploaded and your logging is still waiting.');
+        }
+
+        // Sessions may appear (a row logged into a blank one) but they must
+        // never vanish: that would mean the write had eaten part of the plan.
+        if (typeof sessionsBefore === 'number' && after.length < sessionsBefore) {
+            throw new Error('The workbook the app built has ' + after.length + ' sessions where the one it '
+                + 'read had ' + sessionsBefore + '. Nothing was uploaded and your logging is still waiting.');
+        }
+    }
+
     async function sync(options) {
         const opts = options || {};
         if (state.syncing) return { skipped: 'already-syncing' };
@@ -429,54 +530,90 @@ const AmsSync = (function () {
             const written = [];
             const failed = [];
 
+            /*
+             * Each entry is applied inside its own guard. One that cannot be
+             * written — a row that moved out from under it, a value the writer
+             * chokes on — used to abort the whole sync, which meant it also
+             * blocked every entry behind it, for ever, with no way through but
+             * discarding it blind. Now it is recorded on the entry, shown in
+             * Settings → Syncing, and the rest of the queue goes up.
+             */
             for (const entry of queued) {
-                if (entry.extra) {
-                    const ok = await applyExtra(workbook, entry);
-                    if (ok) written.push(entry);
-                    else await AmsDb.unqueue(entry.id);
-                    continue;
-                }
-                const workout = findWorkoutFor(entry, plan);
-                if (!workout) {
+                try {
+                    if (entry.extra) {
+                        const ok = await applyExtra(workbook, entry);
+                        if (ok) written.push(entry);
+                        else throw new Error('This entry had nothing that could be written to the Extras sheet.');
+                        continue;
+                    }
+
+                    const workout = findWorkoutFor(entry, plan);
+                    if (!workout) throw new Error('No row in the workbook matches this session any more.');
+
+                    const edits = AmsPlan.buildEdits(workout, entry.values, mapping);
+                    if (!edits.length) {
+                        // Nothing mappable to write — drop it rather than retry
+                        // for ever. Nothing is lost: there was nothing in it.
+                        await AmsDb.unqueue(entry.id);
+                        continue;
+                    }
+
+                    await workbook.writeCells(workout.sheet, edits);
+                    written.push(entry);
+                } catch (err) {
                     entry.attempts = (entry.attempts || 0) + 1;
-                    entry.lastError = 'No row in the workbook matches this session any more.';
-                    await AmsDb.updateQueued(entry);
+                    entry.lastError = err.message || String(err);
+                    try { await AmsDb.updateQueued(entry); } catch (ignored) { /* nothing more to do */ }
                     failed.push(entry);
-                    continue;
                 }
-                const edits = AmsPlan.buildEdits(workout, entry.values, mapping);
-                if (!edits.length) {
-                    // Nothing mappable to write — drop it rather than retry forever.
-                    await AmsDb.unqueue(entry.id);
-                    continue;
-                }
-                await workbook.writeCells(workout.sheet, edits);
-                written.push(entry);
             }
 
             if (!written.length) {
-                state.syncing = false;
                 emit('sync', { phase: 'done', written: 0, failed: failed.length });
                 return { written: 0, failed: failed.length };
             }
 
             const blob = await workbook.save();
-            await AmsDropbox.upload(path, blob, file.rev);
+            const bytes = new Uint8Array(await blob.arrayBuffer());
+            await verifyBeforeUpload(bytes, mapping, plan.length);
 
-            for (const entry of written) await AmsDb.unqueue(entry.id);
+            const receipt = await AmsDropbox.upload(path, blob, file.rev);
+
+            // Only once Dropbox has it does the queue let go.
+            for (const entry of written) {
+                try { await AmsDb.unqueue(entry.id); } catch (ignored) { /* it will be replayed, harmlessly */ }
+            }
+
+            // Keep the copy on the phone in step with what was just uploaded,
+            // so a later offline launch reads the current plan.
+            await AmsDb.saveWorkbook(bytes, {
+                rev: (receipt && receipt.rev) || file.rev,
+                name: (receipt && receipt.name) || file.name,
+                path: (receipt && receipt.path_lower) || path,
+                modified: (receipt && receipt.server_modified) || file.modified,
+                size: bytes.length
+            });
+
+            state.lastError = null;
 
             // Re-read so the app is looking at exactly what Dropbox now holds.
-            state.syncing = false;
-            await load();
+            // A failure here is a failure to refresh, not a failure to write:
+            // the sessions are in the file. Saying "sync failed" at this point
+            // would send someone to fix something that is already done.
+            try {
+                await load();
+            } catch (err) {
+                console.warn('Wrote to Dropbox but could not re-read the workbook:', err);
+            }
+
             emit('sync', { phase: 'done', written: written.length, failed: failed.length });
             return { written: written.length, failed: failed.length };
 
         } catch (err) {
-            state.syncing = false;
-
             if (err.isConflict && !opts.noRetry) {
                 // Someone saved the file while we were working. Start again on
                 // the newer version — the queue is still intact.
+                state.syncing = false;
                 emit('sync', { phase: 'conflict' });
                 return sync({ noRetry: true });
             }
@@ -485,6 +622,12 @@ const AmsSync = (function () {
             emit('sync', { phase: 'failed', error: err });
             emit('error', { error: err, phase: 'sync' });
             return { error: err.message };
+
+        } finally {
+            // Whatever happened, the app is not syncing any more. Leaving this
+            // set on an unexpected throw left the button spinning for ever and
+            // refused every later sync as "already syncing".
+            state.syncing = false;
         }
     }
 
