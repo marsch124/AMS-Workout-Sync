@@ -20,6 +20,8 @@ const AmsSync = (function () {
         plan: [],
         extras: [],
         pendingExtras: [],
+        inbox: [],           /* what the watch left next to the workbook */
+        inboxError: null,
         meta: null,
         source: null,      // 'dropbox' | 'cache' | 'file'
         lastError: null,
@@ -292,6 +294,12 @@ const AmsSync = (function () {
         }
 
         try {
+            await readInbox();
+        } catch (err) {
+            console.warn('The watch inbox could not be read:', err);
+        }
+
+        try {
             await overlayQueue();
         } catch (err) {
             console.warn('The queue could not be overlaid on the plan:', err);
@@ -325,6 +333,57 @@ const AmsSync = (function () {
         await overlayQueue();
         emit('plan', { plan: state.plan, source: 'file' });
         return state;
+    }
+
+    /* ---------- what the watch says ---------- */
+
+    /*
+     * A small file beside the workbook, written by a Shortcut out of Apple
+     * Health. It is fetched on its own and never gets in the way: no file is
+     * the ordinary case, and a broken one is worth a line in Settings rather
+     * than an error over the whole app.
+     */
+    async function readInbox() {
+        state.inbox = [];
+        state.inboxError = null;
+
+        if (!(await AmsDb.get('inbox.enabled', true))) return state.inbox;
+
+        const workbookPath = await filePath();
+        if (!workbookPath) return state.inbox;
+        if (!(await AmsDropbox.isConnected())) return state.inbox;
+
+        const path = AmsInbox.pathFor(workbookPath, await AmsDb.get('inbox.file', AmsInbox.DEFAULT_FILE));
+
+        let file;
+        try {
+            file = await AmsDropbox.download(path);
+        } catch (err) {
+            // Not there is not a problem: most people will never make one.
+            if (!/no longer in Dropbox|not_found/i.test(err.message || '')) {
+                state.inboxError = err.message;
+            }
+            return state.inbox;
+        }
+
+        try {
+            const text = new TextDecoder().decode(file.bytes);
+            state.inbox = AmsInbox.parse(text);
+        } catch (err) {
+            state.inboxError = err.message;
+        }
+        return state.inbox;
+    }
+
+    /* Today's entries, each with the session it belongs to if there is one. */
+    function inboxForToday(dayKey) {
+        const day = dayKey || todayKey();
+        return (state.inbox || [])
+            .filter((entry) => entry.dayKey === day)
+            .map((entry) => ({
+                entry: entry,
+                workout: AmsInbox.matchTo(entry, state.plan, state.mapping || {}, isRecorded)
+            }));
     }
 
     /* ---------- logging ---------- */
@@ -1086,6 +1145,8 @@ const AmsSync = (function () {
         outstanding,
         weekSummary,
         weekDays,
-        weekStart
+        weekStart,
+        readInbox,
+        inboxForToday
     };
 })();

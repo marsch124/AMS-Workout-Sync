@@ -974,6 +974,22 @@ body.detail-open .tab-bar { display: none; }
 
 .day-heading.is-outstanding h2 { color: var(--color-warning); }
 
+/* ---------- what the watch says ---------- */
+
+.watch-card .workout-card-titles { margin-bottom: 0.4rem; }
+
+.watch-figures {
+    font-size: 0.95rem;
+    font-weight: 650;
+    margin-bottom: 0.35rem;
+}
+
+.watch-match {
+    font-size: 0.82rem;
+    color: var(--color-text-secondary);
+    margin-bottom: 0.7rem;
+}
+
 /* ---------- the sync queue ---------- */
 
 .queue-item {

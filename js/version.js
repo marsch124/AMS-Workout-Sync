@@ -8,13 +8,24 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.22.0';
+    const CURRENT = '1.23.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.23.0',
+            date: '2026-08-20',
+            headline: 'Numbers from your watch (a first attempt)',
+            items: [
+                'Garmin has no interface a personal app may use — their developer programme is for companies and works by pushing data to a server this app deliberately does not have. But your watch already writes every session into Apple Health, and Shortcuts can read Health and write a file. So the bridge is a file.',
+                'A Shortcut drops today\u2019s workouts beside your workbook in Dropbox. The app reads them, matches each to a planned session by day and sport, and offers the numbers under "From your watch" on the Today screen. Tapping fills the log form in; what is written to the workbook is still your decision, made by pressing Save.',
+                'Anything the watch recorded that nothing planned matches — a walk, an unplanned run — is offered for the Extras sheet instead.',
+                'How this works has the recipe for the Shortcut. This is a first attempt: it wants trying before it is trusted.'
+            ]
+        },
         {
             version: '1.22.0',
             date: '2026-08-20',

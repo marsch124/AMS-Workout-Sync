@@ -256,6 +256,7 @@ const AmsUi = (function () {
                 + emptyState('icon-check', 'Rest day',
                 'Nothing is scheduled for today in the workbook.',
                 '')
+                + watchBlock()
                 + extrasBlock()
                 + (next.length
                     ? '<div class="day-heading"><h2>Coming up</h2></div>'
@@ -292,7 +293,7 @@ const AmsUi = (function () {
                         + '<button class="btn btn-small" data-move="' + esc(workout.key) + '">Move</button>'
                       + '</div>')
                 + '</div>';
-        }).join('') + extrasBlock();
+        }).join('') + watchBlock() + extrasBlock();
     }
 
     /*
@@ -1000,6 +1001,64 @@ const AmsUi = (function () {
             + ' not recorded</button>';
     }
 
+    /* ---------- what the watch says ---------- */
+
+    /*
+     * Sessions Apple Health recorded today, offered rather than applied.
+     *
+     * The numbers come from a watch, which is to say from a device that is
+     * often right and occasionally certain a stationary bike was a canoe. So
+     * nothing is written here: tapping fills the log form in, and saving it is
+     * still a decision somebody makes.
+     */
+    function watchBlock() {
+        const found = AmsSync.inboxForToday();
+        if (!found.length) return '';
+
+        return '<div class="day-heading"><h2>From your watch</h2></div>'
+            + found.map((item, index) => {
+                const entry = item.entry;
+                const detail = AmsInbox.describe(entry);
+                const colour = entry.discipline.color;
+
+                return '<div class="card workout-card watch-card" style="--sport: ' + colour + '">'
+                    + '<div class="workout-card-titles">'
+                    // The watch's own word for it, but only where the app could
+                    // not place it: "Run · Running" tells nobody anything.
+                    + '<p class="workout-card-sport">' + esc(entry.discipline.label)
+                    + (entry.sport && entry.discipline.id === 'other' ? ' · ' + esc(entry.sport) : '')
+                    + '</p>'
+                    + (entry.name ? '<p class="workout-card-title">' + esc(entry.name) + '</p>' : '')
+                    + '</div>'
+                    + (detail ? '<p class="watch-figures">' + esc(detail) + '</p>' : '')
+                    + (item.workout
+                        ? '<p class="watch-match">Matches <strong>' + esc(item.workout.title || item.workout.discipline.label)
+                            + '</strong></p>'
+                            + '<button class="btn btn-primary btn-block" data-watch="' + index + '">'
+                            + 'Log this session with these</button>'
+                        : '<p class="watch-match">Nothing planned today matches it.</p>'
+                            + '<button class="btn btn-block" data-watch-extra="' + index + '">'
+                            + 'Record it as something else</button>')
+                    + '</div>';
+            }).join('');
+    }
+
+    async function useWatchEntry(index, asExtra) {
+        const found = AmsSync.inboxForToday();
+        const item = found[parseInt(index, 10)];
+        if (!item) return;
+
+        if (asExtra || !item.workout) {
+            extraDraft = Object.assign(AmsInbox.extraFor(item.entry), { keep: true });
+            openExtra();
+            toast('Filled in from your watch — check it before saving.');
+            return;
+        }
+
+        await openLog(item.workout.key, AmsInbox.valuesFor(item.entry, item.workout));
+        toast('Filled in from your watch — check it before saving.');
+    }
+
     /*
      * What was done today outside the plan, and the way to add more. Shown on
      * rest days too — a rest day is exactly when a breathing session happens.
@@ -1366,7 +1425,7 @@ const AmsUi = (function () {
 
     /* ---------- the log form ---------- */
 
-    async function openLog(key) {
+    async function openLog(key, prefill) {
         const workout = key ? AmsSync.byKey(key) : currentWorkout;
         if (!workout) return;
         currentWorkout = workout;
@@ -1408,7 +1467,8 @@ const AmsUi = (function () {
         $('saveLogButton').disabled = false;
 
         const distanceUnit = AmsPlan.DEFAULT_DISTANCE_UNIT[workout.discipline.id] || 'km';
-        const previous = workout.pending ? workout.pending.values : null;
+        // Anything already queued, with whatever the watch offered laid over it.
+        const previous = Object.assign({}, workout.pending ? workout.pending.values : null, prefill || {});
         const plannedSeconds = AmsPlan.plannedDurationSeconds(workout, state.mapping || {});
         const plannedMinutes = plannedSeconds ? plannedSeconds / 60 : 0;
 
@@ -1948,6 +2008,27 @@ const AmsUi = (function () {
             + '<div class="settings-row-title">Version ' + esc(AmsVersion.CURRENT) + '</div>'
             + '<div class="settings-row-sub">' + esc(AmsVersion.CHANGELOG[0].headline) + '</div>'
             + '</div><button class="btn btn-small" data-go="version">What’s new</button></div></div>');
+
+        /* --- the watch --- */
+        if (hasWorkbook) {
+            const inbox = state.inbox || [];
+            const today = inbox.filter((entry) => entry.dayKey === AmsSync.todayKey()).length;
+            parts.push('<div class="settings-group"><h2>From your watch</h2>'
+                + '<div class="settings-row"><div class="settings-row-main">'
+                + '<div class="settings-row-title">'
+                + (state.inboxError
+                    ? 'Could not be read'
+                    : inbox.length
+                        ? inbox.length + ' workout' + (inbox.length === 1 ? '' : 's') + ' waiting'
+                            + (today ? ' · ' + today + ' from today' : '')
+                        : 'Nothing yet')
+                + '</div><div class="settings-row-sub">'
+                + esc(state.inboxError
+                    || 'A Shortcut can put what Apple Health recorded next to your workbook, and the app '
+                        + 'offers it on the Today screen. Nothing is written without you.')
+                + '</div></div>'
+                + '<button class="btn btn-small" data-go="guide">How</button></div></div>');
+        }
 
         /* --- what can be logged outside the plan --- */
         parts.push('<div class="settings-group"><h2>Log something else</h2>'
@@ -2509,6 +2590,41 @@ const AmsUi = (function () {
                 + 'selects the typed minutes and skips both the total formulas and the blank rest days; then '
                 + '<strong>Paste Special → Multiply</strong>. Reopen the app and it reads the new plan.</p>')
 
+            + section('Numbers from your watch',
+                '<p>Garmin has no interface a personal app may use: their developer programme is for '
+                + 'companies, works by pushing data to a server, and this app has no server on purpose. '
+                + 'But your watch already puts every session into <strong>Apple Health</strong> on the '
+                + 'phone, and Shortcuts can read Health and write a file. So the bridge is a file.</p>'
+
+                + '<p>A Shortcut writes today’s workouts into <code>' + esc(AmsInbox.DEFAULT_FILE) + '</code>, '
+                + 'in the same Dropbox folder as your workbook. The app reads it, matches each one to a '
+                + 'planned session by day and sport, and offers the numbers on the Today screen. '
+                + '<strong>Nothing is written into your workbook by this.</strong> Tapping fills in the log '
+                + 'form; saving it is still yours.</p>'
+
+                + '<p><strong>Building the Shortcut</strong> — once, in the Shortcuts app:</p>'
+                + '<ol>'
+                + '<li><strong>Find Health Samples</strong> — type <em>Workouts</em>, filter '
+                + '<em>Start Date is today</em>, sort by Start Date.</li>'
+                + '<li><strong>Repeat with Each</strong> over the result. Inside the repeat, build a line of '
+                + 'text with the values you want:<br>'
+                + '<code>{"date":"[Current Date, formatted yyyy-MM-dd]","sport":"[Workout Type]",'
+                + '"minutes":[Duration in minutes],"km":[Distance in km],"avgHr":[Average Heart Rate]}</code>'
+                + '</li>'
+                + '<li>Join the repeat results <strong>with commas</strong>, then wrap the lot in square '
+                + 'brackets: <code>[</code> … <code>]</code>. That is the whole file.</li>'
+                + '<li><strong>Save File</strong> to your Dropbox folder, next to the workbook, named '
+                + '<code>' + esc(AmsInbox.DEFAULT_FILE) + '</code>, with <em>Overwrite</em> on.</li>'
+                + '</ol>'
+
+                + '<p>Run it when you finish a session — from the Shortcuts widget, or as an automation. '
+                + 'Then open this app: the session is waiting with its numbers in it.</p>'
+
+                + '<p>Every field is optional except the date. Missing numbers simply leave that box empty, '
+                + 'and an empty box leaves the cell in your workbook exactly as it was. If nothing planned '
+                + 'matches what the watch recorded — an unplanned run, a walk — it is offered as something '
+                + 'to record on the Extras sheet instead.</p>')
+
             + section('Things the plan did not ask for',
                 '<p>An unplanned run, a hike, a meditation goes on a separate <strong>Extras</strong> sheet, '
                 + 'created the first time you use it, with a column saying whether it counts as training '
@@ -2924,6 +3040,12 @@ const AmsUi = (function () {
                 renderToday();
                 return;
             }
+
+            const watch = event.target.closest('[data-watch]');
+            if (watch) { useWatchEntry(watch.dataset.watch, false); return; }
+
+            const watchExtra = event.target.closest('[data-watch-extra]');
+            if (watchExtra) { useWatchEntry(watchExtra.dataset.watchExtra, true); return; }
 
             if (event.target.closest('[data-extra]')) { openExtra(); return; }
 
