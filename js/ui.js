@@ -30,6 +30,8 @@ const AmsUi = (function () {
 
     function $(id) { return document.getElementById(id); }
 
+    const MIDDOT = '·';
+
     /* Dates from the workbook are UTC-anchored, so they must be formatted in
        UTC too — otherwise a session drifts to the previous day west of London. */
     function formatDay(date, options) {
@@ -311,9 +313,14 @@ const AmsUi = (function () {
      */
     function weekFigures(week) {
         const planned = AmsPlan.formatDuration(week.plannedSeconds);
-        if (!week.actualSeconds) return planned + ' planned this week';
 
-        const done = AmsPlan.formatDuration(week.actualSeconds) + ' done';
+        // Time logged leads in every state, including nothing. Dropping the
+        // figure whenever it was zero meant a week could show a session
+        // recorded and no minutes anywhere — which reads as a fault, and
+        // is exactly what you opened the card to see.
+        if (!week.actualSeconds) return '0m logged ' + MIDDOT + ' ' + planned + ' planned';
+
+        const done = AmsPlan.formatDuration(week.actualSeconds) + ' logged';
         const remaining = week.plannedSeconds - week.actualSeconds;
 
         // Within a minute either way is met, not "1m to go".
@@ -1925,6 +1932,47 @@ const AmsUi = (function () {
                 + '<p><strong>Move</strong> sends a session to another day; <strong>swap</strong> exchanges '
                 + 'two sessions’ days, which is what fits doing one in the other’s place. Only the date and '
                 + 'weekday cells change.</p>')
+
+            + section('Changing the plan in Excel',
+                '<p>Shortening sessions, rewriting a workout, reshaping a week — all safe to do in Excel '
+                + 'while you go on using the app. The app never writes to the planned columns. It reads them '
+                + 'afresh every time it opens, so there is nothing to set up again afterwards.</p>'
+
+                + '<p><strong>What updates itself.</strong> Everything your workbook computes: weekly totals, '
+                + 'per-week and per-sport sums, cumulative hours, planned hours to date, compliance, and the '
+                + 'charts drawn from them. Change a planned duration and all of it follows on the next open.</p>'
+
+                + '<p><strong>What you have to change by hand.</strong> Anything written as prose, because no '
+                + 'formula reaches it:</p>'
+                + '<ul>'
+                + '<li>Summary lines that quote hours — an overview saying “~10 h average, peak weeks up to '
+                + '~13 h”, or the hour range beside each phase.</li>'
+                + '<li>The workout descriptions themselves. Cut a 105-minute ride to 85 and the text still '
+                + 'prescribes the old interval set. This is the real work, and nothing automates it.</li>'
+                + '<li>Distances'
+                + (mapping.columns && !mapping.columns.plannedDistance
+                    ? ' — this workbook has no planned-distance column, so distance is written inside the '
+                        + 'workout text and is prose like the rest of it'
+                    : ' quoted in any text that is not the distance column itself')
+                + '.</li>'
+                + '</ul>'
+
+                + '<p><strong>One thing changes retroactively.</strong> Compliance is actual ÷ planned, and '
+                + 'the sheet recomputes it. Lower a planned duration and every session already logged against '
+                + 'it is re-scored: 108 minutes against a 105-minute plan reads 103% today, and 127% if the '
+                + 'plan becomes 85. Nothing is lost, but the history re-reads.</p>'
+
+                + '<p><strong>Numbers are safe. Rows are the sharp edge.</strong> Changing values is fine. '
+                + 'Inserting or deleting rows is not automatically fine: weekly totals usually sum a fixed '
+                + 'range of rows, and a session logged on this phone but not yet synced points at a row '
+                + '<em>number</em>. So sync first — Settings → Syncing should read “Nothing waiting” — then '
+                + 'restructure, then check any total whose range you disturbed.</p>'
+
+                + '<p><strong>To cut every session by the same proportion</strong> without destroying those '
+                + 'total formulas: put the factor in a spare cell — 0.8 for a 20% cut — and copy it; select '
+                + 'the planned-duration column; <strong>Go To Special → Constants → Numbers</strong>, which '
+                + 'selects the typed minutes and skips both the total formulas and the blank rest days; then '
+                + '<strong>Paste Special → Multiply</strong>. Reopen the app and it reads the new plan.</p>')
 
             + section('Things the plan did not ask for',
                 '<p>An unplanned run, a hike, a meditation goes on a separate <strong>Extras</strong> sheet, '

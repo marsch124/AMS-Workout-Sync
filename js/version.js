@@ -8,13 +8,22 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.11.0';
+    const CURRENT = '1.12.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.12.0',
+            date: '2026-08-20',
+            headline: 'Time logged, always on the card',
+            items: [
+                'The week card now says how much you have logged in every state, including none. It used to drop the figure whenever the total was zero, so a week could show a session recorded and no minutes anywhere — which reads as a fault, and is the one number you opened the card to see. It now reads "0m logged · 3h 05m planned" until something is banked, then leads with what you did.',
+                'A new part of How this works: Changing the plan in Excel. What recalculates on its own, what you have to rewrite by hand, how compliance re-scores sessions you already logged when you change a planned duration, why rows are riskier to touch than numbers, and how to cut every session by the same proportion without destroying the weekly-total formulas.'
+            ]
+        },
         {
             version: '1.11.0',
             date: '2026-08-20',
