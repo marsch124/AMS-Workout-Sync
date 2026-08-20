@@ -15,6 +15,7 @@ npm install playwright               # once; Chromium comes with it
 node tests/failure-paths.js
 node tests/column-collision.js
 node tests/foreign-extras-sheet.js
+node tests/edited-workbook.js
 ```
 
 Each script prints what it found and ends with `errors: none`. Nothing is
@@ -38,6 +39,16 @@ their own directory, so run them from the repo root.
 - what the network layer says out loud when it times out, when there is no
   signal, when Dropbox rate-limits, and when it returns 500 twice
 - a workbook whose text is `<img src=x onerror=…>`
+
+**`edited-workbook.js`** — the workbook is rewritten in Excel while a logged
+session is still waiting to sync. Same number of rows, different content:
+
+- a session reworded and its duration changed — the result must still land on it
+- that row turned into a different sport — nothing may be written there, and the
+  entry must be kept with the reason
+- the session moved further down the sheet — it must be followed
+- a column inserted, shifting every heading right — the layout must be read
+  again rather than written into the old column positions
 
 **`column-collision.js`** — a mapping that points a results column at a column
 the plan lives in. Logging must refuse to write there rather than overwrite the

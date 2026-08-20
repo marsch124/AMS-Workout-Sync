@@ -406,6 +406,37 @@ const AmsMapping = (function () {
         return !!(mapping && mapping.columns && mapping.columns.date && mapping.columns.discipline);
     }
 
+    /*
+     * What the headings said when this layout was worked out.
+     *
+     * A mapping is a set of column numbers, and column numbers mean nothing on
+     * their own: insert one column in Excel and every heading to its right
+     * shifts, while the saved mapping goes on pointing at where things used to
+     * be. Recording the headings makes that detectable — and detecting it is
+     * the whole defence, because writing a duration into what is now the heart
+     * rate column corrupts a season of data quietly.
+     */
+    function headingSignature(sheet, mapping) {
+        const out = {};
+        if (!sheet || !mapping || !mapping.columns) return out;
+        Object.keys(mapping.columns).forEach((id) => {
+            const col = mapping.columns[id];
+            if (!col) return;
+            out[id] = normalise(sheet.textAt(mapping.headerRow || 1, col) || '');
+        });
+        return out;
+    }
+
+    /* Do the headings still say what they said? An empty record means the
+       layout predates this check, and nothing can be concluded from it. */
+    function headingsHold(sheet, mapping) {
+        if (!mapping || !mapping.headings) return true;
+        const ids = Object.keys(mapping.headings);
+        if (!ids.length) return true;
+        const now = headingSignature(sheet, mapping);
+        return ids.every((id) => (now[id] || '') === mapping.headings[id]);
+    }
+
     /* Which result fields have somewhere to be written. */
     function writableFields(mapping) {
         if (!mapping || !mapping.columns) return [];
@@ -505,6 +536,8 @@ const AmsMapping = (function () {
         PLAN_FIELDS,
         MOVABLE_FIELDS,
         collisions,
+        headingSignature,
+        headingsHold,
         normalise,
         autoDetect,
         headingsFor,

@@ -2063,6 +2063,16 @@ const AmsUi = (function () {
                 + 'it is re-scored: 108 minutes against a 105-minute plan reads 103% today, and 127% if the '
                 + 'plan becomes 85. Nothing is lost, but the history re-reads.</p>'
 
+                + '<p><strong>Editing while something is waiting to sync.</strong> A logged session remembers '
+                + 'what it was logged against, not just which row it was on. When it reaches the workbook the '
+                + 'row is checked first: reword a session or change its duration and the result still lands on '
+                + 'it; turn that row into a different sport and nothing is written at all, and the entry is kept '
+                + 'with the reason. A session that has moved down the sheet is followed to its new row.</p>'
+
+                + '<p><strong>Adding or removing columns</strong> is noticed too. The app remembers what your '
+                + 'headings said when it worked the layout out, and if they no longer line up it reads the '
+                + 'layout again rather than writing into whatever now sits at the old column number.</p>'
+
                 + '<p><strong>Numbers are safe. Rows are the sharp edge.</strong> Changing values is fine. '
                 + 'Inserting or deleting rows is not automatically fine: weekly totals usually sum a fixed '
                 + 'range of rows, and a session logged on this phone but not yet synced points at a row '
@@ -2535,12 +2545,20 @@ const AmsUi = (function () {
             });
         });
 
-        AmsSync.subscribe((event) => {
+        AmsSync.subscribe((event, detail) => {
             if (event === 'plan') {
                 renderToday();
                 renderPlan();
             }
             if (event === 'sync') renderSyncState();
+
+            // Columns that moved in Excel are worth a word: the app has just
+            // re-read the layout by itself, and if it got anything wrong the
+            // place to correct it is Sheet setup.
+            if (event === 'remapped' && detail && detail.shifted) {
+                toast('The columns in your sheet have moved, so the layout was read again. '
+                    + 'Check Sheet setup if anything looks wrong.');
+            }
         });
 
         syncTabHighlight('todayScreen');

@@ -8,13 +8,23 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.17.0';
+    const CURRENT = '1.18.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.18.0',
+            date: '2026-08-20',
+            headline: 'Safe to edit the plan while the app is using it',
+            items: [
+                'A logged session now remembers what it was logged against, not only which row it sat on. Reword a workout in Excel, or change its duration, and the result still lands on it. Turn that row into a different sport and nothing is written there at all — the entry is kept, with the reason, in Settings → Syncing. Before this, a run logged on Thursday could be written into a swim, silently, because the row number still matched.',
+                'A session that has moved down the sheet is followed to its new row rather than lost.',
+                'Columns that move are noticed. The app remembers what your headings said when it worked out the layout; if they no longer line up — a column inserted, one deleted, one renamed — it reads the layout again instead of writing into whatever now occupies the old position. It says so when it does.'
+            ]
+        },
         {
             version: '1.17.0',
             date: '2026-08-20',

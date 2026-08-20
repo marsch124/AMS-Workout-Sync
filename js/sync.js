@@ -84,6 +84,26 @@ const AmsSync = (function () {
      */
     async function prepareMapping(workbook, mapping) {
         if (!mapping) return mapping;
+
+        // What the headings say right now, so a later edit that moves them can
+        // be noticed rather than written straight through. Recorded once and
+        // then left alone: re-recording on every read would quietly bless
+        // whatever the sheet had become, which is the opposite of the point.
+        try {
+            if (mapping.headings) return finishPreparing(workbook, mapping);
+            const sheetName = (mapping.sheets && mapping.sheets[0]) || null;
+            if (sheetName && workbook.findSheet(sheetName)) {
+                mapping.headings = AmsMapping.headingSignature(
+                    await workbook.readSheet(sheetName), mapping);
+            }
+        } catch (err) {
+            console.warn('Could not record the heading signature:', err);
+        }
+
+        return finishPreparing(workbook, mapping);
+    }
+
+    async function finishPreparing(workbook, mapping) {
         if (!mapping.units) await AmsPlan.inferUnits(workbook, mapping);
         if (!mapping.doneValue || !mapping.missedValue) {
             const markers = await AmsPlan.detectDoneMarkers(workbook, mapping);
@@ -91,6 +111,42 @@ const AmsSync = (function () {
             if (!mapping.missedValue) mapping.missedValue = markers.missed || 'Missed';
         }
         return mapping;
+    }
+
+    /*
+     * The layout, checked against the workbook actually in hand.
+     *
+     * Columns move: one inserted in Excel shifts every heading to its right,
+     * and a saved layout would go on pointing at where things used to be. That
+     * is the quiet catastrophe — durations written into the heart-rate column,
+     * every week, with nothing on screen to suggest it. So before anything is
+     * written, the headings are made to agree with what was recorded, and the
+     * layout is worked out again if they do not.
+     */
+    async function mappingForWorkbook(workbook, mapping) {
+        if (!AmsMapping.isComplete(mapping)) return mapping;
+
+        const sheetName = mapping.sheets && mapping.sheets[0];
+        if (!sheetName || !workbook.findSheet(sheetName)) return mapping;
+
+        let holds = true;
+        try {
+            holds = AmsMapping.headingsHold(await workbook.readSheet(sheetName), mapping);
+        } catch (err) {
+            return mapping;
+        }
+        if (holds) return mapping;
+
+        const detected = await AmsMapping.autoDetect(workbook);
+        if (!detected) {
+            throw new Error('The columns in this workbook have moved and the layout could not be '
+                + 'worked out again, so nothing was written. Open Sheet setup and say which column '
+                + 'is which.');
+        }
+        await prepareMapping(workbook, detected);
+        await AmsDb.set('mapping', detected);
+        emit('remapped', { mapping: detected, shifted: true });
+        return detected;
     }
 
     async function buildPlan(workbook, mapping) {
@@ -179,14 +235,31 @@ const AmsSync = (function () {
         // than trusted: every later improvement would otherwise never reach a
         // phone that had already been set up once.
         const stale = mapping && mapping.version !== AmsMapping.MAPPING_VERSION;
-        if (!AmsMapping.isComplete(mapping) || stale) {
+
+        /*
+         * Headings that have moved matter more than a version number. A column
+         * inserted in Excel shifts everything to its right, and a mapping that
+         * kept pointing at the old positions would write results into whatever
+         * now occupies them.
+         */
+        let shifted = false;
+        if (!stale && AmsMapping.isComplete(mapping)) {
+            try {
+                const sheetName = mapping.sheets && mapping.sheets[0];
+                if (sheetName && state.workbook.findSheet(sheetName)) {
+                    shifted = !AmsMapping.headingsHold(await state.workbook.readSheet(sheetName), mapping);
+                }
+            } catch (err) { /* unreadable: the plan build will report it */ }
+        }
+
+        if (!AmsMapping.isComplete(mapping) || stale || shifted) {
             try {
                 const detected = await AmsMapping.autoDetect(state.workbook);
                 if (detected) {
                     await prepareMapping(state.workbook, detected);
                     await AmsDb.set('mapping', detected);
                     mapping = detected;
-                    if (stale) emit('remapped', { mapping: detected });
+                    if (stale || shifted) emit('remapped', { mapping: detected, shifted: shifted });
                 }
             } catch (err) {
                 // A layout that cannot be guessed is not a reason to show
@@ -439,12 +512,72 @@ const AmsSync = (function () {
             || null;
     }
 
+    /*
+     * Which row a queued entry belongs to, in a workbook that may have been
+     * rewritten since the entry was made.
+     *
+     * The row number on its own is not enough, and quietly trusting it is the
+     * worst thing this app could do: edit the plan in Excel so that Thursday's
+     * run becomes a swim, and a run logged before that edit would be written
+     * into the swim's row — 8.2 km at 132 bpm, recorded against a technique
+     * session, silently, in the only copy.
+     *
+     * So the row is checked before it is used. The discipline is the hard
+     * requirement: a session that is now a different sport is not the session
+     * that was logged. Beyond that, either the date or the wording has to still
+     * agree — which covers the two ordinary kinds of edit. Rewriting what a
+     * session contains leaves its date; moving it to another day leaves its
+     * wording. Changing all three makes it a different session, and that is
+     * reported rather than guessed at.
+     */
+    function normaliseTitle(text) {
+        return String(text || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    }
+
+    function titlesAgree(a, b) {
+        const x = normaliseTitle(a);
+        const y = normaliseTitle(b);
+        if (!x || !y) return false;
+        if (x === y) return true;
+        // "Easy run" against "Easy run + strides": a rewording, not a new session.
+        if (x.indexOf(y) === 0 || y.indexOf(x) === 0) return true;
+        return x.slice(0, 20) === y.slice(0, 20);
+    }
+
+    function stillTheSameSession(workout, entry) {
+        if (entry.disciplineId && workout.discipline.id !== entry.disciplineId) return false;
+        if (!entry.dayKey && !entry.title) return true;
+        return workout.dayKey === entry.dayKey || titlesAgree(workout.title, entry.title);
+    }
+
     function findWorkoutFor(entry, plan) {
-        return plan.find((w) => w.key === entry.workoutKey)
-            || plan.find((w) => w.dayKey === entry.dayKey
-                && w.discipline.id === entry.disciplineId
-                && w.sheet === entry.sheet)
-            || null;
+        const here = entry.sheet ? plan.filter((w) => w.sheet === entry.sheet) : plan;
+
+        const atTheSameRow = here.find((w) => w.key === entry.workoutKey);
+        if (atTheSameRow && stillTheSameSession(atTheSameRow, entry)) return atTheSameRow;
+
+        /*
+         * The row is not what it was. It may have moved — rows inserted above
+         * it — so the session is looked for by what it is rather than where it
+         * was. Rows that already carry a result are passed over first: writing
+         * into a session someone has already recorded is its own kind of wrong.
+         */
+        const sameSession = here.filter((w) => stillTheSameSession(w, entry));
+        if (!sameSession.length) return null;
+        if (sameSession.length === 1) return sameSession[0];
+
+        const byTitle = sameSession.filter((w) => titlesAgree(w.title, entry.title));
+        const pool = byTitle.length ? byTitle : sameSession;
+
+        const untouched = pool.filter((w) => !w.logged);
+        const choose = untouched.length ? untouched : pool;
+
+        // Two identical sessions on one day: the nearest row is the best guess
+        // that can honestly be made, and it is the one the entry came from.
+        return choose.reduce(function (best, w) {
+            if (!best) return w;
+            return Math.abs(w.row - entry.row) < Math.abs(best.row - entry.row) ? w : best;
+        }, null);
     }
 
     /* ---------- syncing ---------- */
@@ -524,6 +657,7 @@ const AmsSync = (function () {
                 await AmsDb.set('mapping', mapping);
             }
             await prepareMapping(workbook, mapping);
+            mapping = await mappingForWorkbook(workbook, mapping);
 
             const plan = await AmsPlan.build(workbook, mapping);
 
@@ -548,7 +682,12 @@ const AmsSync = (function () {
                     }
 
                     const workout = findWorkoutFor(entry, plan);
-                    if (!workout) throw new Error('No row in the workbook matches this session any more.');
+                    if (!workout) {
+                        throw new Error('The session this was logged against '
+                            + (entry.title ? '("' + String(entry.title).slice(0, 40) + '") ' : '')
+                            + 'is no longer in the workbook, or has been changed into a different one. '
+                            + 'Nothing was written; log it again against the row you want.');
+                    }
 
                     const edits = AmsPlan.buildEdits(workout, entry.values, mapping);
                     if (!edits.length) {

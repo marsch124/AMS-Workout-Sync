@@ -82,6 +82,19 @@ def hostile_text(path):
     wb.save(path)
 
 
+def column_inserted(path):
+    """The same plan with one column pushed in on the left.
+
+    Every heading to its right moves one column over, which is exactly what a
+    saved layout cannot see for itself."""
+    wb = openpyxl.load_workbook(os.path.join(OUT, 'plain.xlsx'))
+    ws = wb['Weekly Schedules']
+    ws.insert_cols(2)
+    ws.cell(1, 2, 'Notes to self')
+    ws.cell(2, 2, 'inserted in Excel')
+    wb.save(path)
+
+
 def foreign_extras(path):
     """Somebody else's sheet already sitting on the name the app wants."""
     wb = openpyxl.load_workbook(os.path.join(OUT, 'plain.xlsx'))
@@ -105,6 +118,7 @@ if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)
     plain(os.path.join(OUT, 'plain.xlsx'))
     hostile_text(os.path.join(OUT, 'nasty.xlsx'))
+    column_inserted(os.path.join(OUT, 'column-inserted.xlsx'))
     foreign_extras(os.path.join(OUT, 'foreign-extras.xlsx'))
     broken(os.path.join(OUT, 'rubbish.xlsx'),
            os.path.join(OUT, 'truncated.xlsx'),
