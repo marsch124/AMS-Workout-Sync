@@ -8,13 +8,22 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.26.0';
+    const CURRENT = '1.26.1';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.26.1',
+            date: '2026-08-20',
+            headline: 'Where the export actually is',
+            items: [
+                'The Garmin Connect app exports no files in any format — its share menu offers an image or a link, and that is deliberate on Garmin\u2019s part. The instructions said to export from the app, which cannot be done. Exporting is on connect.garmin.com in a browser, and that is what they say now.',
+                'They also say, plainly, that this is worth doing for a race or a session you want exactly right and is not worth doing for a Tuesday. Four numbers typed into the log form take fifteen seconds.'
+            ]
+        },
         {
             version: '1.26.0',
             date: '2026-08-20',

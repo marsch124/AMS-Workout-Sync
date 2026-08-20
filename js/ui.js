@@ -2641,14 +2641,23 @@ const AmsUi = (function () {
 
                 + '<p>What Garmin does give you is the session as a file. So:</p>'
 
+                + '<p><strong>Not from the Garmin Connect app.</strong> It exports no files at all, in any '
+                + 'format — its share menu offers an image or a link and nothing else. That is Garmin’s '
+                + 'decision, not a setting to find. Exporting is on the website only:</p>'
+
                 + '<ol>'
-                + '<li>In <strong>Garmin Connect</strong>, open the session.</li>'
-                + '<li>Tap the <strong>⋯</strong> menu and choose <strong>Export</strong>. Pick '
-                + '<strong>TCX</strong> if it is offered, otherwise <strong>GPX</strong>.</li>'
-                + '<li>In the share sheet, choose <strong>Save to Files</strong> and put it anywhere you '
-                + 'can find again — iCloud Drive or Downloads is fine.</li>'
+                + '<li>Open <strong>connect.garmin.com</strong> in a browser and sign in. On a phone, use '
+                + '<em>Request Desktop Website</em> from the address bar if the menu below is missing.</li>'
+                + '<li>Open the session, then the <strong>⚙ / ⋯</strong> menu at the top right of it.</li>'
+                + '<li>Choose <strong>Export to TCX</strong>. (GPX also works, but carries less: no '
+                + 'calories, and heart rate only where it was recorded to the track.)</li>'
+                + '<li>Save it where you can find it again — Files, Downloads, Dropbox, anywhere.</li>'
                 + '<li>Here: <strong>Settings → From your watch → Open</strong>, and pick it.</li>'
                 + '</ol>'
+
+                + '<p>Which is worth it for a race or a session you want exactly right, and is not worth it '
+                + 'for a Tuesday. Four numbers typed into the log form take fifteen seconds, and the app is '
+                + 'built for that first.</p>'
 
                 + '<p>The session then appears under <em>From your watch</em> on the Today screen, matched '
                 + 'to the planned session it belongs to. Tapping fills in the log form, which you can then '
