@@ -8,13 +8,23 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.10.1';
+    const CURRENT = '1.10.2';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.10.2',
+            date: '2026-08-20',
+            headline: 'New versions arrive on their own',
+            items: [
+                'The app now reloads itself once when a new version has been fetched, instead of running the old code until you happen to close and reopen it. It waits if you are in the middle of a session or a form, and tells you it will apply next time.',
+                'Coming back to the app also checks whether there is a newer version to have.',
+                'The empty sync strip is hidden by the code as well as by the styling now, so it stays gone even on a phone still holding an older copy of the stylesheet.'
+            ]
+        },
         {
             version: '1.10.1',
             date: '2026-08-20',

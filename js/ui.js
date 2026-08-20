@@ -637,8 +637,21 @@ const AmsUi = (function () {
             button.appendChild(node);
         }
 
-        if (!message) { strip.hidden = true; return; }
+        /*
+         * Belt and braces: the attribute, and the inline style that no
+         * stylesheet can outrank. The attribute alone was not enough — a
+         * class setting `display` beat it, and the strip sat there empty —
+         * and an inline style also holds if a phone is still on an older
+         * copy of the CSS than of the code.
+         */
+        if (!message) {
+            strip.hidden = true;
+            strip.style.display = 'none';
+            strip.innerHTML = '';
+            return;
+        }
         strip.hidden = false;
+        strip.style.display = '';
         strip.className = 'status-strip' + (stripTone ? ' ' + stripTone : '');
         strip.innerHTML = '<svg class="icon"><use href="#icon-clock"></use></svg><span>'
             + esc(message) + '</span>';
