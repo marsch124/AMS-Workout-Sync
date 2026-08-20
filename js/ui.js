@@ -36,7 +36,6 @@ const AmsUi = (function () {
     function $(id) { return document.getElementById(id); }
 
     const MIDDOT = '·';
-    const BREAK = String.fromCharCode(10);
 
     /* Dates from the workbook are UTC-anchored, so they must be formatted in
        UTC too — otherwise a session drifts to the previous day west of London. */

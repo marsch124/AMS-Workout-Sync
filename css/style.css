@@ -596,21 +596,6 @@ body {
 .prose strong { color: var(--color-text); }
 .prose em { font-style: normal; color: var(--color-text); opacity: 0.9; }
 
-/* A worked example is code, and code should not be re-flowed to fit: it
-   scrolls sideways rather than wrapping in the middle of a value. */
-.prose pre {
-    margin: 0 0 0.7rem;
-    padding: 0.6rem 0.7rem;
-    background: var(--color-surface-2);
-    border-radius: var(--radius-sm);
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.76rem;
-    line-height: 1.5;
-    color: var(--color-text);
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-}
-
 /* ---------- sheet setup ---------- */
 
 .map-row {
