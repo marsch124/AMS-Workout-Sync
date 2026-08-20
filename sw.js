@@ -8,7 +8,7 @@
 // Named after the app version, so shipping a release retires the old cache
 // instead of leaving a phone on last week's code. Keep in step with
 // AmsVersion.CURRENT in js/version.js.
-const APP_VERSION = '1.26.1';
+const APP_VERSION = '1.27.0';
 const CACHE_NAME = 'ams-workout-sync-' + APP_VERSION;
 // Taken from the worker's own URL rather than hard-coded, so the app works
 // wherever it is published — any repository name, a project page, or localhost —
@@ -27,8 +27,6 @@ const SHELL = [
     'js/plan.js',
     'js/extras.js',
     'js/ics.js',
-    'js/watch.js',
-    'js/workoutfile.js',
     'js/dropbox.js',
     'js/sync.js',
     'js/ui.js',

@@ -20,7 +20,6 @@ const AmsSync = (function () {
         plan: [],
         extras: [],
         pendingExtras: [],
-        watch: [],           /* sessions read out of a workout file */
         meta: null,
         source: null,      // 'dropbox' | 'cache' | 'file'
         lastError: null,
@@ -326,37 +325,6 @@ const AmsSync = (function () {
         await overlayQueue();
         emit('plan', { plan: state.plan, source: 'file' });
         return state;
-    }
-
-    /* ---------- what the watch says ---------- */
-
-    /*
-     * Sessions read out of a file the user opened, waiting to be offered on the
-     * Today screen. They live for as long as the app is open: there is no file
-     * to read them from again, and re-importing is one tap.
-     */
-    function addWatchEntry(entry) {
-        if (!entry) return null;
-        state.watch = (state.watch || []).filter((existing) => existing.id !== entry.id);
-        state.watch.push(entry);
-        emit('plan', { plan: state.plan });
-        return entry;
-    }
-
-    function clearWatchEntries() {
-        state.watch = [];
-        emit('plan', { plan: state.plan });
-    }
-
-    /* Today's entries, each with the session it belongs to if there is one. */
-    function watchForToday(dayKey) {
-        const day = dayKey || todayKey();
-        return (state.watch || [])
-            .filter((entry) => entry.dayKey === day)
-            .map((entry) => ({
-                entry: entry,
-                workout: AmsWatch.matchTo(entry, state.plan, state.mapping || {}, isRecorded)
-            }));
     }
 
     /* ---------- logging ---------- */
@@ -1118,9 +1086,6 @@ const AmsSync = (function () {
         outstanding,
         weekSummary,
         weekDays,
-        weekStart,
-        addWatchEntry,
-        clearWatchEntries,
-        watchForToday
+        weekStart
     };
 })();

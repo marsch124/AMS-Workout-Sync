@@ -8,13 +8,27 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.26.1';
+    const CURRENT = '1.27.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.27.0',
+            date: '2026-08-20',
+            headline: 'The watch experiment, ended and removed',
+            items: [
+                'Sessions are logged by hand, as they were before. Four numbers and fifteen seconds, which is what the log form was built for.',
+                'What was tried, in order, and why each one stopped. **Garmin’s own interface:** their Connect developer programme is open to companies rather than people — you apply as a legal entity, wait weeks for a manual review, and if approved Garmin pushes your data to a web server you are expected to run. This app has no server, which is the reason it costs nothing and keeps your training in your own Dropbox.',
+                '**Apple Health, read by a Shortcut.** The watch does put every session into Health, and Shortcuts can write a file. But the Shortcuts action that reads Health offers a list of sample types, and on this phone that list has no Workouts in it at all. The whole route rests on an item that is not there.',
+                '**A file exported from the Garmin Connect app.** The app exports no files, in any format. Its share menu offers an image or a link and nothing else, and that is Garmin’s decision rather than a setting to find. Exporting exists only on connect.garmin.com in a browser — six or seven taps to save fifteen seconds of typing, which is not a trade worth making on a Tuesday.',
+                '**Strava as a bridge.** Garmin does sync to Strava automatically, and Strava’s API is open to anyone. But completing its sign-in requires a step Strava deliberately refuses to browsers, so it needs a server as well.',
+                'Every remaining route needs either a server or a paid third-party app. Both are possible; neither is this app, which is a page and a spreadsheet and nothing else. That property is worth more than the fifteen seconds.',
+                'So all of it is gone rather than left lying about: the reader for TCX and GPX files, the module that matched a recorded session to a planned one, the card on the Today screen, the Settings row, the styling, the test, and three attempts at instructions. Nothing about logging by hand changed, because that part was always the part that worked.',
+            ]
+        },
         {
             version: '1.26.1',
             date: '2026-08-20',

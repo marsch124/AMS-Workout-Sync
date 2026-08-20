@@ -257,7 +257,6 @@ const AmsUi = (function () {
                 + emptyState('icon-check', 'Rest day',
                 'Nothing is scheduled for today in the workbook.',
                 '')
-                + watchBlock()
                 + extrasBlock()
                 + (next.length
                     ? '<div class="day-heading"><h2>Coming up</h2></div>'
@@ -294,7 +293,7 @@ const AmsUi = (function () {
                         + '<button class="btn btn-small" data-move="' + esc(workout.key) + '">Move</button>'
                       + '</div>')
                 + '</div>';
-        }).join('') + watchBlock() + extrasBlock();
+        }).join('') + extrasBlock();
     }
 
     /*
@@ -1002,64 +1001,6 @@ const AmsUi = (function () {
             + ' not recorded</button>';
     }
 
-    /* ---------- what the watch says ---------- */
-
-    /*
-     * Sessions Apple Health recorded today, offered rather than applied.
-     *
-     * The numbers come from a watch, which is to say from a device that is
-     * often right and occasionally certain a stationary bike was a canoe. So
-     * nothing is written here: tapping fills the log form in, and saving it is
-     * still a decision somebody makes.
-     */
-    function watchBlock() {
-        const found = AmsSync.watchForToday();
-        if (!found.length) return '';
-
-        return '<div class="day-heading"><h2>From your watch</h2></div>'
-            + found.map((item, index) => {
-                const entry = item.entry;
-                const detail = AmsWatch.describe(entry);
-                const colour = entry.discipline.color;
-
-                return '<div class="card workout-card watch-card" style="--sport: ' + colour + '">'
-                    + '<div class="workout-card-titles">'
-                    // The watch's own word for it, but only where the app could
-                    // not place it: "Run · Running" tells nobody anything.
-                    + '<p class="workout-card-sport">' + esc(entry.discipline.label)
-                    + (entry.sport && entry.discipline.id === 'other' ? ' · ' + esc(entry.sport) : '')
-                    + '</p>'
-                    + (entry.name ? '<p class="workout-card-title">' + esc(entry.name) + '</p>' : '')
-                    + '</div>'
-                    + (detail ? '<p class="watch-figures">' + esc(detail) + '</p>' : '')
-                    + (item.workout
-                        ? '<p class="watch-match">Matches <strong>' + esc(item.workout.title || item.workout.discipline.label)
-                            + '</strong></p>'
-                            + '<button class="btn btn-primary btn-block" data-watch="' + index + '">'
-                            + 'Log this session with these</button>'
-                        : '<p class="watch-match">Nothing planned today matches it.</p>'
-                            + '<button class="btn btn-block" data-watch-extra="' + index + '">'
-                            + 'Record it as something else</button>')
-                    + '</div>';
-            }).join('');
-    }
-
-    async function useWatchEntry(index, asExtra) {
-        const found = AmsSync.watchForToday();
-        const item = found[parseInt(index, 10)];
-        if (!item) return;
-
-        if (asExtra || !item.workout) {
-            extraDraft = Object.assign(AmsWatch.extraFor(item.entry), { keep: true });
-            openExtra();
-            toast('Filled in from your watch — check it before saving.');
-            return;
-        }
-
-        await openLog(item.workout.key, AmsWatch.valuesFor(item.entry, item.workout));
-        toast('Filled in from your watch — check it before saving.');
-    }
-
     /*
      * What was done today outside the plan, and the way to add more. Shown on
      * rest days too — a rest day is exactly when a breathing session happens.
@@ -1426,7 +1367,7 @@ const AmsUi = (function () {
 
     /* ---------- the log form ---------- */
 
-    async function openLog(key, prefill) {
+    async function openLog(key) {
         const workout = key ? AmsSync.byKey(key) : currentWorkout;
         if (!workout) return;
         currentWorkout = workout;
@@ -1468,8 +1409,7 @@ const AmsUi = (function () {
         $('saveLogButton').disabled = false;
 
         const distanceUnit = AmsPlan.DEFAULT_DISTANCE_UNIT[workout.discipline.id] || 'km';
-        // Anything already queued, with whatever the watch offered laid over it.
-        const previous = Object.assign({}, workout.pending ? workout.pending.values : null, prefill || {});
+        const previous = workout.pending ? workout.pending.values : null;
         const plannedSeconds = AmsPlan.plannedDurationSeconds(workout, state.mapping || {});
         const plannedMinutes = plannedSeconds ? plannedSeconds / 60 : 0;
 
@@ -2010,30 +1950,6 @@ const AmsUi = (function () {
             + '<div class="settings-row-sub">' + esc(AmsVersion.CHANGELOG[0].headline) + '</div>'
             + '</div><button class="btn btn-small" data-go="version">What’s new</button></div></div>');
 
-        /* --- the watch --- */
-        if (hasWorkbook) {
-            const waiting = (state.watch || []).length;
-            parts.push('<div class="settings-group"><h2>From your watch</h2>'
-                + '<div class="settings-row"><div class="settings-row-main">'
-                + '<div class="settings-row-title">'
-                + (waiting
-                    ? waiting + ' session' + (waiting === 1 ? '' : 's') + ' waiting to be logged'
-                    : 'Open a workout file')
-                + '</div><div class="settings-row-sub">'
-                + 'A session exported from Garmin Connect as TCX or GPX. Its numbers are offered on '
-                + 'the Today screen; nothing is written until you save the form.'
-                + '</div></div>'
-                + '<button class="btn btn-small" id="openWorkoutFileButton">Open</button></div>'
-                + '<input type="file" id="workoutFileInput" hidden '
-                + 'accept=".tcx,.gpx,.xml,text/xml,application/xml">'
-                + (waiting
-                    ? '<div class="button-row" style="margin-top:0.6rem">'
-                        + '<button class="btn btn-small" id="clearWatchButton">Clear what is waiting</button>'
-                        + '</div>'
-                    : '')
-                + '</div>');
-        }
-
         /* --- what can be logged outside the plan --- */
         parts.push('<div class="settings-group"><h2>Log something else</h2>'
             + '<div class="settings-row"><div class="settings-row-main">'
@@ -2213,42 +2129,6 @@ const AmsUi = (function () {
                 renderSettings();
                 renderToday();
                 renderPlan();
-            });
-        }
-
-        /*
-         * A file straight from Garmin Connect, for phones where the Shortcuts
-         * route is not available at all.
-         */
-        const clearWatch = $('clearWatchButton');
-        if (clearWatch) {
-            clearWatch.addEventListener('click', () => {
-                AmsSync.clearWatchEntries();
-                renderToday();
-                renderSettings();
-            });
-        }
-
-        const openWorkoutFile = $('openWorkoutFileButton');
-        if (openWorkoutFile) openWorkoutFile.addEventListener('click', () => $('workoutFileInput').click());
-
-        const workoutInput = $('workoutFileInput');
-        if (workoutInput) {
-            workoutInput.addEventListener('change', async (event) => {
-                const file = event.target.files && event.target.files[0];
-                workoutInput.value = '';
-                if (!file) return;
-                try {
-                    const entry = AmsWorkoutFile.parse(await file.text(), file.name);
-                    AmsSync.addWatchEntry(entry);
-                    renderToday();
-                    renderSettings();
-                    openTab('today');
-                    toast(entry.discipline.label + ' ' + AmsWatch.describe(entry)
-                        + ' — waiting on the Today screen.', 'good');
-                } catch (err) {
-                    toast(err.message || 'That file could not be read.', 'bad');
-                }
             });
         }
 
@@ -2629,65 +2509,6 @@ const AmsUi = (function () {
                 + 'the planned-duration column; <strong>Go To Special → Constants → Numbers</strong>, which '
                 + 'selects the typed minutes and skips both the total formulas and the blank rest days; then '
                 + '<strong>Paste Special → Multiply</strong>. Reopen the app and it reads the new plan.</p>')
-
-            + section('Numbers from your watch',
-                '<p><strong>There is no direct connection to Garmin, and there cannot be one.</strong> '
-                + 'Garmin’s Connect developer programme is open to companies rather than people: you apply '
-                + 'as a legal entity, wait weeks for a manual review, and if approved, Garmin <em>pushes</em> '
-                + 'your data to a web server you are expected to run. This app has no server, which is the '
-                + 'reason it costs nothing, holds no account of yours, and keeps your training in your '
-                + 'Dropbox rather than in somebody’s database. That trade is worth more than the '
-                + 'convenience would be.</p>'
-
-                + '<p>What Garmin does give you is the session as a file. So:</p>'
-
-                + '<p><strong>Not from the Garmin Connect app.</strong> It exports no files at all, in any '
-                + 'format — its share menu offers an image or a link and nothing else. That is Garmin’s '
-                + 'decision, not a setting to find. Exporting is on the website only:</p>'
-
-                + '<ol>'
-                + '<li>Open <strong>connect.garmin.com</strong> in a browser and sign in. On a phone, use '
-                + '<em>Request Desktop Website</em> from the address bar if the menu below is missing.</li>'
-                + '<li>Open the session, then the <strong>⚙ / ⋯</strong> menu at the top right of it.</li>'
-                + '<li>Choose <strong>Export to TCX</strong>. (GPX also works, but carries less: no '
-                + 'calories, and heart rate only where it was recorded to the track.)</li>'
-                + '<li>Save it where you can find it again — Files, Downloads, Dropbox, anywhere.</li>'
-                + '<li>Here: <strong>Settings → From your watch → Open</strong>, and pick it.</li>'
-                + '</ol>'
-
-                + '<p>Which is worth it for a race or a session you want exactly right, and is not worth it '
-                + 'for a Tuesday. Four numbers typed into the log form take fifteen seconds, and the app is '
-                + 'built for that first.</p>'
-
-                + '<p>The session then appears under <em>From your watch</em> on the Today screen, matched '
-                + 'to the planned session it belongs to. Tapping fills in the log form, which you can then '
-                + 'change like any other. <strong>Nothing reaches your workbook until you press Save.</strong> '
-                + 'A watch is usually right and occasionally certain that a turbo session was a canoe; you '
-                + 'are the better judge, and the app is built to let you be one.</p>'
-
-                + '<p><strong>What is read.</strong> From a <strong>TCX</strong>: the duration, distance, '
-                + 'calories and heart rate as the watch recorded them, added up across laps — so an '
-                + 'interval session comes out whole rather than as its first repetition, and the heart '
-                + 'rate is weighted by how long each lap was. From a <strong>GPX</strong>, which states '
-                + 'none of that outright: the duration from the first and last point, the distance by '
-                + 'measuring the line, and the heart rate from the points if a strap was worn. A '
-                + '<strong>.fit</strong> file is Garmin’s own binary format and cannot be read yet; export '
-                + 'the same session as TCX instead.</p>'
-
-                + '<p><strong>How it is matched.</strong> Same date, same sport, and the session not '
-                + 'already recorded. Where a day holds two of the same sport, the one whose planned length '
-                + 'is nearest to what the watch measured. If nothing matches — an unplanned run, a walk — '
-                + 'it is offered for the Extras sheet instead, so it is still yours to keep without '
-                + 'disturbing planned-against-actual.</p>'
-
-                + '<p><strong>What gets filled in.</strong> Duration, distance, heart rate and calories, '
-                + 'and only into the columns your sheet actually has. A distance is converted to whatever '
-                + 'the sheet counts in — metres for a swim, kilometres otherwise. Anything the watch did '
-                + 'not measure is left blank, and a blank leaves that cell exactly as it was: a missing '
-                + 'number is never written as a zero.</p>'
-
-                + '<p>The file is read and not kept. It stays wherever you saved it, and the app forgets '
-                + 'it once the numbers are in the form. One file at a time.</p>')
 
             + section('Things the plan did not ask for',
                 '<p>An unplanned run, a hike, a meditation goes on a separate <strong>Extras</strong> sheet, '
@@ -3104,12 +2925,6 @@ const AmsUi = (function () {
                 renderToday();
                 return;
             }
-
-            const watch = event.target.closest('[data-watch]');
-            if (watch) { useWatchEntry(watch.dataset.watch, false); return; }
-
-            const watchExtra = event.target.closest('[data-watch-extra]');
-            if (watchExtra) { useWatchEntry(watchExtra.dataset.watchExtra, true); return; }
 
             if (event.target.closest('[data-extra]')) { openExtra(); return; }
 
