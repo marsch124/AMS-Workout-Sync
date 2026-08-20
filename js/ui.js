@@ -69,7 +69,7 @@ const AmsUi = (function () {
     /* ---------- navigation ---------- */
 
     const DETAIL_SCREENS = new Set(['workoutScreen', 'logScreen', 'setupScreen', 'rescheduleScreen',
-        'extraScreen', 'guideScreen', 'versionScreen', 'queueScreen']);
+        'extraScreen', 'guideScreen', 'versionScreen', 'queueScreen', 'activitiesScreen']);
     const history_ = [];
 
     function showScreen(id, options) {
@@ -1018,7 +1018,7 @@ const AmsUi = (function () {
             ? chosen.kind === 'training'
             : extraDraft.isTraining;
 
-        const options = AmsExtras.ACTIVITIES.map((a) =>
+        const options = AmsExtras.getActivities().map((a) =>
             '<option value="' + a.id + '"' + (a.id === extraDraft.activity ? ' selected' : '') + '>'
             + esc(a.label) + '</option>').join('');
 
@@ -1366,6 +1366,15 @@ const AmsUi = (function () {
         }
         parts.push('</div>');
 
+        /* --- what can be logged --- */
+        parts.push('<div class="settings-group"><h2>Log something else</h2>'
+            + '<div class="settings-row"><div class="settings-row-main">'
+            + '<div class="settings-row-title">Activities</div>'
+            + '<div class="settings-row-sub">'
+            + esc(AmsExtras.getActivities().slice(0, 4).map((a) => a.label).join(', '))
+            + ' and ' + (AmsExtras.getActivities().length - 4) + ' more</div>'
+            + '</div><button class="btn btn-small" data-go="activities">Edit</button></div></div>');
+
         /* --- about --- */
         parts.push('<div class="settings-group"><h2>About</h2>'
             + '<div class="settings-row"><div class="settings-row-main">'
@@ -1523,6 +1532,116 @@ const AmsUi = (function () {
                 location.reload();
             });
         }
+    }
+
+    /* ---------- the activity list ---------- */
+
+    const KIND_LABEL = { training: 'Training', restorative: 'Restorative', everyday: 'Everyday' };
+
+    /*
+     * The list of things you can log outside the plan is yours, not mine. What
+     * a person actually does — padel, sauna, walking the dog — is not something
+     * a default list can know, and a list you cannot change is one you end up
+     * working around.
+     */
+    function renderActivities() {
+        const list = AmsExtras.getActivities();
+
+        $('activitiesBody').innerHTML =
+            '<div class="prose"><p>These are the choices offered by <strong>Log something else</strong>. '
+            + 'The kind decides whether distance and heart rate are asked for, and whether it starts out '
+            + 'counting as training load — both still changeable on the form itself.</p></div>'
+
+            + '<div class="settings-group">'
+            + list.map((item, index) =>
+                '<div class="activity-row" style="--sport: ' + item.color + '">'
+                + '<span class="activity-dot"></span>'
+                + '<div class="activity-main">'
+                + '<div class="activity-label">' + esc(item.label) + '</div>'
+                + '<div class="activity-kind">' + esc(KIND_LABEL[item.kind] || item.kind) + '</div>'
+                + '</div>'
+                + '<button class="activity-move" data-move-activity="up:' + index + '"'
+                + (index === 0 ? ' disabled' : '') + ' aria-label="Move up">&#9650;</button>'
+                + '<button class="activity-move" data-move-activity="down:' + index + '"'
+                + (index === list.length - 1 ? ' disabled' : '') + ' aria-label="Move down">&#9660;</button>'
+                + '<button class="activity-delete" data-delete-activity="' + index + '"'
+                + ' aria-label="Delete ' + esc(item.label) + '">&times;</button>'
+                + '</div>').join('')
+            + '</div>'
+
+            + '<div class="settings-group"><h2>Add one</h2>'
+            + '<div class="field"><label for="newActivityLabel">Name</label>'
+            + '<input id="newActivityLabel" type="text" placeholder="e.g. Padel, Sauna, Dog walk"></div>'
+            + '<div class="field"><label for="newActivityKind">Kind</label>'
+            + '<select id="newActivityKind">'
+            + '<option value="training">Training — counts as load, asks for distance and HR</option>'
+            + '<option value="everyday" selected>Everyday — asks for distance and HR, no load by default</option>'
+            + '<option value="restorative">Restorative — duration and notes only</option>'
+            + '</select></div>'
+            + '<button class="btn btn-primary btn-block" id="addActivityButton">Add to the list</button>'
+            + '</div>'
+
+            + '<div class="settings-group">'
+            + '<button class="btn btn-small btn-danger btn-block" id="resetActivitiesButton">'
+            + 'Restore the original list</button>'
+            + '<p class="hint-inline">Anything already written to the Extras sheet keeps the name it was '
+            + 'logged under — this list only decides what you are offered next time.</p>'
+            + '</div>';
+
+        $('addActivityButton').addEventListener('click', addActivity);
+        $('resetActivitiesButton').addEventListener('click', async () => {
+            if (!confirm('Restore the original list of activities?')) return;
+            await AmsExtras.resetActivities();
+            toast('Original list restored.');
+            renderActivities();
+        });
+    }
+
+    async function addActivity() {
+        const label = String($('newActivityLabel').value || '').trim();
+        if (!label) { toast('Give it a name first.', 'bad'); return; }
+
+        const list = AmsExtras.getActivities().slice();
+        if (list.some((a) => AmsMapping.normalise(a.label) === AmsMapping.normalise(label))) {
+            toast('That is already on the list.', 'bad');
+            return;
+        }
+
+        list.push({
+            id: AmsExtras.idFor(label, list),
+            label: label,
+            kind: $('newActivityKind').value
+        });
+        await AmsExtras.saveActivities(list);
+        toast('Added ' + label + '.', 'good');
+        renderActivities();
+    }
+
+    async function moveActivity(instruction) {
+        const [direction, indexText] = instruction.split(':');
+        const index = parseInt(indexText, 10);
+        const list = AmsExtras.getActivities().slice();
+        const target = direction === 'up' ? index - 1 : index + 1;
+        if (target < 0 || target >= list.length) return;
+
+        const moved = list.splice(index, 1)[0];
+        list.splice(target, 0, moved);
+        await AmsExtras.saveActivities(list);
+        renderActivities();
+    }
+
+    async function deleteActivity(indexText) {
+        const index = parseInt(indexText, 10);
+        const list = AmsExtras.getActivities().slice();
+        const item = list[index];
+        if (!item) return;
+        if (list.length === 1) { toast('Keep at least one.', 'bad'); return; }
+        if (!confirm('Remove "' + item.label + '" from the list?')) return;
+
+        list.splice(index, 1);
+        await AmsExtras.saveActivities(list);
+        toast('Removed ' + item.label + '.');
+        renderActivities();
     }
 
     /* ---------- what is waiting to sync ---------- */
@@ -2042,6 +2161,12 @@ const AmsUi = (function () {
             const drop = event.target.closest('[data-drop]');
             if (drop) { dropQueued(drop.dataset.drop); return; }
 
+            const moveActivityButton = event.target.closest('[data-move-activity]');
+            if (moveActivityButton) { moveActivity(moveActivityButton.dataset.moveActivity); return; }
+
+            const deleteActivityButton = event.target.closest('[data-delete-activity]');
+            if (deleteActivityButton) { deleteActivity(deleteActivityButton.dataset.deleteActivity); return; }
+
             const day = event.target.closest('[data-day]');
             if (day) {
                 // Tapping the open day closes it again.
@@ -2066,6 +2191,7 @@ const AmsUi = (function () {
                 else if (go.dataset.go === 'guide') { renderGuide(); showScreen('guideScreen'); }
                 else if (go.dataset.go === 'version') { renderVersionLog(); showScreen('versionScreen'); }
                 else if (go.dataset.go === 'queue') { renderQueue(); showScreen('queueScreen'); }
+                else if (go.dataset.go === 'activities') { renderActivities(); showScreen('activitiesScreen'); }
                 else openTab(go.dataset.go);
             }
         });

@@ -38,7 +38,9 @@ existing cells.
 - **Move** — a session can be moved to another day, or swapped with another one
   when you did the two the other way round. Only the date and weekday cells are
   rewritten, and the weekday is spelled the way your sheet already spells it.
-- **Something else** — an unplanned run, a hike, a meditation. These go on their
+- **Something else** — an unplanned run, a hike, a meditation. The list of
+  activities on offer is editable in Settings: add, remove and reorder them to
+  match what you actually do. These go on their
   own `Extras` sheet, created on first use, with a column saying whether each one
   counts as training load. They are never written into the plan, so planned-versus-
   actual keeps meaning what it says.

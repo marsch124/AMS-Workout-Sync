@@ -8,13 +8,23 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.7.0';
+    const CURRENT = '1.8.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.8.0',
+            date: '2026-08-20',
+            headline: 'Your list, and a colour per tab',
+            items: [
+                'The activities offered by "Log something else" are now yours to edit in Settings: add your own, remove what you never do, and put them in the order you actually reach for. What is already written to the Extras sheet keeps the name it was logged under.',
+                'Each tab has its own colour and carries it through the whole screen — Today green, Plan blue, Settings slate — so the interface tells you where you are before you read a word. A session opened from Plan keeps Plan\u2019s colour, as a thread back to where you came from.',
+                'Sport colours are untouched by this: a swim is cyan on every screen.'
+            ]
+        },
         {
             version: '1.7.0',
             date: '2026-08-20',

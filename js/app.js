@@ -17,6 +17,14 @@
             AmsUi.toast('This browser will not let the app store anything locally.', 'bad');
         }
 
+        // The activity list is the user's own, and the extras form reads it as
+        // it renders, so it has to be in place before the first paint.
+        try {
+            await AmsExtras.loadActivities();
+        } catch (err) {
+            console.warn('Falling back to the default activity list:', err);
+        }
+
         // Coming back from the Dropbox sign-in page.
         try {
             const connected = await AmsDropbox.completeAuthIfReturning();

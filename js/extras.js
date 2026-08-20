@@ -31,7 +31,7 @@ const AmsExtras = (function () {
      * and what "Counts as training" starts at. Both remain yours to override —
      * a four-hour hike is load whatever this list says.
      */
-    const ACTIVITIES = [
+    const DEFAULT_ACTIVITIES = [
         { id: 'run', label: 'Run', kind: 'training', icon: 'run', color: 'var(--sport-run)' },
         { id: 'bike', label: 'Bike', kind: 'training', icon: 'bike', color: 'var(--sport-bike)' },
         { id: 'swim', label: 'Swim', kind: 'training', icon: 'swim', color: 'var(--sport-swim)' },
@@ -47,10 +47,81 @@ const AmsExtras = (function () {
         { id: 'other', label: 'Something else', kind: 'everyday', icon: 'other', color: 'var(--sport-other)' }
     ];
 
-    const ACTIVITY_BY_ID = new Map(ACTIVITIES.map((a) => [a.id, a]));
+    /*
+     * The list in force. Starts as the defaults above, and is replaced by the
+     * user's own once they have edited it — this is their vocabulary for their
+     * own training, not a fixed taxonomy.
+     */
+    let activities = DEFAULT_ACTIVITIES.slice();
+    let byId = new Map(activities.map((a) => [a.id, a]));
 
+    const STORE_KEY = 'extras.activities';
+
+    /* Colours and icons are matched from the defaults where an id is known, so
+       a renamed or added activity still looks like it belongs. */
+    const KIND_LOOK = {
+        training:   { icon: 'other', color: 'var(--sport-other)' },
+        restorative:{ icon: 'check', color: 'var(--sport-mobility)' },
+        everyday:   { icon: 'run',   color: 'var(--sport-rest)' }
+    };
+
+    function decorate(entry) {
+        const known = DEFAULT_ACTIVITIES.find((a) => a.id === entry.id);
+        const look = KIND_LOOK[entry.kind] || KIND_LOOK.everyday;
+        return {
+            id: entry.id,
+            label: entry.label,
+            kind: entry.kind || 'everyday',
+            icon: entry.icon || (known ? known.icon : look.icon),
+            color: entry.color || (known ? known.color : look.color)
+        };
+    }
+
+    function setActivities(list) {
+        activities = (list && list.length ? list : DEFAULT_ACTIVITIES).map(decorate);
+        byId = new Map(activities.map((a) => [a.id, a]));
+        return activities;
+    }
+
+    function getActivities() {
+        return activities;
+    }
+
+    async function loadActivities() {
+        const stored = await AmsDb.get(STORE_KEY, null);
+        return setActivities(stored);
+    }
+
+    async function saveActivities(list) {
+        setActivities(list);
+        await AmsDb.set(STORE_KEY, activities.map((a) => ({ id: a.id, label: a.label, kind: a.kind })));
+        return activities;
+    }
+
+    async function resetActivities() {
+        await AmsDb.remove(STORE_KEY);
+        return setActivities(null);
+    }
+
+    /* A stable id from a label, unique against what is already there. */
+    function idFor(label, existing) {
+        const base = AmsMapping.normalise(label).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+            || 'activity';
+        let id = base;
+        let n = 2;
+        while (existing.some((a) => a.id === id)) id = base + '-' + (n++);
+        return id;
+    }
+
+    /*
+     * Unknown ids resolve to whatever is left rather than crashing — an extra
+     * logged under an activity later deleted still has to render.
+     */
     function activity(id) {
-        return ACTIVITY_BY_ID.get(id) || ACTIVITY_BY_ID.get('other');
+        return byId.get(id)
+            || byId.get('other')
+            || activities[activities.length - 1]
+            || decorate({ id: 'other', label: 'Something else', kind: 'everyday' });
     }
 
     /* Metrics are worth asking for when something was covered or worked at. */
@@ -142,7 +213,7 @@ const AmsExtras = (function () {
             if (!date && !label) continue;
 
             const minutes = sheet.cell(row, COL.duration);
-            const match = ACTIVITIES.find((a) => AmsMapping.normalise(a.label) === AmsMapping.normalise(label));
+            const match = activities.find((a) => AmsMapping.normalise(a.label) === AmsMapping.normalise(label));
 
             out.push({
                 row: row,
@@ -168,7 +239,13 @@ const AmsExtras = (function () {
         SHEET_NAME: SHEET_NAME,
         COLUMNS: COLUMNS,
         COL: COL,
-        ACTIVITIES: ACTIVITIES,
+        DEFAULT_ACTIVITIES: DEFAULT_ACTIVITIES,
+        getActivities: getActivities,
+        setActivities: setActivities,
+        loadActivities: loadActivities,
+        saveActivities: saveActivities,
+        resetActivities: resetActivities,
+        idFor: idFor,
         activity: activity,
         wantsMetrics: wantsMetrics,
         ensureSheet: ensureSheet,
