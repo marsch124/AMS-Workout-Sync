@@ -50,9 +50,19 @@ def plain(path):
         (6, 'Run', 'Easy run + strides', 35, 'Z2', 'Turnover'),
         (6, 'Strength', 'Squat, hinge, press, row', 30, 'RPE 7', 'Durability'),
     ]
-    for offset, sport, workout, minutes, zone, purpose in week:
+    next_week = [
+        (7, 'Swim', 'Technique: 8x50 drills + 6x100 easy', 35, 'Z1-Z2', 'Stroke before volume'),
+        (8, 'Bike', 'Easy spin, cadence 90+', 45, 'Z1', 'Legs turning, nothing more'),
+        (9, 'Run', 'Easy run + 4x20 s strides', 35, 'Z2', 'Turnover'),
+        (11, 'Rest', 'REST DAY - full day off', None, '-', 'The weekly anchor'),
+        (12, 'Bike', 'Steady aerobic ride', 65, 'Z2', 'Long, but not hard'),
+        (13, 'Run', 'Easy run, flat route', 40, 'Z2', 'Aerobic base'),
+    ]
+
+    # Two weeks, so "next week" is a real week rather than an empty one.
+    for offset, sport, workout, minutes, zone, purpose in week + next_week:
         date = monday + datetime.timedelta(days=offset)
-        ws.append([1, date.isoformat(), DAYS[date.weekday()], sport,
+        ws.append([1 if offset < 7 else 2, date.isoformat(), DAYS[date.weekday()], sport,
                    workout, minutes, zone, purpose])
 
     last = ws.max_row + 1

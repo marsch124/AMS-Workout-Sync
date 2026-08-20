@@ -8,13 +8,25 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.19.0';
+    const CURRENT = '1.20.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.20.0',
+            date: '2026-08-20',
+            headline: 'A week, in your calendar',
+            items: [
+                'The share button can now put a week in a calendar as well as in a message. It hands over an ordinary .ics file, so it lands in Apple Calendar, Google Calendar or anyone else\u2019s — and it can be sent to somebody who has neither the app nor the workbook.',
+                'One all-day event per session, titled with the sport, the duration and what the session is; the purpose, the intensity and the breakdown go in the notes. All-day because your plan says how long a session lasts and never when it happens: putting a swim at seven in the morning would be the app inventing that.',
+                'Rest days are included. When you are free is as much use to somebody sharing a diary with you as when you are training.',
+                'Each event keeps a stable identity, so importing the same week twice updates what is there rather than doubling it.',
+                'A week with nothing planned still shows a line and the share button when the week after it has something, so a plan that starts next month can still be sent ahead.'
+            ]
+        },
         {
             version: '1.19.0',
             date: '2026-08-20',

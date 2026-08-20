@@ -602,6 +602,125 @@ const AmsUi = (function () {
     }
 
     /*
+     * A week as calendar events: one all-day event per session, plus the rest
+     * days, which are as much a part of what somebody else wants to know as
+     * the training is.
+     *
+     * The summary carries sport, duration and what the session is, because
+     * that is the line a calendar shows without being opened. Everything else
+     * — the purpose, the intensity, the breakdown into warm-up and intervals —
+     * goes in the notes.
+     */
+    function weekCalendar(weeksAhead) {
+        const from = AmsSync.weekStart(AmsSync.todayKey());
+        if (!from) return null;
+
+        const start = weeksAhead ? shiftDayKey(from, weeksAhead * 7) : from;
+        const days = AmsSync.weekDays(start);
+        if (!days.length) return null;
+
+        const mapping = AmsSync.getState().mapping || {};
+        const events = [];
+
+        days.forEach((day) => {
+            if (day.isRest) {
+                events.push({
+                    key: 'rest-' + day.dayKey,
+                    dayKey: day.dayKey,
+                    summary: 'Rest day',
+                    description: (day.sessions[0] && day.sessions[0].title) || ''
+                });
+                return;
+            }
+
+            day.training.forEach((workout) => {
+                const planned = AmsPlan.formatDuration(
+                    AmsPlan.plannedDurationSeconds(workout, mapping) || 0);
+
+                let summary = workout.discipline.label + (planned ? ' ' + planned : '');
+                if (workout.title) summary += ' — ' + workout.title;
+                if (summary.length > 80) summary = summary.slice(0, 79).trimEnd() + '…';
+
+                /*
+                 * A sheet with no breakdown of its own has one section made
+                 * from the description, so the same sentence can arrive twice
+                 * by two routes. Notes should not repeat themselves.
+                 */
+                const notes = [];
+                const seen = new Set();
+                const add = (text) => {
+                    const line = String(text || '').trim();
+                    const key = line.toLowerCase();
+                    if (!line || seen.has(key)) return;
+                    seen.add(key);
+                    notes.push(line);
+                };
+
+                if (workout.title) add(workout.title);
+                if (workout.planned && workout.planned.intensity) {
+                    add('Intensity: ' + workout.planned.intensity);
+                }
+                const purpose = workout.planned && workout.planned.description;
+                if (purpose) add('Purpose: ' + purpose);
+                (workout.sections || []).forEach((section) => {
+                    if (purpose && section.text === purpose) return;
+                    add(section.label + ': ' + section.text
+                        + (section.target ? ' (' + section.target + ')' : ''));
+                });
+
+                events.push({
+                    key: workout.key,
+                    dayKey: workout.dayKey,
+                    summary: summary,
+                    description: notes.join('\n')
+                });
+            });
+        });
+
+        if (!events.length) return null;
+
+        return {
+            ics: AmsIcs.build(events, 'Training'),
+            name: 'training-week-' + start + '.ics',
+            count: events.length,
+            sessions: days.reduce((sum, day) => sum + day.training.length, 0)
+        };
+    }
+
+    /*
+     * Handed to the share sheet as a file where that is possible, which on a
+     * phone is what puts "Add All to Calendar" in front of you. Where it is
+     * not, it is saved instead, which comes to the same thing one tap later.
+     */
+    async function shareCalendar(calendar) {
+        if (!calendar) { toast('There is nothing in that week to put in a calendar.', 'bad'); return; }
+
+        const blob = new Blob([calendar.ics], { type: 'text/calendar;charset=utf-8' });
+        const file = typeof File === 'function'
+            ? new File([blob], calendar.name, { type: 'text/calendar' })
+            : null;
+
+        if (file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({ files: [file], title: 'Training week' });
+                return;
+            } catch (err) {
+                if (err && err.name === 'AbortError') return;
+            }
+        }
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = calendar.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+        toast('Calendar file saved — open it to add the week.', 'good');
+    }
+
+    /*
      * Both weeks are written out before the question is asked, so that the tap
      * that answers it goes straight to the share sheet with nothing in between.
      */
@@ -620,15 +739,47 @@ const AmsUi = (function () {
                 + (week.plannedSeconds ? ' · ' + AmsPlan.formatDuration(week.plannedSeconds) : '');
         };
 
+        const thisCal = weekCalendar(0);
+        const nextCal = weekCalendar(1);
+        const events = (cal) => cal
+            ? cal.count + ' all-day event' + (cal.count === 1 ? '' : 's')
+            : 'nothing to add';
+
         openChoice('Share which week?', [
-            { label: 'This week', sub: summarise(0), act: () => shareText(thisWeek) },
-            { label: 'Next week', sub: summarise(1), act: () => shareText(nextWeek) }
+            { label: 'This week', sub: 'as a message · ' + summarise(0),
+              act: () => shareText(thisWeek) },
+            { label: 'Next week', sub: 'as a message · ' + summarise(1),
+              act: () => shareText(nextWeek) },
+            { label: 'This week to the calendar', sub: events(thisCal),
+              act: () => shareCalendar(thisCal) },
+            { label: 'Next week to the calendar', sub: events(nextCal),
+              act: () => shareCalendar(nextCal) }
         ]);
     }
 
     function weekCard() {
         const week = AmsSync.weekSummary();
-        if (!week || !week.plannedSeconds) return '';
+
+        /*
+         * A week with nothing in it still gets a line, provided there is a
+         * week after it worth sending. A plan that starts next month would
+         * otherwise take the share button down with the card, and with it the
+         * only way to put the coming week in front of anyone.
+         */
+        if (!week || !week.plannedSeconds) {
+            const ahead = weekCalendar(1);
+            if (!ahead) return '';
+            return '<div class="card week-card" data-legend>'
+                + '<div class="week-card-head">'
+                + '<span class="week-card-head-main"><span class="week-card-label">This week</span></span>'
+                + '<button type="button" class="week-share" data-share-week'
+                + ' aria-label="Share a week">'
+                + '<svg class="icon"><use href="#icon-share"></use></svg></button>'
+                + '</div>'
+                + '<p class="week-card-figures">Nothing planned this week '
+                + '— next week has ' + ahead.sessions + ' session'
+                + (ahead.sessions === 1 ? '' : 's') + '.</p></div>';
+        }
 
         const percent = Math.round(week.actualSeconds / week.plannedSeconds * 100);
         const width = Math.max(0, Math.min(100, percent));
@@ -2059,8 +2210,13 @@ const AmsUi = (function () {
             + section('The three tabs',
                 '<p><strong>Today</strong> — what is planned for today, broken into warm-up, intervals, '
                 + 'technique and cool-down, plus anything you did that was not planned. The share button on '
-                + 'the week card asks whether you mean this week or next, and sends it as plain text — a message anyone can read, no app and '
-                + 'no workbook needed at the other end.</p>'
+                + 'the week card asks which week you mean, and whether to send it as a message or add '
+                + 'it to a calendar. A message goes as plain text — a message anyone can read, no app and '
+                + 'no workbook needed at the other end. The calendar version is an ordinary .ics file, '
+                + 'one all-day event per session. All-day because the plan says how long a session is '
+                + 'and never when: putting a swim at seven in the morning would be the app making that '
+                + 'up. Rest days go in too — when somebody is free is as much use as when they are '
+                + 'training.</p>'
                 + '<p><strong>Plan</strong> — the whole schedule, in four lists. <em>Upcoming</em> is what is '
                 + 'still to do, and leads with anything from before today that was never recorded. '
                 + '<em>Done</em> is what you performed. <em>Missed</em> is what you marked as not done, kept '
@@ -2657,7 +2813,8 @@ const AmsUi = (function () {
     return {
         init,
         toast,
-        weekFigures,   // pure, and exposed so its wording can be tested directly
+        weekFigures,
+        __weekCalendar: weekCalendar,   // pure, and exposed so its wording can be tested directly
         renderToday,
         renderPlan,
         renderSettings,

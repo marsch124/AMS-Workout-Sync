@@ -16,6 +16,7 @@ node tests/failure-paths.js
 node tests/column-collision.js
 node tests/foreign-extras-sheet.js
 node tests/edited-workbook.js
+node tests/calendar-export.js
 ```
 
 Each script prints what it found and ends with `errors: none`. Nothing is
@@ -49,6 +50,11 @@ session is still waiting to sync. Same number of rows, different content:
 - the session moved further down the sheet — it must be followed
 - a column inserted, shifting every heading right — the layout must be read
   again rather than written into the old column positions
+
+**`calendar-export.js`** — a week handed to the calendar. The file has to
+satisfy something old and fussy (RFC 5545) or a calendar refuses it without
+saying why: CRLF endings, lines folded at 75 **octets**, commas and semicolons
+escaped, and an all-day event whose end date is the day after its start.
 
 **`column-collision.js`** — a mapping that points a results column at a column
 the plan lives in. Logging must refuse to write there rather than overwrite the
