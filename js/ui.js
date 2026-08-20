@@ -36,6 +36,7 @@ const AmsUi = (function () {
     function $(id) { return document.getElementById(id); }
 
     const MIDDOT = '·';
+    const BREAK = String.fromCharCode(10);
 
     /* Dates from the workbook are UTC-anchored, so they must be formatted in
        UTC too — otherwise a session drifts to the previous day west of London. */
@@ -2659,12 +2660,25 @@ const AmsUi = (function () {
                 + '<strong>+</strong> at the top right. Tap the name at the top and call it '
                 + '“Send workouts to AMS”.</p>'
 
-                + '<p><strong>2 · Get today’s workouts.</strong> Tap <strong>Add Action</strong> and type '
-                + '<em>health samples</em> in the search box. Choose <strong>Find Health Samples</strong>. '
-                + 'The action appears reading roughly <em>Find All Health Samples where…</em>. Tap the blue '
-                + 'word for the sample type and choose <strong>Workouts</strong>. Then tap '
-                + '<strong>Add Filter</strong> and set it to <em>Start Date</em> — <em>is today</em>. Leave '
-                + '“Limit” switched off, so a day with two sessions sends both.</p>'
+                + '<p><strong>2 · Get today’s workouts.</strong> Tap <strong>Add Action</strong>, type '
+                + '<em>health samples</em> in the search box, and choose <strong>Find Health Samples</strong>.</p>'
+
+                + '<p>It arrives already filled in, and both of its blue words are wrong for us. It will '
+                + 'say something close to:</p>'
+                + '<pre>Find Health Samples where All of the following are true' + BREAK
+                + '  Type        is  Steps' + BREAK
+                + '  Start Date  is in the last  7  days</pre>'
+                + '<ul>'
+                + '<li>Tap the blue <strong>Steps</strong>. A long list opens, with a search box at the top '
+                + '— type <em>workout</em> and choose <strong>Workouts</strong>.</li>'
+                + '<li>Tap the blue <strong>is in the last</strong> and choose <strong>is today</strong> if '
+                + 'that is offered. If it is not, tap the <strong>7</strong> and change it to '
+                + '<strong>1</strong>. This one matters: the file carries no dates, so everything in it is '
+                + 'taken as today’s. Left at seven days, a week of sessions would all arrive as today.</li>'
+                + '<li>The rows underneath — <em>Unit</em>, <em>Group by</em>, <em>Sort by</em> — can be '
+                + 'ignored, and some of them change or disappear when you switch to Workouts. Leave '
+                + '<strong>Limit</strong> switched off, so a day with two sessions sends both.</li>'
+                + '</ul>'
 
                 + '<p><strong>3 · Go through them one at a time.</strong> Tap <strong>+</strong>, search for '
                 + '<em>repeat</em>, and choose <strong>Repeat with Each</strong>. It will already be set to '
