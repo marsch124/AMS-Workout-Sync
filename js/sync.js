@@ -353,22 +353,30 @@ const AmsSync = (function () {
         if (!workbookPath) return state.inbox;
         if (!(await AmsDropbox.isConnected())) return state.inbox;
 
-        const path = AmsInbox.pathFor(workbookPath, await AmsDb.get('inbox.file', AmsInbox.DEFAULT_FILE));
+        const chosen = await AmsDb.get('inbox.file', '');
+        const names = chosen ? [chosen] : [AmsInbox.DEFAULT_FILE].concat(AmsInbox.ALSO_TRIED);
 
-        let file;
-        try {
-            file = await AmsDropbox.download(path);
-        } catch (err) {
-            // Not there is not a problem: most people will never make one.
-            if (!/no longer in Dropbox|not_found/i.test(err.message || '')) {
-                state.inboxError = err.message;
+        let file = null;
+        for (const name of names) {
+            try {
+                file = await AmsDropbox.download(AmsInbox.pathFor(workbookPath, name));
+                break;
+            } catch (err) {
+                // Not there is not a problem: most people will never make one.
+                if (!/no longer in Dropbox|not_found/i.test(err.message || '')) {
+                    state.inboxError = err.message;
+                    return state.inbox;
+                }
             }
-            return state.inbox;
         }
+        if (!file) return state.inbox;
 
         try {
             const text = new TextDecoder().decode(file.bytes);
-            state.inbox = AmsInbox.parse(text);
+            // The day the file was written stands in for a date a line does not
+            // give, which is what lets the Shortcut skip formatting one.
+            const written = file.modified ? String(file.modified).slice(0, 10) : todayKey();
+            state.inbox = AmsInbox.parse(text, written);
         } catch (err) {
             state.inboxError = err.message;
         }

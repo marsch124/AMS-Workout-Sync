@@ -8,13 +8,25 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.23.1';
+    const CURRENT = '1.24.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.24.0',
+            date: '2026-08-20',
+            headline: 'The watch file is a sentence now, not JSON',
+            items: [
+                'Asking anyone to assemble JSON by hand in Shortcuts was a mistake — quotation marks around some values but not others, commas between entries, brackets round the lot, and a phone that turns a straight quote into a curly one so that none of it parses. The file is now one line per session in plain words and numbers: "Running, 42 min, 8.12 km, 138 bpm".',
+                'Order does not matter, commas are optional, and the pieces are recognised by what they look like. Minutes, hours, a clock like 1:45:00, kilometres, metres, bpm, kcal — all understood. Only the sport or the duration is really needed.',
+                'No date needed either: the app takes the day from the file itself, so the hardest part of the Shortcut disappears. A line may still carry a date if it is not today.',
+                'The Shortcut instructions are rewritten tap by tap, including the part everyone gets stuck on — putting a variable inside a Text action and choosing which detail of it you want. Start with two values, get it working, add the rest after.',
+                'JSON still works if you prefer it, and a file made under the old name is still found.'
+            ]
+        },
         {
             version: '1.23.1',
             date: '2026-08-20',

@@ -22,7 +22,10 @@
 const AmsInbox = (function () {
     'use strict';
 
-    const DEFAULT_FILE = 'ams-health-inbox.json';
+    /* Plain text now that a line of words and numbers is enough. The older
+       name is still looked for, so a file already made does not stop working. */
+    const DEFAULT_FILE = 'ams-health-inbox.txt';
+    const ALSO_TRIED = ['ams-health-inbox.json'];
 
     /* Beside the workbook, wherever that is. */
     function pathFor(workbookPath, fileName) {
@@ -89,12 +92,176 @@ const AmsInbox = (function () {
         return AmsPlan.classifyDiscipline(text) || AmsPlan.OTHER_DISCIPLINE;
     }
 
-    function parse(text) {
+    /*
+     * One workout per line, in whatever order the pieces arrive and separated
+     * by whatever came to hand:
+     *
+     *     Running, 42.3 min, 8.12 km, 138 bpm
+     *     Cycling | 1:45:00 | 52.4 km | 131 bpm | 780 kcal
+     *     Open Water Swim 32 min 1.5 km
+     *
+     * This exists because writing JSON by hand in Shortcuts is genuinely
+     * unpleasant — quotation marks around some values but not others, commas
+     * between entries, square brackets round the lot, and a phone that turns
+     * " into " so that none of it parses. A line of words and numbers asks
+     * none of that.
+     *
+     * So the line is read the way a person reads it: find the measurements
+     * wherever they are, and whatever is left over is what you were doing.
+     * Commas are welcome and so are spaces; neither is required.
+     */
+    const MEASUREMENT = new RegExp(
+        '(\\d{1,2}):([0-5]\\d)(?::([0-5]\\d))?'                       /* 1:45:00 or 42:18 */
+        + '|(\\d+(?:[.,]\\d+)?)\\s*'
+        + '(kilometres?|kilometers?|km|metres?|meters?|minutes?|mins?|min'
+        + '|hours?|hrs?|bpm|kcal|calories|cal|kj|h|m)?',
+        'gi');
+
+    function readMeasurements(line) {
+        const found = [];
+        let match;
+
+        MEASUREMENT.lastIndex = 0;
+        while ((match = MEASUREMENT.exec(line)) !== null) {
+            if (!match[0].trim()) { MEASUREMENT.lastIndex++; continue; }
+
+            if (match[1] !== undefined) {
+                /*
+                 * Three parts are unambiguous. Two are not: "1:45" is an hour
+                 * and three quarters, "42:18" is forty-two minutes. Sessions
+                 * shorter than a quarter of an hour are rare and sessions of
+                 * one to twelve hours are ordinary, so the first number
+                 * decides. Either way the figure lands in a form to be looked
+                 * at before it is saved.
+                 */
+                const parts = match[3] !== undefined;
+                const asHours = !parts && (+match[1]) <= 12;
+                found.push({
+                    kind: 'minutes',
+                    value: parts
+                        ? (+match[1]) * 60 + (+match[2]) + (+match[3]) / 60
+                        : asHours
+                            ? (+match[1]) * 60 + (+match[2])
+                            : (+match[1]) + (+match[2]) / 60,
+                    at: match.index,
+                    length: match[0].length
+                });
+                continue;
+            }
+
+            const value = number(match[4]);
+            if (value === null) { MEASUREMENT.lastIndex++; continue; }
+            const unit = (match[5] || '').toLowerCase();
+
+            let kind = '';
+            if (/^(km|kilomet)/.test(unit)) kind = 'km';
+            else if (/^met/.test(unit) || unit === 'm') kind = 'metres';
+            else if (/^min/.test(unit)) kind = 'minutes';
+            else if (/^(hr|hour)/.test(unit) || unit === 'h') kind = 'hours';
+            else if (unit === 'bpm') kind = 'bpm';
+            else if (/^(kcal|cal|kj)/.test(unit)) kind = 'calories';
+
+            found.push({ kind: kind, value: value, at: match.index, length: match[0].length });
+        }
+        return found;
+    }
+
+    function parseLines(text, fallbackDay) {
+        const out = [];
+
+        String(text).split(/\r?\n/).forEach((rawLine, index) => {
+            let line = rawLine.trim();
+            if (!line || line.charAt(0) === '#') return;
+
+            const entry = {
+                id: 'line-' + index,
+                dayKey: '',
+                sport: '',
+                minutes: null,
+                km: null,
+                avgHr: null,
+                calories: null,
+                name: ''
+            };
+
+            // A date first, so its digits are not read as measurements.
+            const dated = /\d{4}-\d{2}-\d{2}/.exec(line);
+            if (dated) {
+                entry.dayKey = dayKeyOf(dated[0]);
+                line = line.slice(0, dated.index) + ' , ' + line.slice(dated.index + dated[0].length);
+            }
+
+            const measurements = readMeasurements(line);
+
+            // Assign what is labelled; hold back the bare numbers.
+            const bare = [];
+            measurements.forEach((m) => {
+                if (m.kind === 'km' && entry.km === null) entry.km = m.value;
+                else if (m.kind === 'metres' && entry.km === null) entry.km = m.value / 1000;
+                else if (m.kind === 'minutes' && entry.minutes === null) entry.minutes = m.value;
+                else if (m.kind === 'hours' && entry.minutes === null) entry.minutes = m.value * 60;
+                else if (m.kind === 'bpm' && entry.avgHr === null) entry.avgHr = m.value;
+                else if (m.kind === 'calories' && entry.calories === null) entry.calories = m.value;
+                else if (!m.kind) bare.push(m.value);
+            });
+
+            // Unlabelled numbers, in the order anybody would say them.
+            bare.forEach((value) => {
+                if (entry.minutes === null) entry.minutes = value;
+                else if (entry.km === null && value < 500) entry.km = value;
+                else if (entry.avgHr === null && value >= 30 && value <= 250) entry.avgHr = value;
+            });
+
+            // What is left when the numbers are taken out is what you did.
+            let words = line;
+            measurements.slice().reverse().forEach((m) => {
+                words = words.slice(0, m.at) + ' , ' + words.slice(m.at + m.length);
+            });
+
+            const remaining = words.split(/[|,;\t]+/)
+                .map((part) => part.replace(/\s+/g, ' ').trim())
+                .filter((part) => part && /[A-Za-z\u00C0-\u024F]/.test(part));
+
+            if (remaining.length) {
+                entry.sport = remaining[0];
+                entry.name = remaining.slice(1).join(', ');
+            }
+
+            if (!entry.sport && entry.minutes === null) return;
+
+            entry.dayKey = entry.dayKey || fallbackDay;
+            if (!entry.dayKey) return;
+
+            entry.discipline = disciplineFor(entry.sport);
+            out.push(entry);
+        });
+
+        return out;
+    }
+
+    /*
+     * `fallbackDay` is the day the file itself was written, which is the right
+     * answer when a line does not say: a Shortcut run after a session writes
+     * that session's day. It saves the hardest part of the Shortcut — getting
+     * a date formatted — for no loss of meaning.
+     */
+    function parse(text, fallbackDay) {
+        const trimmed = String(text || '').trim();
+        if (!trimmed) return [];
+
+        // Plain lines unless it is plainly JSON.
+        if (trimmed.charAt(0) !== '[' && trimmed.charAt(0) !== '{') {
+            return parseLines(trimmed, fallbackDay);
+        }
+
         let raw;
         try {
-            raw = JSON.parse(text);
+            raw = JSON.parse(trimmed);
         } catch (err) {
-            throw new Error('The file from your watch is not readable JSON.');
+            // It began like JSON and is not: say so, rather than reading the
+            // braces as a sport called "{".
+            throw new Error('That file starts like JSON but is not valid JSON. '
+                + 'A missing comma, or a curly quotation mark, is the usual cause.');
         }
 
         const rows = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.workouts) ? raw.workouts : [raw]);
@@ -105,7 +272,7 @@ const AmsInbox = (function () {
             const sport = pick(row, ['sport', 'type', 'workoutType', 'activity', 'activityType']);
             const minutes = number(pick(row, ['minutes', 'durationMin', 'durationMinutes', 'duration']));
             const km = number(pick(row, ['km', 'distanceKm', 'distance']));
-            const dayKey = dayKeyOf(pick(row, ['date', 'start', 'startDate', 'day']));
+            const dayKey = dayKeyOf(pick(row, ['date', 'start', 'startDate', 'day'])) || fallbackDay || '';
             if (!dayKey) return null;
 
             return {
@@ -205,8 +372,10 @@ const AmsInbox = (function () {
 
     return {
         DEFAULT_FILE: DEFAULT_FILE,
+        ALSO_TRIED: ALSO_TRIED,
         pathFor: pathFor,
         parse: parse,
+        parseLines: parseLines,
         matchTo: matchTo,
         valuesFor: valuesFor,
         extraFor: extraFor,

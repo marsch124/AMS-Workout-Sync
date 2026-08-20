@@ -33,8 +33,8 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(36) + v);
     const bytes = new TextEncoder().encode(json);
     AmsDropbox.isConnected = async () => true;
     AmsDropbox.download = async (path) => {
-      if (/ams-health-inbox\.json$/.test(path)) {
-        return { bytes: bytes, rev: 'r1', name: 'ams-health-inbox.json', path: path };
+      if (/ams-health-inbox\.(txt|json)$/.test(path)) {
+        return { bytes: bytes, rev: 'r1', name: 'ams-health-inbox.txt', path: path };
       }
       throw new Error('That file is no longer in Dropbox at the saved path.');
     };
@@ -48,11 +48,10 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(36) + v);
     (AmsSync.getState().plan.find(w => w.discipline.id === 'run' && w.dayKey === AmsSync.todayKey()) || {}).title || null);
 
   console.log('THE FILE A SHORTCUT WOULD WRITE');
-  const file = JSON.stringify([
-    { date: today, sport: 'Running', minutes: 32.4, km: 6.15, avgHr: 141, calories: 402, name: 'Morning Run' },
-    { date: today, sport: 'Walking', minutes: 55, km: 4.2, avgHr: 96, name: 'Evening walk with Anna' }
-  ]);
-  console.log('   ' + file);
+  const file = 'Running, 32.4 min, 6.15 km, 141 bpm, 402 kcal, Morning Run\n'
+    + 'Walking, 55 min, 4.2 km, 96 bpm, Evening walk with Anna';
+  file.split('\n').forEach(l => console.log('   ' + l));
+  void today;
 
   const parsed = await setInbox(file);
   line('entries read:', parsed.length);
