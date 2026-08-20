@@ -486,6 +486,71 @@ body {
     margin: 0 0 0.55rem 0.15rem;
 }
 
+/* ---------- the folded-away half of Settings ---------- */
+
+/* Set-once and don't-tap-that-by-accident live behind one press. Shut, it is a
+   single quiet row; open, it is an ordinary group. */
+.settings-fold {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 0.15rem 0.75rem 0.3rem;
+    background: var(--color-surface);
+}
+
+.settings-fold.is-open { padding-bottom: 0.9rem; }
+
+.settings-fold-head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.75rem 0;
+    border: none;
+    background: none;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.settings-fold-text { flex: 1; min-width: 0; }
+
+.settings-fold-title {
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.settings-fold-sub {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    color: var(--color-text-secondary);
+}
+
+/* The chevron points the way it is about to go. */
+.settings-fold-chevron {
+    flex-shrink: 0;
+    width: 1.15rem;
+    height: 1.15rem;
+    color: var(--color-text-secondary);
+    transform: rotate(180deg);
+    transition: transform 0.2s ease;
+}
+
+.settings-fold.is-open .settings-fold-chevron { transform: rotate(270deg); }
+
+.settings-fold-body {
+    padding-top: 0.35rem;
+    border-top: 1px solid var(--color-border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .settings-fold-chevron { transition: none; }
+}
+
 .settings-row {
     display: flex;
     align-items: center;

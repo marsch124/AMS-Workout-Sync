@@ -12,6 +12,7 @@ const AmsUi = (function () {
     let currentWorkout = null;
     let expandedDay = null;
     let legendOpen = false;
+    let settingsFoldOpen = false;
     let currentRange = 'upcoming';
     let setupDraft = null;
     let setupSheet = null;
@@ -110,7 +111,12 @@ const AmsUi = (function () {
         showScreen(map[tab] || 'todayScreen', { replace: true });
         syncTabHighlight(map[tab] || 'todayScreen');
         if (tab === 'plan') renderPlan();
-        if (tab === 'settings') renderSettings();
+        if (tab === 'settings') {
+            // Shut again every time the tab is opened: the fold is a place to
+            // go on purpose, not a state to leave lying open.
+            settingsFoldOpen = false;
+            renderSettings();
+        }
         if (tab === 'today') renderToday();
     }
 
@@ -1343,11 +1349,21 @@ const AmsUi = (function () {
         const pending = await AmsDb.queueCount();
 
         const parts = [];
+        const hasWorkbook = !!state.workbook;
 
-        /* --- Dropbox --- */
-        parts.push('<div class="settings-group"><h2>Dropbox</h2>');
+        /*
+         * Ordered by how often a person actually needs the thing, not by how
+         * the app is built.
+         *
+         * What you came to look at goes first — is everything through, what
+         * am I reading. What you set once and never touch again is folded away
+         * at the bottom, where a mis-tap cannot disconnect Dropbox, rewrite
+         * the sheet layout, or wipe the phone’s copy.
+         */
 
+        /* --- connecting: first, and only until it is done --- */
         if (!connected) {
+            parts.push('<div class="settings-group"><h2>Dropbox</h2>');
             parts.push(
                 '<div class="prose">'
                 + '<p>The app talks to Dropbox directly from your phone. To allow that, Dropbox needs to know this app exists — a one-off, two-minute job:</p>'
@@ -1370,81 +1386,51 @@ const AmsUi = (function () {
                 + '<input id="appKeyInput" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" '
                 + 'placeholder="abcd1234efgh567" value="' + esc(appKey) + '"></div>'
                 + '<button class="btn btn-primary btn-block" id="connectDropbox">Connect Dropbox</button>');
-        } else {
-            parts.push(
-                '<div class="settings-row"><div class="settings-row-main">'
-                + '<div class="settings-row-title">Connected</div>'
-                + '<div class="settings-row-sub">' + esc(account && (account.name || account.email) || 'Dropbox account') + '</div>'
-                + '</div><button class="btn btn-small btn-danger" id="disconnectDropbox">Disconnect</button></div>');
+            parts.push('</div>');
         }
-        parts.push('</div>');
 
-        /* --- the workbook --- */
-        parts.push('<div class="settings-group"><h2>Workbook</h2>');
-        if (path) {
-            parts.push(
-                '<div class="settings-row"><div class="settings-row-main">'
-                + '<div class="settings-row-title">' + esc(name || 'Workbook') + '</div>'
-                + '<div class="settings-row-sub">' + esc(path) + '</div>'
-                + '</div></div>');
-        }
-        if (connected) {
-            parts.push('<button class="btn btn-block" id="pickFileButton">'
-                + (path ? 'Choose a different file' : 'Choose the workbook in Dropbox') + '</button>');
-            parts.push('<div class="file-list" id="fileList"></div>');
-        }
-        parts.push('<p class="hint-inline">No Dropbox? You can still open a copy from this device — you will just have to save the updated file back yourself.</p>');
-        parts.push('<div class="button-row" style="margin-top:0.5rem">'
-            + '<button class="btn btn-small" id="openLocalButton">Open a file</button>'
-            + '<button class="btn btn-small" id="exportButton">Save a copy</button></div>');
-        parts.push('<input type="file" id="localFileInput" accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>');
-        parts.push('</div>');
-
-        /* --- layout --- */
-        parts.push('<div class="settings-group"><h2>Sheet layout</h2>');
-        if (state.workbook) {
-            const mapping = state.mapping;
-            const mapped = mapping ? AmsMapping.writableFields(mapping).length : 0;
+        /* --- syncing: the thing worth opening this tab to check --- */
+        if (hasWorkbook) {
+            parts.push('<div class="settings-group"><h2>Syncing</h2>');
             parts.push('<div class="settings-row"><div class="settings-row-main">'
-                + '<div class="settings-row-title">'
-                + (AmsMapping.isComplete(mapping) ? esc(mapping.sheets.join(', ')) : 'Not worked out yet')
-                + '</div><div class="settings-row-sub">'
-                + (AmsMapping.isComplete(mapping)
-                    ? 'Header on row ' + mapping.headerRow + ' · ' + state.plan.length + ' sessions · '
-                        + mapped + ' result column' + (mapped === 1 ? '' : 's')
-                    : 'Tell the app which column is which')
+                + '<div class="settings-row-title">' + (pending ? pending + ' waiting' : 'Nothing waiting') + '</div>'
+                + '<div class="settings-row-sub">'
+                + (pending
+                    ? 'Logged on this phone but not yet written into the workbook.'
+                    : 'Every logged session has reached the workbook.')
                 + '</div></div>'
-                + '<button class="btn btn-small" data-go="setup">Set up</button></div>');
-        } else {
-            parts.push('<p class="hint-inline">Load a workbook first.</p>');
-        }
-        parts.push('</div>');
-
-        /* --- syncing --- */
-        parts.push('<div class="settings-group"><h2>Syncing</h2>');
-        parts.push('<div class="settings-row"><div class="settings-row-main">'
-            + '<div class="settings-row-title">' + (pending ? pending + ' waiting' : 'Nothing waiting') + '</div>'
-            + '<div class="settings-row-sub">'
-            + (pending
-                ? 'Logged on this phone but not yet written into the workbook.'
-                : 'Every logged session has reached the workbook.')
-            + '</div></div>'
-            + '<button class="btn btn-small" id="syncNowButton">Sync now</button></div>'
-            + (pending
-                ? '<div class="settings-row"><div class="settings-row-main">'
+                + '<button class="btn btn-small" id="syncNowButton">Sync now</button></div>');
+            if (pending) {
+                parts.push('<div class="settings-row"><div class="settings-row-main">'
                     + '<div class="settings-row-title">See what is waiting</div>'
                     + '<div class="settings-row-sub">Inspect each entry, and discard one that will not go through</div>'
-                    + '</div><button class="btn btn-small" data-go="queue">Review</button></div>'
-                : ''));
-        if (state.meta && state.meta.modified) {
-            parts.push('<div class="settings-row"><div class="settings-row-main">'
-                + '<div class="settings-row-title">Last read from Dropbox</div>'
-                + '<div class="settings-row-sub">' + esc(new Date(state.meta.modified).toLocaleString()) + '</div>'
-                + '</div></div>');
+                    + '</div><button class="btn btn-small" data-go="queue">Review</button></div>');
+            }
+            if (state.meta && state.meta.modified) {
+                parts.push('<div class="settings-row"><div class="settings-row-main">'
+                    + '<div class="settings-row-title">Last read from Dropbox</div>'
+                    + '<div class="settings-row-sub">' + esc(new Date(state.meta.modified).toLocaleString()) + '</div>'
+                    + '</div></div>');
+            }
+            parts.push('</div>');
         }
-        parts.push('</div>');
 
-        /* --- what can be logged --- */
+        /*
+         * Not at the bottom, where an About section conventionally goes. It is
+         * read more often than the workbook is changed, and far more often than
+         * anything below it, so it sits where that is true.
+         */
+        parts.push('<div class="settings-group"><h2>Help and updates</h2>'
+            + '<div class="settings-row"><div class="settings-row-main">'
+            + '<div class="settings-row-title">How this works</div>'
+            + '<div class="settings-row-sub">What the app reads, what it writes, and what it will never touch</div>'
+            + '</div><button class="btn btn-small" data-go="guide">Read</button></div>'
+            + '<div class="settings-row"><div class="settings-row-main">'
+            + '<div class="settings-row-title">Version ' + esc(AmsVersion.CURRENT) + '</div>'
+            + '<div class="settings-row-sub">' + esc(AmsVersion.CHANGELOG[0].headline) + '</div>'
+            + '</div><button class="btn btn-small" data-go="version">What’s new</button></div></div>');
+
+        /* --- what can be logged outside the plan --- */
         parts.push('<div class="settings-group"><h2>Log something else</h2>'
             + '<div class="settings-row"><div class="settings-row-main">'
             + '<div class="settings-row-title">Activities</div>'
@@ -1453,20 +1439,87 @@ const AmsUi = (function () {
             + ' and ' + (AmsExtras.getActivities().length - 4) + ' more</div>'
             + '</div><button class="btn btn-small" data-go="activities">Edit</button></div></div>');
 
-        /* --- about --- */
-        parts.push('<div class="settings-group"><h2>About</h2>'
-            + '<div class="settings-row"><div class="settings-row-main">'
-            + '<div class="settings-row-title">How this works</div>'
-            + '<div class="settings-row-sub">What the app reads, what it writes, and what it will never touch</div>'
-            + '</div><button class="btn btn-small" data-go="guide">Read</button></div>'
-            + '<div class="settings-row"><div class="settings-row-main">'
-            + '<div class="settings-row-title">Version ' + esc(AmsVersion.CURRENT) + '</div>'
-            + '<div class="settings-row-sub">' + esc(AmsVersion.CHANGELOG[0].headline) + '</div>'
-            + '</div><button class="btn btn-small" data-go="version">What’s new</button></div>'
-            + '<div class="button-row" style="margin-top:0.6rem">'
-            + '<button class="btn btn-small btn-danger" id="resetButton">Reset the app</button></div>'
-            + '<p class="hint-inline">Resetting clears the Dropbox connection, the cached workbook and the saved layout from this phone. Your workbook in Dropbox is not touched.</p>'
-            + '</div>');
+        /* --- which workbook this is --- */
+        parts.push('<div class="settings-group"><h2>Workbook</h2>');
+        if (path || name) {
+            parts.push('<div class="settings-row"><div class="settings-row-main">'
+                + '<div class="settings-row-title">' + esc(name || 'Workbook') + '</div>'
+                + '<div class="settings-row-sub">' + esc(path || 'Opened from this device') + '</div>'
+                + '</div></div>');
+        } else {
+            parts.push('<p class="hint-inline">Nothing loaded yet.</p>');
+        }
+        parts.push('<div class="button-row" style="margin-top:0.5rem">'
+            // Opening a local file is the whole path in without Dropbox, and a
+            // rarity with it — so it sits here until connecting makes it rare.
+            + (connected ? '' : '<button class="btn btn-small" id="openLocalButton">Open a file</button>')
+            + '<button class="btn btn-small" id="exportButton">Save a copy</button></div>');
+        if (!connected) {
+            parts.push('<p class="hint-inline">No Dropbox? You can still open a copy from this device — you will just have to save the updated file back yourself.</p>');
+        }
+        // Always in the page, whether or not its button is: it is invisible,
+        // and the button that opens it moves about.
+        parts.push('<input type="file" id="localFileInput" accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>');
+        parts.push('</div>');
+
+        /*
+         * Everything below is either set once or not to be tapped by accident.
+         * Folded shut, and shut again every time Settings is opened.
+         */
+        parts.push('<div class="settings-group settings-fold' + (settingsFoldOpen ? ' is-open' : '') + '">'
+            + '<button type="button" class="settings-fold-head" data-settings-fold'
+            + ' aria-expanded="' + (settingsFoldOpen ? 'true' : 'false') + '">'
+            + '<span class="settings-fold-text">'
+            + '<span class="settings-fold-title">Setup and connection</span>'
+            + '<span class="settings-fold-sub">The sheet layout, which file to read, disconnecting</span>'
+            + '</span>'
+            + '<svg class="icon settings-fold-chevron"><use href="#icon-back"></use></svg>'
+            + '</button>');
+
+        if (settingsFoldOpen) {
+            parts.push('<div class="settings-fold-body">');
+
+            /* the sheet layout */
+            if (hasWorkbook) {
+                const mapping = state.mapping;
+                const mapped = mapping ? AmsMapping.writableFields(mapping).length : 0;
+                parts.push('<div class="settings-row"><div class="settings-row-main">'
+                    + '<div class="settings-row-title">'
+                    + (AmsMapping.isComplete(mapping) ? esc(mapping.sheets.join(', ')) : 'Not worked out yet')
+                    + '</div><div class="settings-row-sub">'
+                    + (AmsMapping.isComplete(mapping)
+                        ? 'Header on row ' + mapping.headerRow + ' · ' + state.plan.length + ' sessions · '
+                            + mapped + ' result column' + (mapped === 1 ? '' : 's')
+                        : 'Tell the app which column is which')
+                    + '</div></div>'
+                    + '<button class="btn btn-small" data-go="setup">Set up</button></div>');
+            } else {
+                parts.push('<p class="hint-inline">Load a workbook first.</p>');
+            }
+
+            /* which file */
+            if (connected) {
+                parts.push('<div class="button-row" style="margin-top:0.6rem">'
+                    + '<button class="btn btn-small" id="pickFileButton">'
+                    + (path ? 'Choose a different file' : 'Choose the workbook in Dropbox') + '</button>'
+                    + '<button class="btn btn-small" id="openLocalButton">Open a file</button></div>');
+                parts.push('<div class="file-list" id="fileList"></div>');
+
+                parts.push('<div class="settings-row" style="margin-top:0.6rem"><div class="settings-row-main">'
+                    + '<div class="settings-row-title">Connected</div>'
+                    + '<div class="settings-row-sub">'
+                    + esc(account && (account.name || account.email) || 'Dropbox account')
+                    + '</div></div>'
+                    + '<button class="btn btn-small btn-danger" id="disconnectDropbox">Disconnect</button></div>');
+            }
+
+            parts.push('<div class="button-row" style="margin-top:0.6rem">'
+                + '<button class="btn btn-small btn-danger" id="resetButton">Reset the app</button></div>'
+                + '<p class="hint-inline">Resetting clears the Dropbox connection, the cached workbook and the saved layout from this phone. Your workbook in Dropbox is not touched.</p>');
+
+            parts.push('</div>');
+        }
+        parts.push('</div>');
 
         body.innerHTML = parts.join('');
         wireSettings();
@@ -1512,6 +1565,9 @@ const AmsUi = (function () {
         const disconnect = $('disconnectDropbox');
         if (disconnect) {
             disconnect.addEventListener('click', async () => {
+                // Cheap to undo, but it stops the plan reaching the phone until
+                // you have signed in again — worth one question.
+                if (!confirm('Disconnect Dropbox? Anything already logged stays on this phone, but nothing will sync until you connect again.')) return;
                 await AmsDropbox.disconnect();
                 toast('Dropbox disconnected.');
                 renderSettings();
@@ -2268,6 +2324,12 @@ const AmsUi = (function () {
                 document.querySelectorAll('.segment').forEach((seg) =>
                     seg.classList.toggle('active', seg.dataset.range === 'upcoming'));
                 openTab('plan');
+                return;
+            }
+
+            if (event.target.closest('[data-settings-fold]')) {
+                settingsFoldOpen = !settingsFoldOpen;
+                renderSettings();
                 return;
             }
 

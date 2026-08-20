@@ -8,13 +8,24 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.10.2';
+    const CURRENT = '1.11.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.11.0',
+            date: '2026-08-20',
+            headline: 'Settings in the order a person needs it',
+            items: [
+                'Settings is now ordered by how often you actually need something. Syncing first, then How this works and What’s new, then your activity list, then which workbook you are on.',
+                'Everything set once or best not tapped by accident — the sheet layout, choosing a different file, disconnecting Dropbox, resetting the app — is folded away under "Setup and connection" at the bottom. One press opens it, and it shuts itself again whenever you come back to Settings.',
+                'Disconnecting Dropbox now asks first, as resetting always did. It used to happen on a single tap of a button that sat at the very top of the screen.',
+                'The Dropbox setup instructions only appear while there is no connection, instead of taking the top of the tab for ever.'
+            ]
+        },
         {
             version: '1.10.2',
             date: '2026-08-20',
