@@ -1013,13 +1013,13 @@ const AmsUi = (function () {
      * still a decision somebody makes.
      */
     function watchBlock() {
-        const found = AmsSync.inboxForToday();
+        const found = AmsSync.watchForToday();
         if (!found.length) return '';
 
         return '<div class="day-heading"><h2>From your watch</h2></div>'
             + found.map((item, index) => {
                 const entry = item.entry;
-                const detail = AmsInbox.describe(entry);
+                const detail = AmsWatch.describe(entry);
                 const colour = entry.discipline.color;
 
                 return '<div class="card workout-card watch-card" style="--sport: ' + colour + '">'
@@ -1045,18 +1045,18 @@ const AmsUi = (function () {
     }
 
     async function useWatchEntry(index, asExtra) {
-        const found = AmsSync.inboxForToday();
+        const found = AmsSync.watchForToday();
         const item = found[parseInt(index, 10)];
         if (!item) return;
 
         if (asExtra || !item.workout) {
-            extraDraft = Object.assign(AmsInbox.extraFor(item.entry), { keep: true });
+            extraDraft = Object.assign(AmsWatch.extraFor(item.entry), { keep: true });
             openExtra();
             toast('Filled in from your watch — check it before saving.');
             return;
         }
 
-        await openLog(item.workout.key, AmsInbox.valuesFor(item.entry, item.workout));
+        await openLog(item.workout.key, AmsWatch.valuesFor(item.entry, item.workout));
         toast('Filled in from your watch — check it before saving.');
     }
 
@@ -2012,31 +2012,25 @@ const AmsUi = (function () {
 
         /* --- the watch --- */
         if (hasWorkbook) {
-            const inbox = state.inbox || [];
-            const today = inbox.filter((entry) => entry.dayKey === AmsSync.todayKey()).length;
+            const waiting = (state.watch || []).length;
             parts.push('<div class="settings-group"><h2>From your watch</h2>'
                 + '<div class="settings-row"><div class="settings-row-main">'
                 + '<div class="settings-row-title">'
-                + (state.inboxError
-                    ? 'Could not be read'
-                    : inbox.length
-                        ? inbox.length + ' workout' + (inbox.length === 1 ? '' : 's') + ' waiting'
-                            + (today ? ' · ' + today + ' from today' : '')
-                        : 'Nothing yet')
+                + (waiting
+                    ? waiting + ' session' + (waiting === 1 ? '' : 's') + ' waiting to be logged'
+                    : 'Open a workout file')
                 + '</div><div class="settings-row-sub">'
-                + esc(state.inboxError
-                    || 'A Shortcut can put what Apple Health recorded next to your workbook, and the app '
-                        + 'offers it on the Today screen. Nothing is written without you.')
+                + 'A session exported from Garmin Connect as TCX or GPX. Its numbers are offered on '
+                + 'the Today screen; nothing is written until you save the form.'
                 + '</div></div>'
-                + '<button class="btn btn-small" data-go="guide">How</button></div>'
-                + '<div class="button-row" style="margin-top:0.6rem">'
-                + '<button class="btn btn-small" id="openWorkoutFileButton">Open a workout file</button>'
-                + '</div>'
+                + '<button class="btn btn-small" id="openWorkoutFileButton">Open</button></div>'
                 + '<input type="file" id="workoutFileInput" hidden '
                 + 'accept=".tcx,.gpx,.xml,text/xml,application/xml">'
-                + '<p class="hint-inline">A session exported from Garmin Connect '
-                + '(<strong>TCX</strong> or <strong>GPX</strong>) can be opened here instead. '
-                + 'Nothing is written: its numbers are offered on the Today screen like any other.</p>'
+                + (waiting
+                    ? '<div class="button-row" style="margin-top:0.6rem">'
+                        + '<button class="btn btn-small" id="clearWatchButton">Clear what is waiting</button>'
+                        + '</div>'
+                    : '')
                 + '</div>');
         }
 
@@ -2226,6 +2220,15 @@ const AmsUi = (function () {
          * A file straight from Garmin Connect, for phones where the Shortcuts
          * route is not available at all.
          */
+        const clearWatch = $('clearWatchButton');
+        if (clearWatch) {
+            clearWatch.addEventListener('click', () => {
+                AmsSync.clearWatchEntries();
+                renderToday();
+                renderSettings();
+            });
+        }
+
         const openWorkoutFile = $('openWorkoutFileButton');
         if (openWorkoutFile) openWorkoutFile.addEventListener('click', () => $('workoutFileInput').click());
 
@@ -2237,11 +2240,11 @@ const AmsUi = (function () {
                 if (!file) return;
                 try {
                     const entry = AmsWorkoutFile.parse(await file.text(), file.name);
-                    AmsSync.addInboxEntry(entry);
+                    AmsSync.addWatchEntry(entry);
                     renderToday();
                     renderSettings();
                     openTab('today');
-                    toast(entry.discipline.label + ' ' + AmsInbox.describe(entry)
+                    toast(entry.discipline.label + ' ' + AmsWatch.describe(entry)
                         + ' — waiting on the Today screen.', 'good');
                 } catch (err) {
                     toast(err.message || 'That file could not be read.', 'bad');
@@ -2500,7 +2503,6 @@ const AmsUi = (function () {
 
     function renderGuide() {
         const state = AmsSync.getState();
-        const workbookPath = (state.meta && state.meta.path) || '';
         const mapping = state.mapping || {};
         const sheet = AmsMapping.isComplete(mapping) ? mapping.sheets.join(', ') : null;
         const units = mapping.units || {};
@@ -2628,136 +2630,55 @@ const AmsUi = (function () {
                 + 'selects the typed minutes and skips both the total formulas and the blank rest days; then '
                 + '<strong>Paste Special → Multiply</strong>. Reopen the app and it reads the new plan.</p>')
 
-            + section('Numbers from your watch — what this is',
+            + section('Numbers from your watch',
                 '<p><strong>There is no direct connection to Garmin, and there cannot be one.</strong> '
-                + 'Garmin’s Connect developer programme is open to companies rather than people: you '
-                + 'apply as a legal entity, wait weeks for a manual review, and if approved, Garmin '
-                + '<em>pushes</em> your data to a web server you are expected to run. This app has no '
-                + 'server, which is the reason it costs nothing, holds no account of yours, and keeps your '
-                + 'training in your Dropbox instead of somebody’s database. That trade is worth more '
-                + 'than the convenience would be.</p>'
+                + 'Garmin’s Connect developer programme is open to companies rather than people: you apply '
+                + 'as a legal entity, wait weeks for a manual review, and if approved, Garmin <em>pushes</em> '
+                + 'your data to a web server you are expected to run. This app has no server, which is the '
+                + 'reason it costs nothing, holds no account of yours, and keeps your training in your '
+                + 'Dropbox rather than in somebody’s database. That trade is worth more than the '
+                + 'convenience would be.</p>'
 
-                + '<p>So the connection goes the long way round, and it works because of two things you '
-                + 'already have. <strong>One:</strong> Garmin Connect writes every session into '
-                + '<strong>Apple Health</strong> on your phone. <strong>Two:</strong> the '
-                + '<strong>Shortcuts</strong> app can read Apple Health and can write a file to Dropbox. '
-                + 'So the bridge is a file: a Shortcut writes what your watch recorded next to your '
-                + 'workbook, and this app reads it.</p>'
-
-                + '<p><strong>Nothing about this writes to your workbook.</strong> The app reads the file, '
-                + 'works out which planned session each entry belongs to, and offers the numbers under '
-                + '<em>From your watch</em> on the Today screen. Tapping fills in the log form. The form is '
-                + 'then exactly as if you had typed it: you can change any figure, and nothing reaches the '
-                + 'workbook until you press Save. A watch is usually right and occasionally certain that a '
-                + 'turbo session was a canoe; you are the better judge, and the app is built to let you be '
-                + 'one.</p>'
-
-                + '<p><strong>There are two ways in, and one of them always works.</strong> Garmin '
-                + 'Connect can export a session as a file, which you open here — that needs nothing built '
-                + 'and works on any phone. The other way is automatic and needs a Shortcut, but only some '
-                + 'versions of iOS let Shortcuts read workouts at all. Both are written out below; try the '
-                + 'file first.</p>'
-
-                + '<p><strong>What the automatic way writes.</strong> One line per session, in plain words and '
-                + 'numbers: <code>Running, 42 min, 8.12 km, 138 bpm</code>. No quotation marks, no '
-                + 'brackets, and no date needed — the app takes the day from the file itself. Only the '
-                + 'sport or the duration is really required; anything missing is simply missing.</p>'
-
-                + '<p><strong>Where the file goes.</strong> In the same Dropbox folder as your workbook, '
-                + 'named <code>' + esc(AmsInbox.DEFAULT_FILE) + '</code>.'
-                + (workbookPath
-                    ? ' For your setup that is exactly: <code>'
-                        + esc(AmsInbox.pathFor(workbookPath)) + '</code>'
-                    : '')
-                + ' The app looks for it every time it reads the workbook. No file is the ordinary case and '
-                + 'is not an error.</p>'
-
-                + '<p><strong>How an entry is matched to a session.</strong> Same date, same sport, and the '
-                + 'session not already recorded. Where a day holds two of the same sport, the one whose '
-                + 'planned length is nearest to what the watch measured. If nothing matches — an unplanned '
-                + 'run, a walk, a hike — the entry is offered for the Extras sheet instead, so it is still '
-                + 'yours to keep without disturbing planned-against-actual.</p>'
-
-                + '<p><strong>What gets filled in.</strong> Duration, distance, average heart rate and '
-                + 'calories, and only into the columns your sheet actually has. A distance is converted to '
-                + 'whatever the sheet counts in — metres for a swim, kilometres otherwise. Anything the '
-                + 'watch did not measure is left blank, and a blank leaves that cell in your workbook '
-                + 'exactly as it was: a missing number is never written as a zero.</p>'
-
-                + '<p>The file is read and never altered or deleted. It stays in your Dropbox, like '
-                + 'everything else this app touches.</p>')
-
-            + section('Numbers from your watch — a file from Garmin Connect',
-                '<p>This is the way that always works. No Shortcut, no Apple Health, nothing to build.</p>'
+                + '<p>What Garmin does give you is the session as a file. So:</p>'
 
                 + '<ol>'
                 + '<li>In <strong>Garmin Connect</strong>, open the session.</li>'
                 + '<li>Tap the <strong>⋯</strong> menu and choose <strong>Export</strong>. Pick '
-                + '<strong>TCX</strong> if it is offered, or <strong>GPX</strong>. (A <strong>.fit</strong> '
-                + 'file is Garmin’s own binary format and cannot be read here yet.)</li>'
+                + '<strong>TCX</strong> if it is offered, otherwise <strong>GPX</strong>.</li>'
                 + '<li>In the share sheet, choose <strong>Save to Files</strong> and put it anywhere you '
                 + 'can find again — iCloud Drive or Downloads is fine.</li>'
-                + '<li>Here, go to <strong>Settings → From your watch → Open a workout file</strong> and '
-                + 'pick it.</li>'
+                + '<li>Here: <strong>Settings → From your watch → Open</strong>, and pick it.</li>'
                 + '</ol>'
 
-                + '<p>The session appears under <em>From your watch</em> on the Today screen with its '
-                + 'duration, distance, heart rate and calories, matched to the planned session it belongs '
-                + 'to. Tapping fills the log form; nothing is written until you save it.</p>'
+                + '<p>The session then appears under <em>From your watch</em> on the Today screen, matched '
+                + 'to the planned session it belongs to. Tapping fills in the log form, which you can then '
+                + 'change like any other. <strong>Nothing reaches your workbook until you press Save.</strong> '
+                + 'A watch is usually right and occasionally certain that a turbo session was a canoe; you '
+                + 'are the better judge, and the app is built to let you be one.</p>'
 
-                + '<p>What is read: from a <strong>TCX</strong>, the duration, distance, calories and '
-                + 'heart rate exactly as the watch recorded them — added up across laps, so an interval '
-                + 'session comes out whole rather than as its first repetition. From a <strong>GPX</strong>, '
-                + 'which states nothing outright, the duration comes from the first and last point, the '
-                + 'distance from measuring the line, and the heart rate from the points if a strap was '
-                + 'worn.</p>'
+                + '<p><strong>What is read.</strong> From a <strong>TCX</strong>: the duration, distance, '
+                + 'calories and heart rate as the watch recorded them, added up across laps — so an '
+                + 'interval session comes out whole rather than as its first repetition, and the heart '
+                + 'rate is weighted by how long each lap was. From a <strong>GPX</strong>, which states '
+                + 'none of that outright: the duration from the first and last point, the distance by '
+                + 'measuring the line, and the heart rate from the points if a strap was worn. A '
+                + '<strong>.fit</strong> file is Garmin’s own binary format and cannot be read yet; export '
+                + 'the same session as TCX instead.</p>'
 
-                + '<p>One file at a time, and it is read rather than kept: it stays wherever you saved it, '
-                + 'and the app forgets it once the numbers are in the form.</p>')
+                + '<p><strong>How it is matched.</strong> Same date, same sport, and the session not '
+                + 'already recorded. Where a day holds two of the same sport, the one whose planned length '
+                + 'is nearest to what the watch measured. If nothing matches — an unplanned run, a walk — '
+                + 'it is offered for the Extras sheet instead, so it is still yours to keep without '
+                + 'disturbing planned-against-actual.</p>'
 
-            + section('Numbers from your watch — the automatic way, if your phone offers it',
-                '<p><strong>Read the first paragraph before spending time on this.</strong> It depends on '
-                + 'the Shortcuts app being able to read <em>workouts</em> from Apple Health, and on some '
-                + 'versions of iOS it cannot: the <em>Find Health Samples</em> action offers a list of '
-                + 'sample types, and on those versions <em>Workouts</em> is not in it. There is no way to '
-                + 'tell from here which kind of phone you have. Open Shortcuts, add <strong>Find Health '
-                + 'Samples</strong>, tap the blue sample type, and look for <strong>Workouts</strong> — '
-                + 'the list is alphabetical and long. If it is not there, that is the end of this route, '
-                + 'and the file above does the same job.</p>'
+                + '<p><strong>What gets filled in.</strong> Duration, distance, heart rate and calories, '
+                + 'and only into the columns your sheet actually has. A distance is converted to whatever '
+                + 'the sheet counts in — metres for a swim, kilometres otherwise. Anything the watch did '
+                + 'not measure is left blank, and a blank leaves that cell exactly as it was: a missing '
+                + 'number is never written as a zero.</p>'
 
-                + '<p>If it <em>is</em> there, the rest is worth ten minutes, because it removes the '
-                + 'exporting and the opening entirely: the numbers are simply waiting when you open the '
-                + 'app.</p>'
-
-                + '<ol>'
-                + '<li>Set the type to <strong>Workouts</strong>, and set the date filter to '
-                + '<strong>is today</strong> — or change <em>is in the last <strong>7</strong> days</em> '
-                + 'to <strong>1</strong>. This matters: the file carries no dates, so everything in it is '
-                + 'taken as today’s.</li>'
-                + '<li>Add <strong>Repeat with Each</strong> over the result.</li>'
-                + '<li>Inside the repeat, add a <strong>Text</strong> action. Tap in the box; a bar above '
-                + 'the keyboard offers <strong>Repeat Item</strong>. Tap it, then tap the blue chip that '
-                + 'appears to choose which detail you meant — <strong>Workout Type</strong>. Then a comma, '
-                + 'and the same again for <strong>Duration</strong>, <strong>Distance</strong> and '
-                + '<strong>Average Heart Rate</strong>. Two of them is enough to start with.</li>'
-                + '<li>After the repeat, <strong>Combine Text</strong> with <strong>New Lines</strong>.</li>'
-                + '<li><strong>Save File</strong> into the same Dropbox folder as your workbook, named '
-                + '<code>' + esc(AmsInbox.DEFAULT_FILE) + '</code>, with <em>Ask Where to Save</em> off and '
-                + '<em>Overwrite</em> on.</li>'
-                + '</ol>'
-
-                + '<p>The file it writes is one line per session, and you can make one by hand to test '
-                + 'this end without building anything:</p>'
-                + '<pre>Running, 42 min, 8.12 km, 138 bpm</pre>'
-
-                + '<p>Any of these, in any order, separated by commas or spaces: the sport; how long '
-                + '(<code>42 min</code>, <code>1.5 h</code>, <code>1:45:00</code>); how far '
-                + '(<code>8.12 km</code>, <code>1800 m</code>); <code>138 bpm</code>; <code>520 kcal</code>; '
-                + 'and a date like <code>2026-08-19</code> if it is not today. Anything left over becomes '
-                + 'the session’s name. Only the sport or the duration is really needed.</p>'
-
-                + '<p>Settings → <em>From your watch</em> says how many entries were found, which is the '
-                + 'quickest way to tell whether the file arrived where the app is looking.</p>')
+                + '<p>The file is read and not kept. It stays wherever you saved it, and the app forgets '
+                + 'it once the numbers are in the form. One file at a time.</p>')
 
             + section('Things the plan did not ask for',
                 '<p>An unplanned run, a hike, a meditation goes on a separate <strong>Extras</strong> sheet, '

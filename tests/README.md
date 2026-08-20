@@ -18,7 +18,6 @@ node tests/foreign-extras-sheet.js
 node tests/edited-workbook.js
 node tests/calendar-export.js
 node tests/session-share.js
-node tests/watch-inbox.js
 node tests/workout-file.js
 ```
 
@@ -63,12 +62,6 @@ escaped, and an all-day event whose end date is the day after its start.
 share button on the session, and the picker in the week sheet. Checks the
 message, the single-event calendar file, and that the picker offers everything
 in this week and next.
-
-**`watch-inbox.js`** — the Apple Health bridge: a JSON file left beside the
-workbook by a Shortcut. Checks that it is read, that a run matches the planned
-run, that a walk with nothing to match it is offered as an extra, that tapping
-fills the form and writes nothing, and that a file which is not JSON says so
-without taking the plan down with it.
 
 **`workout-file.js`** — a session exported from Garmin Connect, opened
 directly: a TCX of two laps (summed, with the heart rate averaged by time) and

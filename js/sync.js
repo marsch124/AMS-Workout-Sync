@@ -20,8 +20,7 @@ const AmsSync = (function () {
         plan: [],
         extras: [],
         pendingExtras: [],
-        inbox: [],           /* what the watch left next to the workbook */
-        inboxError: null,
+        watch: [],           /* sessions read out of a workout file */
         meta: null,
         source: null,      // 'dropbox' | 'cache' | 'file'
         lastError: null,
@@ -294,12 +293,6 @@ const AmsSync = (function () {
         }
 
         try {
-            await readInbox();
-        } catch (err) {
-            console.warn('The watch inbox could not be read:', err);
-        }
-
-        try {
             await overlayQueue();
         } catch (err) {
             console.warn('The queue could not be overlaid on the plan:', err);
@@ -338,73 +331,31 @@ const AmsSync = (function () {
     /* ---------- what the watch says ---------- */
 
     /*
-     * A small file beside the workbook, written by a Shortcut out of Apple
-     * Health. It is fetched on its own and never gets in the way: no file is
-     * the ordinary case, and a broken one is worth a line in Settings rather
-     * than an error over the whole app.
+     * Sessions read out of a file the user opened, waiting to be offered on the
+     * Today screen. They live for as long as the app is open: there is no file
+     * to read them from again, and re-importing is one tap.
      */
-    async function readInbox() {
-        state.inbox = [];
-        state.inboxError = null;
-
-        if (!(await AmsDb.get('inbox.enabled', true))) return state.inbox;
-
-        const workbookPath = await filePath();
-        if (!workbookPath) return state.inbox;
-        if (!(await AmsDropbox.isConnected())) return state.inbox;
-
-        const chosen = await AmsDb.get('inbox.file', '');
-        const names = chosen ? [chosen] : [AmsInbox.DEFAULT_FILE].concat(AmsInbox.ALSO_TRIED);
-
-        let file = null;
-        for (const name of names) {
-            try {
-                file = await AmsDropbox.download(AmsInbox.pathFor(workbookPath, name));
-                break;
-            } catch (err) {
-                // Not there is not a problem: most people will never make one.
-                if (!/no longer in Dropbox|not_found/i.test(err.message || '')) {
-                    state.inboxError = err.message;
-                    return state.inbox;
-                }
-            }
-        }
-        if (!file) return state.inbox;
-
-        try {
-            const text = new TextDecoder().decode(file.bytes);
-            // The day the file was written stands in for a date a line does not
-            // give, which is what lets the Shortcut skip formatting one.
-            const written = file.modified ? String(file.modified).slice(0, 10) : todayKey();
-            state.inbox = AmsInbox.parse(text, written);
-        } catch (err) {
-            state.inboxError = err.message;
-        }
-        return state.inbox;
-    }
-
-    /*
-     * An entry from a file the user opened, rather than from Dropbox. It joins
-     * the same list and is offered on the same card; it simply does not survive
-     * a reload, having no file of its own to be read from again.
-     */
-    function addInboxEntry(entry) {
+    function addWatchEntry(entry) {
         if (!entry) return null;
-        state.inbox = (state.inbox || []).filter((existing) => existing.id !== entry.id);
-        state.inbox.push(entry);
-        state.inboxError = null;
+        state.watch = (state.watch || []).filter((existing) => existing.id !== entry.id);
+        state.watch.push(entry);
         emit('plan', { plan: state.plan });
         return entry;
     }
 
+    function clearWatchEntries() {
+        state.watch = [];
+        emit('plan', { plan: state.plan });
+    }
+
     /* Today's entries, each with the session it belongs to if there is one. */
-    function inboxForToday(dayKey) {
+    function watchForToday(dayKey) {
         const day = dayKey || todayKey();
-        return (state.inbox || [])
+        return (state.watch || [])
             .filter((entry) => entry.dayKey === day)
             .map((entry) => ({
                 entry: entry,
-                workout: AmsInbox.matchTo(entry, state.plan, state.mapping || {}, isRecorded)
+                workout: AmsWatch.matchTo(entry, state.plan, state.mapping || {}, isRecorded)
             }));
     }
 
@@ -1168,8 +1119,8 @@ const AmsSync = (function () {
         weekSummary,
         weekDays,
         weekStart,
-        readInbox,
-        addInboxEntry,
-        inboxForToday
+        addWatchEntry,
+        clearWatchEntries,
+        watchForToday
     };
 })();

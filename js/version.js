@@ -8,13 +8,23 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.25.0';
+    const CURRENT = '1.26.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.26.0',
+            date: '2026-08-20',
+            headline: 'One way in from the watch, not two',
+            items: [
+                'The Apple Health route is gone, along with everything that served it: the file the app went looking for in Dropbox on every read, the parser for it, the status line about it, and three sections of instructions for a Shortcut that cannot be built on every phone.',
+                'What remains is the way that works: Settings → From your watch → Open, and pick a TCX or GPX exported from Garmin Connect. Everything after that — matching, filling the form, leaving the workbook alone until you save — is unchanged, because that part was never the problem.',
+                'How this works says it once now, in one section, describing only what the app actually does.'
+            ]
+        },
         {
             version: '1.25.0',
             date: '2026-08-20',

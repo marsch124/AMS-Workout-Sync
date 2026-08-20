@@ -1,13 +1,14 @@
 /*
  * A workout file, read directly.
  *
- * This exists because the route through Apple Health does not exist on every
- * phone: the Shortcuts action that reads Health offers a list of sample types,
- * and on some versions of iOS that list has no Workouts in it. An instruction
- * that depends on something not being there is not an instruction.
+ * Garmin has no interface a personal app may use, but it does hand you the
+ * session as a file. So that is the way in: export from Garmin Connect, open it
+ * here. No account, no server, nothing to build.
  *
- * So: Garmin Connect can export a session as a file, and a file can be opened.
- * No Shortcut, no Health, no account, nothing to build — export, then open.
+ * A route through Apple Health and Shortcuts was tried first and abandoned: the
+ * Shortcuts action that reads Health offers a list of sample types, and on some
+ * versions of iOS that list has no Workouts in it at all. An instruction that
+ * depends on something not being there is not an instruction.
  *
  * TCX and GPX are both XML and are read here. FIT is Garmin's own binary
  * format and is not, yet; TCX carries everything this app asks for.
@@ -223,7 +224,7 @@ const AmsWorkoutFile = (function () {
         if (!entry.dayKey) throw new Error('That workout has no date in it.');
 
         entry.id = 'file-' + (fileName || 'workout');
-        entry.discipline = AmsInbox.disciplineFor(entry.sport);
+        entry.discipline = AmsWatch.disciplineFor(entry.sport);
         if (!entry.name) entry.name = fileName ? String(fileName).replace(/\.[a-z0-9]+$/i, '') : '';
         return entry;
     }

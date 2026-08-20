@@ -40,7 +40,7 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(34) + v);
   console.log('A TCX EXPORTED FROM GARMIN CONNECT');
   await openWorkoutFile('garmin-run.tcx');
   line('toast:', (await page.textContent('#toast')).trim());
-  const read = await page.evaluate(() => AmsSync.getState().inbox.map(e => ({
+  const read = await page.evaluate(() => AmsSync.getState().watch.map(e => ({
     sport: e.sport, discipline: e.discipline.label, day: e.dayKey,
     minutes: e.minutes && Math.round(e.minutes * 10) / 10,
     km: e.km && Math.round(e.km * 1000) / 1000,
@@ -70,7 +70,7 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(34) + v);
   console.log('\nA GPX WITH HEART-RATE POINTS');
   await openWorkoutFile('garmin-ride.gpx');
   const gpx = await page.evaluate(() => {
-    const e = AmsSync.getState().inbox.slice(-1)[0];
+    const e = AmsSync.getState().watch.slice(-1)[0];
     return { sport: e.sport, discipline: e.discipline.label, minutes: Math.round(e.minutes * 10) / 10,
              km: Math.round(e.km * 100) / 100, avgHr: e.avgHr, name: e.name };
   });
