@@ -8,13 +8,24 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.9.0';
+    const CURRENT = '1.10.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.10.0',
+            date: '2026-08-20',
+            headline: 'Five disciplines, in training order',
+            items: [
+                'Stretching and mobility are one discipline now, called Mobility. They were the same session on the same mat, and keeping them apart bought two thin categories that then had to be explained apart.',
+                'The five are listed everywhere in the order you train them: Swim, Bike, Run, Strength, Mobility. The week’s colour key now shows all five every week rather than only the ones that week happens to contain — a key that changes shape from week to week is not much of a key.',
+                'A row your sheet calls "Stretching" now reads as Mobility in the app. Nothing in the workbook is rewritten: the word in your sheet stays the word in your sheet, and every total that counts it goes on counting it.',
+                'If you have already edited your own activity list, it is left exactly as you made it — this changes what the app starts from, not what you chose.'
+            ]
+        },
         {
             version: '1.9.0',
             date: '2026-08-20',
@@ -31,7 +42,7 @@ const AmsVersion = (function () {
             headline: 'Your list, and a colour per tab',
             items: [
                 'The activities offered by "Log something else" are now yours to edit in Settings: add your own, remove what you never do, and put them in the order you actually reach for. What is already written to the Extras sheet keeps the name it was logged under.',
-                'Each tab has its own colour and carries it through the whole screen — Today green, Plan blue, Settings slate — so the interface tells you where you are before you read a word. A session opened from Plan keeps Plan\u2019s colour, as a thread back to where you came from.',
+                'Each tab has its own colour and carries it through the whole screen — Today green, Plan blue, Settings slate — so the interface tells you where you are before you read a word. A session opened from Plan keeps Plan’s colour, as a thread back to where you came from.',
                 'Sport colours are untouched by this: a swim is cyan on every screen.'
             ]
         },

@@ -413,6 +413,10 @@ const AmsUi = (function () {
             { cls: 'is-missed', text: 'Marked missed' }
         ];
 
+        // The five are always listed, in training order, so the key is a key
+        // rather than a description of this particular week — a colour missing
+        // one week and present the next is not something to have to work out.
+        // Anything else the week does contain — a brick, a race — is added after.
         const seen = new Map();
         let anyRest = false;
         AmsSync.weekDays().forEach((day) => {
@@ -421,7 +425,9 @@ const AmsUi = (function () {
                 if (!seen.has(workout.discipline.id)) seen.set(workout.discipline.id, workout.discipline);
             });
         });
-        const sports = Array.from(seen.values());
+        AmsPlan.DISCIPLINES.forEach((discipline) => seen.set(discipline.id, discipline));
+        const sports = Array.from(seen.values())
+            .sort((a, b) => AmsPlan.disciplineOrder(a.id) - AmsPlan.disciplineOrder(b.id));
 
         const shapeRows = shapes.map((shape) =>
             '<li><span class="week-legend-swatch">'

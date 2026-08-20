@@ -13,6 +13,16 @@ const AmsPlan = (function () {
 
     /* ---------- disciplines ---------- */
 
+/*
+     * Five, in the order they are trained in and read in: the three race
+     * disciplines, then what supports them.
+     *
+     * Stretching is not separate from mobility here. They are the same twenty
+     * minutes on the same mat towards the same end, and splitting them only
+     * produced two thin categories that had to be explained apart. A sheet may
+     * still call a row "Stretching" — that word is read as mobility, and the
+     * sheet itself is never rewritten.
+     */
     const DISCIPLINES = [
         { id: 'swim', label: 'Swim', icon: 'swim', color: 'var(--sport-swim)',
           synonyms: ['swim', 'swimming', 'schwimmen', 'schwimmtraining', 'pool', 'open water',
@@ -23,15 +33,22 @@ const AmsPlan = (function () {
         { id: 'run', label: 'Run', icon: 'run', color: 'var(--sport-run)',
           synonyms: ['run', 'running', 'laufen', 'lauf', 'jog', 'jogging', 'joggen', 'trail',
                      'trailrun', 'dauerlauf', 'bahn'] },
-        { id: 'mobility', label: 'Mobility', icon: 'mobility', color: 'var(--sport-mobility)',
-          synonyms: ['mobility', 'mobilitat', 'beweglichkeit', 'yoga', 'faszien', 'foam roll',
-                     'faszientraining', 'mobi'] },
-        { id: 'stretching', label: 'Stretching', icon: 'stretch', color: 'var(--sport-stretch)',
-          synonyms: ['stretch', 'stretching', 'dehnen', 'dehnung', 'flexibility', 'dehnprogramm'] },
         { id: 'strength', label: 'Strength', icon: 'strength', color: 'var(--sport-strength)',
           synonyms: ['strength', 'kraft', 'krafttraining', 'gym', 'weights', 'lifting', 'core',
-                     'rumpf', 'stabilisation', 'stabi', 'athletik'] }
+                     'rumpf', 'stabilisation', 'stabi', 'athletik'] },
+        { id: 'mobility', label: 'Mobility', icon: 'mobility', color: 'var(--sport-mobility)',
+          synonyms: ['mobility', 'mobilitat', 'beweglichkeit', 'yoga', 'faszien', 'foam roll',
+                     'faszientraining', 'mobi',
+                     'stretch', 'stretching', 'dehnen', 'dehnung', 'flexibility', 'dehnprogramm'] }
     ];
+
+    /* Where a discipline sits in that order, for anything that lists them.
+       Anything not in the five — a brick, a race, a rest day — comes after,
+       in whatever order it was met. */
+    function disciplineOrder(id) {
+        const index = DISCIPLINES.findIndex((d) => d.id === id);
+        return index === -1 ? DISCIPLINES.length : index;
+    }
 
     /* A brick is listed before the single sports so that "Bike + Run" is read
        as one session rather than as whichever word matched longest. */
@@ -79,7 +96,6 @@ const AmsPlan = (function () {
         run:        ['actualDuration', 'actualDistance', 'avgPace', 'avgHr', 'maxHr', 'cadence', 'elevation', 'rpe', 'calories', 'notes'],
         strength:   ['actualDuration', 'rpe', 'avgHr', 'calories', 'notes'],
         mobility:   ['actualDuration', 'rpe', 'notes'],
-        stretching: ['actualDuration', 'rpe', 'notes'],
         other:      ['actualDuration', 'actualDistance', 'avgHr', 'maxHr', 'rpe', 'calories', 'notes'],
         // A single column headed "Avg Pace/Pwr" serves both, so a ride must be
         // offered the pace field too or that column is unreachable on the bike.
@@ -90,7 +106,7 @@ const AmsPlan = (function () {
 
     /* The unit a distance is entered in, per discipline — swimmers count metres. */
     const DEFAULT_DISTANCE_UNIT = { swim: 'm', bike: 'km', run: 'km', other: 'km', strength: 'km',
-        mobility: 'km', stretching: 'km', brick: 'km', race: 'km', rest: 'km' };
+        mobility: 'km', brick: 'km', race: 'km', rest: 'km' };
 
     const SECTION_ORDER = ['warmup', 'intervals', 'technique', 'cooldown'];
     const SECTION_LABELS = {
@@ -757,6 +773,7 @@ const AmsPlan = (function () {
         SECTION_ORDER,
         SECTION_LABELS,
         FIELD_PREFERENCE,
+        disciplineOrder,
         classifyDiscipline,
         classifySection,
         learnWeekdayNames,

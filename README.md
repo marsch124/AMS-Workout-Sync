@@ -9,8 +9,8 @@ existing cells.
 ## What it does
 
 - **Today** — the session planned for today, broken into warm-up, intervals,
-  technique and cool-down, colour-coded by discipline: swim, bike, run, mobility,
-  stretching, strength.
+  technique and cool-down, colour-coded by discipline: swim, bike, run, strength,
+  mobility (stretching is read as mobility — the same session by another name).
 - **Plan** — the whole schedule grouped by day, showing what is still to come and
   what has already been logged.
 - **Log** — a form that asks first for the numbers that suit the sport (pace for a

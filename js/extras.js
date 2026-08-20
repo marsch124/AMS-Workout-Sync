@@ -32,12 +32,11 @@ const AmsExtras = (function () {
      * a four-hour hike is load whatever this list says.
      */
     const DEFAULT_ACTIVITIES = [
-        { id: 'run', label: 'Run', kind: 'training', icon: 'run', color: 'var(--sport-run)' },
-        { id: 'bike', label: 'Bike', kind: 'training', icon: 'bike', color: 'var(--sport-bike)' },
         { id: 'swim', label: 'Swim', kind: 'training', icon: 'swim', color: 'var(--sport-swim)' },
+        { id: 'bike', label: 'Bike', kind: 'training', icon: 'bike', color: 'var(--sport-bike)' },
+        { id: 'run', label: 'Run', kind: 'training', icon: 'run', color: 'var(--sport-run)' },
         { id: 'strength', label: 'Strength', kind: 'training', icon: 'strength', color: 'var(--sport-strength)' },
         { id: 'mobility', label: 'Mobility', kind: 'restorative', icon: 'mobility', color: 'var(--sport-mobility)' },
-        { id: 'stretching', label: 'Stretching', kind: 'restorative', icon: 'stretch', color: 'var(--sport-stretch)' },
         { id: 'yoga', label: 'Yoga', kind: 'restorative', icon: 'mobility', color: 'var(--sport-mobility)' },
         { id: 'meditation', label: 'Meditation', kind: 'restorative', icon: 'check', color: 'var(--sport-other)' },
         { id: 'breathing', label: 'Breathing', kind: 'restorative', icon: 'check', color: 'var(--sport-other)' },
