@@ -1,12 +1,18 @@
 /*
  * A week of the plan as calendar events.
  *
- * The plan says a session lasts forty minutes. It does not say when — no row
- * in it carries a time of day, and inventing one would put a swim at 07:00 in
- * somebody's calendar on the app's authority rather than on anything real. So
- * these are all-day events: the day is what the plan actually knows, the
- * duration goes in the title where it can be read at a glance, and the whole
- * workout goes in the notes.
+ * A session has a day and a length; the workbook has no column for the hour.
+ * The hour therefore comes from the app's settings rather than from the plan —
+ * an early start, and each session as long as it is planned to be.
+ *
+ * The times are written as local time with no zone attached, which iCalendar
+ * calls a floating time. Six in the morning then means six in the morning
+ * wherever the phone happens to be, which is the right answer for training:
+ * a swim booked at 06:00 in Sweden should not become 04:00 in a calendar
+ * carried to another country.
+ *
+ * A rest day stays an all-day event. It has no hour and no length, and giving
+ * it one would be inventing something.
  *
  * The format is RFC 5545, which is old and fussy: CRLF line endings, lines
  * folded at 75 octets, and a small set of characters escaped. Getting any of
@@ -67,6 +73,19 @@ const AmsIcs = (function () {
         return String(dayKey || '').replace(/-/g, '');
     }
 
+    /*
+     * A local time with no zone marker: "20260909T060000", not "…Z". The date
+     * arithmetic is done in UTC purely so that a session running past midnight
+     * rolls the day over correctly; the Z is then deliberately not written.
+     */
+    function localStamp(dayKey, secondsFromMidnight) {
+        const base = Date.parse(String(dayKey) + 'T00:00:00Z');
+        if (isNaN(base)) return dayStamp(dayKey) + 'T000000';
+        const at = new Date(base + (secondsFromMidnight || 0) * 1000).toISOString();
+        return at.slice(0, 4) + at.slice(5, 7) + at.slice(8, 10)
+            + 'T' + at.slice(11, 13) + at.slice(14, 16) + at.slice(17, 19);
+    }
+
     function nextDay(dayKey) {
         const at = Date.parse(dayKey + 'T00:00:00Z');
         if (isNaN(at)) return dayKey;
@@ -103,16 +122,36 @@ const AmsIcs = (function () {
 
         events.forEach((event) => {
             if (!event || !event.dayKey) return;
+            const timed = event.durationSeconds > 0;
+
             lines.push('BEGIN:VEVENT');
             lines.push('UID:' + uidFor(event));
             lines.push('DTSTAMP:' + now);
-            // An all-day event ends on the following day: DTEND is exclusive,
-            // and a calendar given the same date for both draws nothing.
-            lines.push('DTSTART;VALUE=DATE:' + dayStamp(event.dayKey));
-            lines.push('DTEND;VALUE=DATE:' + dayStamp(nextDay(event.dayKey)));
+
+            if (timed) {
+                const start = event.startSeconds || 0;
+                lines.push('DTSTART:' + localStamp(event.dayKey, start));
+                lines.push('DTEND:' + localStamp(event.dayKey, start + event.durationSeconds));
+                // An hour set aside for training is an hour taken, and a shared
+                // calendar should be able to say so.
+                lines.push('TRANSP:OPAQUE');
+            } else {
+                // An all-day event ends on the following day: DTEND is
+                // exclusive, and a calendar given the same date for both
+                // draws nothing.
+                lines.push('DTSTART;VALUE=DATE:' + dayStamp(event.dayKey));
+                lines.push('DTEND;VALUE=DATE:' + dayStamp(nextDay(event.dayKey)));
+                lines.push('TRANSP:TRANSPARENT');
+            }
+
             lines.push('SUMMARY:' + escapeText(event.summary));
             if (event.description) lines.push('DESCRIPTION:' + escapeText(event.description));
-            lines.push('TRANSP:TRANSPARENT');       /* training does not mean busy */
+
+            /*
+             * No VALARM, on purpose. An event with no alarm block is an event
+             * with no reminder; a phone that pinged at 05:45 for every session
+             * of a 48-week plan would be turned off inside a week.
+             */
             lines.push('END:VEVENT');
         });
 

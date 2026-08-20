@@ -67,22 +67,37 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(34) + v);
   line('events:', (text.match(/BEGIN:VEVENT/g) || []).length);
   line('every event closed:',
     (text.match(/BEGIN:VEVENT/g) || []).length === (text.match(/END:VEVENT/g) || []).length);
-  line('all-day, end is the next day:', /DTSTART;VALUE=DATE:(\d{8})/.test(text) && /DTEND;VALUE=DATE:(\d{8})/.test(text));
+  line('timed events:', (text.match(/DTSTART:\d{8}T\d{6}\r/g) || []).length);
+  line('all-day events (rest days):', (text.match(/DTSTART;VALUE=DATE:/g) || []).length);
+  line('floating local time (no Z):', !/DTSTART:[^\r]*Z/.test(text));
+  line('no reminders:', text.indexOf('VALARM') === -1);
+  const starts = [...text.matchAll(/DTSTART:\d{8}T(\d{2})(\d{2})/g)].map(m => m[1] + ':' + m[2]);
+  line('first start on each day:', [...new Set(starts)].join(', '));
 
   const first = text.slice(text.indexOf('BEGIN:VEVENT'), text.indexOf('END:VEVENT') + 10);
   console.log('\nTHE FIRST EVENT');
   first.split('\r\n').forEach(l => console.log('   ' + l));
 
-  // dates must line up: DTEND is the day after DTSTART
-  const pairs = [...text.matchAll(/DTSTART;VALUE=DATE:(\d{8})\r\nDTEND;VALUE=DATE:(\d{8})/g)]
+  // an all-day rest day still ends on the following date
+  const allDay = [...text.matchAll(/DTSTART;VALUE=DATE:(\d{8})\r\nDTEND;VALUE=DATE:(\d{8})/g)]
     .map(m => [m[1], m[2]]);
   const dayAfter = (s) => {
     const d = new Date(Date.UTC(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8)) + 86400000);
     return d.toISOString().slice(0, 10).replace(/-/g, '');
   };
   console.log('');
-  line('every DTEND is DTSTART + 1:', pairs.length + ' events, ' +
-    (pairs.every(([a, b]) => dayAfter(a) === b) ? 'all correct' : 'MISMATCH'));
+  line('rest days span one day:', allDay.length + ' events, ' +
+    (allDay.every(([a, b]) => dayAfter(a) === b) ? 'all correct' : 'MISMATCH'));
+
+  // and a timed session runs exactly as long as it is planned to
+  const timed = [...text.matchAll(/DTSTART:(\d{8}T\d{6})\r\nDTEND:(\d{8}T\d{6})/g)]
+    .map(m => [m[1], m[2]]);
+  const asDate = (v) => new Date(Date.UTC(+v.slice(0, 4), +v.slice(4, 6) - 1, +v.slice(6, 8),
+    +v.slice(9, 11), +v.slice(11, 13), +v.slice(13, 15)));
+  line('session lengths (minutes):', timed
+    .map(([a, b]) => Math.round((asDate(b) - asDate(a)) / 60000)).join(', '));
+  line('none overlaps the next:', timed.every(([a], i) =>
+    i === 0 || asDate(timed[i - 1][1]) <= asDate(a) || timed[i - 1][0].slice(0, 8) !== a.slice(0, 8)));
 
   // a session with a comma and a long description must survive the escaping
   line('commas escaped:', /SUMMARY:[^\r]*\\,/.test(text) || 'no comma in this fixture');

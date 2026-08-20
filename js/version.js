@@ -8,13 +8,25 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.20.0';
+    const CURRENT = '1.21.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.21.0',
+            date: '2026-08-20',
+            headline: 'Calendar events at six in the morning',
+            items: [
+                'Exported sessions are no longer all-day entries. Each starts at 06:00 and runs exactly as long as it is planned to — a 45-minute ride is 06:00 to 06:45 — so a week reads as a week rather than as a row of banners.',
+                'Where a day holds more than one session they follow each other: a 30-minute swim at 06:00 puts the mobility with it at 06:30. Two events stacked on the same hour would claim the two happen at once.',
+                'No reminders. A phone alerting before every session of a 48-week plan gets silenced inside a week, and then the useful alerts go with it.',
+                'The times are written without a timezone, which in calendar terms means local time: 06:00 stays 06:00 in a training camp abroad rather than sliding to 04:00.',
+                'Rest days stay all-day. They have no hour and no length, and giving them one would be inventing something.'
+            ]
+        },
         {
             version: '1.20.0',
             date: '2026-08-20',

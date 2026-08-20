@@ -13,6 +13,11 @@ const AmsUi = (function () {
     let expandedDay = null;
     let legendOpen = false;
     let settingsFoldOpen = false;
+
+    /* The hour a training day starts, for the calendar export. The workbook has
+       no column for the time of day, so this is the app's choice and not the
+       plan's — which is why it is written down here rather than buried. */
+    const CALENDAR_START_HOUR = 6;
     let currentRange = 'upcoming';
     let setupDraft = null;
     let setupSheet = null;
@@ -602,9 +607,14 @@ const AmsUi = (function () {
     }
 
     /*
-     * A week as calendar events: one all-day event per session, plus the rest
-     * days, which are as much a part of what somebody else wants to know as
-     * the training is.
+     * A week as calendar events: one per session, plus the rest days, which are
+     * as much a part of what somebody else wants to know as the training is.
+     *
+     * Sessions start at six in the morning and run as long as they are planned
+     * to. Where a day holds more than one they follow each other rather than
+     * sitting on top of each other: a thirty-minute swim at 06:00 puts the
+     * mobility that goes with it at 06:30. Two events stacked on the same hour
+     * would say the two happen at once, which is not what the plan means.
      *
      * The summary carries sport, duration and what the session is, because
      * that is the line a calendar shows without being opened. Everything else
@@ -623,6 +633,10 @@ const AmsUi = (function () {
         const events = [];
 
         days.forEach((day) => {
+            // Where the day's first session begins, and where each one after
+            // it picks up.
+            let at = CALENDAR_START_HOUR * 3600;
+
             if (day.isRest) {
                 events.push({
                     key: 'rest-' + day.dayKey,
@@ -634,8 +648,8 @@ const AmsUi = (function () {
             }
 
             day.training.forEach((workout) => {
-                const planned = AmsPlan.formatDuration(
-                    AmsPlan.plannedDurationSeconds(workout, mapping) || 0);
+                const seconds = AmsPlan.plannedDurationSeconds(workout, mapping) || 0;
+                const planned = AmsPlan.formatDuration(seconds);
 
                 let summary = workout.discipline.label + (planned ? ' ' + planned : '');
                 if (workout.title) summary += ' — ' + workout.title;
@@ -672,8 +686,14 @@ const AmsUi = (function () {
                     key: workout.key,
                     dayKey: workout.dayKey,
                     summary: summary,
-                    description: notes.join('\n')
+                    description: notes.join('\n'),
+                    // A session the plan gives no length to cannot be given an
+                    // hour either: it stays all-day, and does not push along
+                    // whatever comes after it.
+                    startSeconds: seconds ? at : 0,
+                    durationSeconds: seconds
                 });
+                at += seconds;
             });
         });
 
@@ -742,7 +762,8 @@ const AmsUi = (function () {
         const thisCal = weekCalendar(0);
         const nextCal = weekCalendar(1);
         const events = (cal) => cal
-            ? cal.count + ' all-day event' + (cal.count === 1 ? '' : 's')
+            ? cal.count + ' event' + (cal.count === 1 ? '' : 's') + ' · '
+                + 'from ' + String(CALENDAR_START_HOUR).padStart(2, '0') + ':00'
             : 'nothing to add';
 
         openChoice('Share which week?', [
@@ -2213,10 +2234,11 @@ const AmsUi = (function () {
                 + 'the week card asks which week you mean, and whether to send it as a message or add '
                 + 'it to a calendar. A message goes as plain text — a message anyone can read, no app and '
                 + 'no workbook needed at the other end. The calendar version is an ordinary .ics file, '
-                + 'one all-day event per session. All-day because the plan says how long a session is '
-                + 'and never when: putting a swim at seven in the morning would be the app making that '
-                + 'up. Rest days go in too — when somebody is free is as much use as when they are '
-                + 'training.</p>'
+                + 'one event per session, starting at 06:00 and running as long as the session is '
+                + 'planned to. Where a day holds two sessions the second follows the first rather than '
+                + 'sitting on top of it. No reminders are set: a phone that pinged before every session '
+                + 'of a 48-week plan would be silenced inside a week. Rest days go in as all-day entries '
+                + '— when you are free is as much use to somebody as when you are training.</p>'
                 + '<p><strong>Plan</strong> — the whole schedule, in four lists. <em>Upcoming</em> is what is '
                 + 'still to do, and leads with anything from before today that was never recorded. '
                 + '<em>Done</em> is what you performed. <em>Missed</em> is what you marked as not done, kept '
