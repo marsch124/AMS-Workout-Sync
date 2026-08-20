@@ -325,10 +325,16 @@ const AmsUi = (function () {
 
         // Meeting the week is worth saying outright rather than leaving to be
         // worked out from two numbers. Within a minute either way counts.
-        if (week.actualSeconds && week.plannedSeconds - week.actualSeconds <= 60) {
-            return line + ' ' + MIDDOT + ' week complete';
-        }
-        return line;
+        const met = week.actualSeconds && week.plannedSeconds - week.actualSeconds <= 60;
+
+        // Anything done outside the plan is named as such and kept out of the
+        // two figures above, which are about the plan. It still has to appear:
+        // twenty minutes on the mat is twenty minutes you spent.
+        const extra = week.extraSeconds
+            ? ' ' + MIDDOT + ' ' + AmsPlan.formatDuration(week.extraSeconds) + ' extra'
+            : '';
+
+        return line + (met ? ' ' + MIDDOT + ' week complete' : '') + extra;
     }
 
     /*

@@ -189,6 +189,10 @@ const AmsSync = (function () {
         if (mapping) await AmsDb.set('mapping', mapping);
 
         state.plan = mapping ? await buildPlan(state.workbook, mapping) : [];
+        // Read here as well as in load(): a workbook opened from the phone has
+        // an Extras sheet like any other, and leaving this out both lost what
+        // was on it and left the previous workbook's extras standing.
+        state.extras = await AmsExtras.read(state.workbook);
         await overlayQueue();
         emit('plan', { plan: state.plan, source: 'file' });
         return state;
@@ -667,13 +671,34 @@ const AmsSync = (function () {
             }
         }
 
+        /*
+         * Time performed outside the plan: an unplanned run, a hike, twenty
+         * minutes on the mat. Counted, because you did it and the card claims
+         * to say what you did — but kept in its own figure rather than added
+         * to the actual hours. Compliance is actual training over planned
+         * training; folding these in would make the one number the plan exists
+         * to produce mean something else.
+         */
+        const inWeek = (key) => key && key >= from && key <= to;
+        let extraSeconds = 0;
+        let extraCount = 0;
+        const everyExtra = (state.pendingExtras || []).map((e) => ({ key: e.date || e.dayKey, minutes: e.minutes }))
+            .concat((state.extras || []).map((e) => ({ key: e.dayKey || e.date, minutes: e.minutes })));
+        for (const extra of everyExtra) {
+            if (!inWeek(extra.key)) continue;
+            extraCount++;
+            if (typeof extra.minutes === 'number') extraSeconds += extra.minutes * 60;
+        }
+
         return {
             from: from,
             to: to,
             sessions: week.length,
             recorded: recorded,
             plannedSeconds: plannedSeconds,
-            actualSeconds: actualSeconds
+            actualSeconds: actualSeconds,
+            extraSeconds: extraSeconds,
+            extraCount: extraCount
         };
     }
 

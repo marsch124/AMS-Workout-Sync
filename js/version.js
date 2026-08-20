@@ -8,13 +8,23 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.12.1';
+    const CURRENT = '1.13.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.13.0',
+            date: '2026-08-20',
+            headline: 'Time you spent outside the plan counts too',
+            items: [
+                'A session logged with "Log something else" now shows on the week card: "0m performed · 3h 05m planned · 15m extra". It was recorded on the Extras sheet and visible under Also today, but nowhere in the week figures — so fifteen minutes you had actually done could read as zero.',
+                'It is kept as its own figure rather than added to the performed time. Compliance is actual training over planned training, and folding an unplanned hike or a meditation into it would change what that number means.',
+                'Fixed: a workbook opened from this device never read its Extras sheet at all, so anything previously logged outside the plan disappeared from Also today and from the week. The Dropbox path always read it; this one did not.'
+            ]
+        },
         {
             version: '1.12.1',
             date: '2026-08-20',
