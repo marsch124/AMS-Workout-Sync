@@ -350,12 +350,14 @@ body {
 
 .segment {
     flex: 1;
-    padding: 0.45rem 0.5rem;
+    min-width: 0;
+    padding: 0.45rem 0.35rem;
+    white-space: nowrap;
     border: none;
     border-radius: 999px;
     background: transparent;
     color: var(--color-text-secondary);
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     font-weight: 600;
     font-family: inherit;
     cursor: pointer;

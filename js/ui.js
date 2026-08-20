@@ -708,15 +708,24 @@ const AmsUi = (function () {
             outstandingFirst = AmsSync.outstanding();
         } else if (currentRange === 'past') {
             /*
-             * "Done" means recorded, not merely past. Filtering by date meant a
-             * session logged today could not appear here at all — it is not in
-             * the past — while an untouched session from last month was listed
-             * as done. A queued move is not a record of anything, so a session
-             * that has only been rescheduled does not count.
+             * "Done" means performed, not merely past and not merely dealt
+             * with. Filtering by date meant a session logged today could not
+             * appear here at all — it is not in the past — while an untouched
+             * session from last month was listed as done. A queued move is not
+             * a record of anything, and a session you marked missed is the
+             * opposite of one you did: it has its own list.
              */
             workouts = state.plan.filter((w) => {
                 const status = statusOf(w);
-                return status && (status.kind === 'logged' || status.kind === 'missed');
+                return status && status.kind === 'logged';
+            }).reverse();
+        } else if (currentRange === 'missed') {
+            // Kept rather than hidden: what you did not do is part of the
+            // record, and any of these can still be opened and logged if it
+            // turns out you did it after all.
+            workouts = state.plan.filter((w) => {
+                const status = statusOf(w);
+                return status && status.kind === 'missed';
             }).reverse();
         } else {
             workouts = state.plan.slice();
@@ -733,8 +742,10 @@ const AmsUi = (function () {
                 currentRange === 'upcoming'
                     ? 'Nothing left to do from today onwards — everything scheduled has been recorded.'
                     : currentRange === 'past'
-                        ? 'Nothing logged yet. Sessions appear here once you log them or mark them missed.'
-                        : 'This workbook has no sessions.', '');
+                        ? 'Nothing logged yet. Sessions appear here once you log one.'
+                        : currentRange === 'missed'
+                            ? 'Nothing marked missed. A session you did not do appears here rather than among the ones you did.'
+                            : 'This workbook has no sessions.', '');
             return;
         }
 
@@ -1885,9 +1896,11 @@ const AmsUi = (function () {
             + section('The three tabs',
                 '<p><strong>Today</strong> — what is planned for today, broken into warm-up, intervals, '
                 + 'technique and cool-down, plus anything you did that was not planned.</p>'
-                + '<p><strong>Plan</strong> — the whole schedule. <em>Upcoming</em> is what is still to do, '
-                + '<em>Done</em> is what you have recorded, <em>All</em> is everything including sessions in '
-                + 'the past you never got round to logging.</p>'
+                + '<p><strong>Plan</strong> — the whole schedule, in four lists. <em>Upcoming</em> is what is '
+                + 'still to do, and leads with anything from before today that was never recorded. '
+                + '<em>Done</em> is what you performed. <em>Missed</em> is what you marked as not done, kept '
+                + 'apart from the sessions you did and still open to log if it turns out you did it. '
+                + '<em>All</em> is everything.</p>'
                 + '<p><strong>Settings</strong> — the Dropbox connection, which workbook to use, and how its '
                 + 'columns are read.</p>')
 

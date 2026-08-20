@@ -8,13 +8,22 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.14.0';
+    const CURRENT = '1.15.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.15.0',
+            date: '2026-08-20',
+            headline: 'Missed sessions have their own list',
+            items: [
+                'The Plan tab gains a fourth list: Upcoming, Done, Missed, All. Done now means performed — a session you marked missed no longer sits among the ones you did, on the tab any more than on the week card.',
+                'Nothing is hidden by the split. A missed session is still there to open, and can still be logged if it turns out you did it after all.'
+            ]
+        },
         {
             version: '1.14.0',
             date: '2026-08-20',
