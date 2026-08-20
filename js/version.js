@@ -8,13 +8,23 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.13.0';
+    const CURRENT = '1.14.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.14.0',
+            date: '2026-08-20',
+            headline: 'A missed session is not a session done',
+            items: [
+                '"1 of 6 sessions" now counts only what you actually did. A session marked missed used to be counted there, which said you had done something you had explicitly said you had not. It is named on its own instead: "0 of 6 sessions · 1 missed".',
+                'Marking a session missed and then logging it now shows as logged, which is what the workbook ends up saying. Where a session had more than one entry waiting, the app showed the first and the file took the last, so the screen and the file could disagree.',
+                'A session marked missed is recognised as missed after it reaches the sheet, even in a workbook whose own formulas never revealed a missed marker.'
+            ]
+        },
         {
             version: '1.13.0',
             date: '2026-08-20',

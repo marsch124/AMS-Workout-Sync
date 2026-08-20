@@ -131,8 +131,6 @@ const AmsUi = (function () {
      * back in as well as on the way out.
      */
     function statusOf(workout) {
-        const mapping = AmsSync.getState().mapping || {};
-
         if (workout.pending) {
             const values = workout.pending.values || {};
             if (values.moveTo) return { kind: 'moved', pending: true, label: 'Moved — waiting to sync' };
@@ -141,11 +139,7 @@ const AmsUi = (function () {
                 : { kind: 'logged', pending: true, label: 'Waiting to sync' };
         }
 
-        const done = workout.results && workout.results.done;
-        if (done && mapping.missedValue
-            && AmsMapping.normalise(done.text) === AmsMapping.normalise(mapping.missedValue)) {
-            return { kind: 'missed', pending: false, label: 'Missed' };
-        }
+        if (AmsSync.isMissed(workout)) return { kind: 'missed', pending: false, label: 'Missed' };
 
         if (workout.logged) return { kind: 'logged', pending: false, label: 'Logged' };
         return null;
@@ -486,7 +480,8 @@ const AmsUi = (function () {
             + ' aria-expanded="' + (legendOpen ? 'true' : 'false') + '">'
             + '<span class="week-card-label">This week'
             + '<span class="week-legend-cue" aria-hidden="true">?</span></span>'
-            + '<span class="week-card-count">' + week.recorded + ' of ' + week.sessions + ' sessions</span>'
+            + '<span class="week-card-count">' + week.performed + ' of ' + week.sessions + ' sessions'
+            + (week.missed ? ' ' + MIDDOT + ' ' + week.missed + ' missed' : '') + '</span>'
             + '</button>'
             + weekStrip()
             + expandedDayBlock()

@@ -363,12 +363,21 @@ const AmsSync = (function () {
      * discipline as well as the row means an entry still finds its home if the
      * spreadsheet gained a row in the meantime.
      */
+    /*
+     * The queue is replayed in order, so where a session has more than one
+     * entry the last is what the workbook will end up saying. Showing the
+     * first meant the screen and the file could disagree: mark a session
+     * missed and then log it, and the app went on calling it missed while the
+     * workbook took the log.
+     */
     function matchEntry(queued, workout) {
         queued = queued.filter((entry) => !entry.extra);
-        return queued.find((entry) => entry.workoutKey === workout.key)
-            || queued.find((entry) => entry.dayKey === workout.dayKey
+
+        const last = (list) => (list.length ? list[list.length - 1] : null);
+        return last(queued.filter((entry) => entry.workoutKey === workout.key))
+            || last(queued.filter((entry) => entry.dayKey === workout.dayKey
                 && entry.disciplineId === workout.discipline.id
-                && entry.sheet === workout.sheet)
+                && entry.sheet === workout.sheet))
             || null;
     }
 
@@ -596,6 +605,24 @@ const AmsSync = (function () {
 
     /* Has this session been dealt with — logged or marked missed, in the sheet
        or in the queue? A move is not a record of anything. */
+    /*
+     * Marked missed, whether that is still queued or already in the sheet. It
+     * is a recorded fact about the session and not a performance of it, which
+     * is a distinction the week's figures have to keep: a session you did not
+     * do cannot count among the ones you did.
+     */
+    function isMissed(workout) {
+        if (workout.pending) {
+            const values = workout.pending.values || {};
+            return !values.moveTo && !!values.missed;
+        }
+        const done = workout.results && workout.results.done;
+        // The same fallback the writer uses, so a workbook whose own formulas
+        // never revealed a missed marker still reads back what it was given.
+        const marker = (state.mapping || {}).missedValue || 'Missed';
+        return !!(done && AmsMapping.normalise(done.text) === AmsMapping.normalise(marker));
+    }
+
     function isRecorded(workout) {
         if (workout.pending) {
             const values = workout.pending.values || {};
@@ -650,14 +677,18 @@ const AmsSync = (function () {
         const unit = (mapping.units && mapping.units.duration) || 'hours';
         let plannedSeconds = 0;
         let actualSeconds = 0;
-        let recorded = 0;
+        let performed = 0;
+        let missed = 0;
 
         for (const workout of week) {
             const planned = AmsPlan.plannedDurationSeconds(workout, mapping);
             if (planned) plannedSeconds += planned;
 
             if (!isRecorded(workout)) continue;
-            recorded++;
+
+            // Counted, but on the other side of the ledger.
+            if (isMissed(workout)) { missed++; continue; }
+            performed++;
 
             // A queued entry holds what was typed; a synced one holds the cell.
             if (workout.pending && workout.pending.values && !workout.pending.values.missed) {
@@ -694,7 +725,8 @@ const AmsSync = (function () {
             from: from,
             to: to,
             sessions: week.length,
-            recorded: recorded,
+            performed: performed,
+            missed: missed,
             plannedSeconds: plannedSeconds,
             actualSeconds: actualSeconds,
             extraSeconds: extraSeconds,
@@ -768,6 +800,7 @@ const AmsSync = (function () {
         recent,
         byKey,
         isRecorded,
+        isMissed,
         outstanding,
         weekSummary,
         weekDays,
