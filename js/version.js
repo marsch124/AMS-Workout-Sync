@@ -8,13 +8,24 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.5.1';
+    const CURRENT = '1.6.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.6.0',
+            date: '2026-08-20',
+            headline: 'The week, drawn',
+            items: [
+                '"This week" now shows the week itself: a column per day, a bar per session, height by planned duration and colour by discipline. Where the long ride sits, which evening is free, whether Friday is genuinely clear — the shape you plan around.',
+                'A bar is hollow while the session is outstanding, solid once recorded, and hatched when marked missed, so the state of the week reads without any text.',
+                'A rest day is a flat line rather than an empty column: planned nothing and nothing planned are different things.',
+                'Tap any day to see what is on it, without leaving the Today screen.'
+            ]
+        },
         {
             version: '1.5.1',
             date: '2026-08-20',

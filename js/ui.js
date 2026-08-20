@@ -10,6 +10,7 @@ const AmsUi = (function () {
     'use strict';
 
     let currentWorkout = null;
+    let expandedDay = null;
     let currentRange = 'upcoming';
     let setupDraft = null;
     let setupSheet = null;
@@ -304,6 +305,82 @@ const AmsUi = (function () {
         return done + ' · week complete';
     }
 
+    /*
+     * The week drawn rather than described: a column per day, a bar per
+     * session, height by planned duration and colour by discipline. Solid once
+     * recorded, hollow while outstanding.
+     *
+     * The point is the shape — where the long ride sits, which evening is
+     * free, whether Friday is genuinely clear — which is the thing you plan
+     * around and which no amount of "2h 34m to go" conveys.
+     */
+    function weekStrip() {
+        const days = AmsSync.weekDays();
+        if (!days.length) return '';
+
+        // Bar heights are relative to the biggest day of this week, so a heavy
+        // week and a light one each use the full height and stay readable.
+        const tallest = days.reduce((max, d) => Math.max(max, d.plannedSeconds), 0);
+        if (!tallest) return '';
+
+        const letters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+        return '<div class="week-strip" role="list">' + days.map((day, index) => {
+            const bars = day.training.map((workout) => {
+                const planned = AmsPlan.plannedDurationSeconds(workout, AmsSync.getState().mapping || {}) || 0;
+                // Every session stays visible, however short beside a long ride.
+                const height = Math.max(9, Math.round(planned / tallest * 100));
+                const status = statusOf(workout);
+                const kind = status ? status.kind : 'todo';
+                return '<span class="week-bar-seg is-' + esc(kind) + '"'
+                    + ' style="height:' + height + '%; --sport: ' + workout.discipline.color + '"'
+                    + ' title="' + esc(workout.discipline.label + ' · '
+                        + (AmsPlan.formatDuration(planned) || '')) + '"></span>';
+            }).join('');
+
+            const label = day.date ? day.date.getUTCDate() : '';
+            const classes = ['week-day'];
+            if (day.isToday) classes.push('is-today');
+            if (day.isPast) classes.push('is-past');
+            if (day.isRest) classes.push('is-rest');
+            if (expandedDay === day.dayKey) classes.push('is-open');
+
+            return '<button class="' + classes.join(' ') + '" role="listitem"'
+                + ' data-day="' + esc(day.dayKey) + '"'
+                + ' aria-label="' + esc(longDay(day.date) + ' — '
+                    + (day.isRest ? 'rest day'
+                        : day.training.length ? day.training.length + ' session'
+                            + (day.training.length === 1 ? '' : 's') + ', '
+                            + (AmsPlan.formatDuration(day.plannedSeconds) || '')
+                        : 'nothing planned')) + '">'
+                + '<span class="week-day-bars">' + (day.isRest ? '<span class="week-rest"></span>' : bars) + '</span>'
+                + '<span class="week-day-letter">' + letters[index] + '</span>'
+                + '<span class="week-day-date">' + label + '</span>'
+                + '</button>';
+        }).join('') + '</div>';
+    }
+
+    /* The sessions of whichever day was tapped, shown without leaving Today. */
+    function expandedDayBlock() {
+        if (!expandedDay) return '';
+        const sessions = AmsSync.forDay(expandedDay);
+        const date = AmsPlan.parseDayKey(expandedDay);
+
+        return '<div class="week-expanded">'
+            + '<p class="week-expanded-title">' + esc(longDay(date)) + '</p>'
+            + (sessions.length
+                ? sessions.map((w) =>
+                    '<div class="week-expanded-row" style="--sport: ' + w.discipline.color + '">'
+                    + '<span class="week-expanded-sport">' + esc(w.discipline.label) + '</span>'
+                    + '<span class="week-expanded-what">' + esc(w.title) + '</span>'
+                    + '<span class="week-expanded-meta">'
+                    + esc(AmsPlan.formatDuration(
+                        AmsPlan.plannedDurationSeconds(w, AmsSync.getState().mapping || {})) || '')
+                    + '</span></div>').join('')
+                : '<p class="hint-inline">Nothing planned.</p>')
+            + '</div>';
+    }
+
     function weekCard() {
         const week = AmsSync.weekSummary();
         if (!week || !week.plannedSeconds) return '';
@@ -316,6 +393,8 @@ const AmsUi = (function () {
             + '<p class="week-card-label">This week</p>'
             + '<p class="week-card-count">' + week.recorded + ' of ' + week.sessions + ' sessions</p>'
             + '</div>'
+            + weekStrip()
+            + expandedDayBlock()
             + '<div class="week-bar"><span style="width:' + width + '%"></span></div>'
             + '<p class="week-card-figures">' + esc(weekFigures(week)) + '</p></div>';
     }
@@ -1878,6 +1957,14 @@ const AmsUi = (function () {
 
             const drop = event.target.closest('[data-drop]');
             if (drop) { dropQueued(drop.dataset.drop); return; }
+
+            const day = event.target.closest('[data-day]');
+            if (day) {
+                // Tapping the open day closes it again.
+                expandedDay = expandedDay === day.dataset.day ? null : day.dataset.day;
+                renderToday();
+                return;
+            }
 
             if (event.target.closest('[data-extra]')) { openExtra(); return; }
 

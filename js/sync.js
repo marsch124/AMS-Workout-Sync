@@ -671,6 +671,42 @@ const AmsSync = (function () {
         };
     }
 
+    /*
+     * The week as seven days, whatever is or is not in them. Returned in full
+     * — including empty days and rest days — because the shape of a week is
+     * partly made of its gaps: Friday being clear is information.
+     */
+    function weekDays(dayKey) {
+        const from = weekStart(dayKey || todayKey());
+        if (!from) return [];
+        const today = todayKey();
+        const mapping = state.mapping || {};
+        const days = [];
+
+        for (let i = 0; i < 7; i++) {
+            const key = addDays(from, i);
+            const sessions = state.plan.filter((w) => w.dayKey === key);
+            let plannedSeconds = 0;
+
+            for (const workout of sessions) {
+                if (workout.discipline.id === 'rest') continue;
+                plannedSeconds += AmsPlan.plannedDurationSeconds(workout, mapping) || 0;
+            }
+
+            days.push({
+                dayKey: key,
+                date: AmsPlan.parseDayKey(key),
+                isToday: key === today,
+                isPast: key < today,
+                sessions: sessions,
+                training: sessions.filter((w) => w.discipline.id !== 'rest'),
+                isRest: sessions.length > 0 && sessions.every((w) => w.discipline.id === 'rest'),
+                plannedSeconds: plannedSeconds
+            });
+        }
+        return days;
+    }
+
     function byKey(key) {
         return state.plan.find((w) => w.key === key) || null;
     }
@@ -703,6 +739,7 @@ const AmsSync = (function () {
         isRecorded,
         outstanding,
         weekSummary,
+        weekDays,
         weekStart
     };
 })();

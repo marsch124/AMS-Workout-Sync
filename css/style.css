@@ -878,3 +878,162 @@ body.detail-open .tab-bar { display: none; }
     line-height: 1.4;
     color: var(--color-danger-text);
 }
+
+/* ---------- the week, drawn ---------- */
+
+.week-strip {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.25rem;
+    margin: 0.7rem 0 0.85rem;
+}
+
+.week-day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.3rem 0.1rem 0.25rem;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    font-family: inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.week-day.is-open { background: var(--color-surface-2); }
+
+/* Bars grow from the baseline, so a tall day reads as a tall day. */
+.week-day-bars {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 2px;
+    width: 100%;
+    height: 42px;
+}
+
+.week-bar-seg {
+    flex: 1;
+    max-width: 9px;
+    min-height: 4px;
+    border-radius: 2px;
+    background: var(--sport, var(--accent));
+}
+
+/* Outstanding work is hollow; recorded work is solid. The difference should be
+   legible at a glance without reading anything. */
+.week-bar-seg.is-todo {
+    background: transparent;
+    border: 1.5px solid var(--sport, var(--accent));
+    opacity: 0.75;
+}
+
+.week-bar-seg.is-missed {
+    background: repeating-linear-gradient(
+        135deg,
+        var(--sport, var(--accent)) 0 2px,
+        transparent 2px 4px);
+    opacity: 0.7;
+}
+
+.week-bar-seg.is-moved {
+    background: transparent;
+    border: 1.5px dashed var(--sport, var(--accent));
+}
+
+/* A rest day is a flat line rather than an empty column — planned nothing and
+   nothing planned are different things. */
+.week-rest {
+    align-self: flex-end;
+    width: 60%;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--sport-rest);
+    opacity: 0.7;
+}
+
+.week-day-letter {
+    font-size: 0.66rem;
+    font-weight: 700;
+    color: var(--color-text-secondary);
+    line-height: 1;
+}
+
+.week-day-date {
+    font-size: 0.62rem;
+    color: var(--color-text-secondary);
+    opacity: 0.75;
+    line-height: 1;
+}
+
+.week-day.is-past .week-day-letter,
+.week-day.is-past .week-day-date { opacity: 0.45; }
+
+.week-day.is-today .week-day-letter {
+    color: var(--accent);
+}
+
+.week-day.is-today .week-day-date {
+    color: var(--accent);
+    opacity: 1;
+    font-weight: 700;
+}
+
+/* ---------- a day opened from the strip ---------- */
+
+.week-expanded {
+    padding: 0.6rem 0.7rem;
+    margin-bottom: 0.8rem;
+    background: var(--color-surface-2);
+    border-radius: var(--radius-sm);
+}
+
+.week-expanded-title {
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+    margin-bottom: 0.45rem;
+}
+
+.week-expanded-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+    border-left: 3px solid var(--sport, var(--accent));
+    padding-left: 0.5rem;
+    margin-bottom: 0.3rem;
+}
+
+.week-expanded-sport {
+    flex-shrink: 0;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--sport, var(--accent));
+    min-width: 4.4rem;
+}
+
+.week-expanded-what {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.82rem;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.week-expanded-meta {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+}

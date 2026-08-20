@@ -24,9 +24,13 @@ existing cells.
   duration and, as you type, what percentage of it you are at.
 - **Missed** — a session that did not happen is marked as such in one tap, writing
   only the missed marker and leaving every metric cell untouched.
-- **This week** — Today opens with how the week stands: sessions recorded against
-  sessions planned, and time done against time planned, computed from the plan
-  already loaded rather than from any formula in the sheet.
+- **This week** — Today opens with the week drawn: a column per day, a bar per
+  session, height by planned duration and colour by discipline. Hollow while
+  outstanding, solid once recorded, hatched when missed; a rest day is a flat
+  line rather than an empty column. Tap a day to see what is on it. Beneath it,
+  the same week in words — sessions recorded against sessions planned, time done
+  against time planned — computed from the plan already loaded rather than from
+  any formula in the sheet.
 - **Not recorded** — a session in the past that was never logged or marked missed
   falls through both Upcoming and Done by definition. Today says how many there
   are and Upcoming lists them first, so a forgotten Tuesday does not quietly
