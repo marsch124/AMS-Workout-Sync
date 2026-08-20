@@ -8,13 +8,21 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.24.1';
+    const CURRENT = '1.24.2';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.24.2',
+            date: '2026-08-20',
+            headline: 'Where Workouts actually is in that list',
+            items: [
+                'The type list in Find Health Samples is alphabetical and enormous, and Workouts sits near the bottom in the W’s. The instructions said to use a search box that not every version of iOS has, which left the impression there was no Workouts type at all. They now say where it is and how to get there.'
+            ]
+        },
         {
             version: '1.24.1',
             date: '2026-08-20',
