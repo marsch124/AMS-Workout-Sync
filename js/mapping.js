@@ -14,7 +14,13 @@
 const AmsMapping = (function () {
     'use strict';
 
-    const MAPPING_VERSION = 1;
+    /*
+     * Bumped whenever detection improves enough that a mapping worked out by
+     * the previous version is worth discarding. Without this, the very first
+     * guess a phone ever made is kept for ever and none of the later fixes
+     * ever reach it.
+     */
+    const MAPPING_VERSION = 2;
 
     /*
      * The fields the app understands. `group` decides where a field appears on
@@ -28,6 +34,11 @@ const AmsMapping = (function () {
         // Sits next to the date and repeats it in words. Worth knowing about only
         // so that a rescheduled session does not end up dated Thursday and
         // labelled "Wed".
+        // Shown as the heading on Today: which block of the plan you are in is
+        // the one piece of orientation nothing else on the screen carries.
+        { id: 'phase', label: 'Phase or block', group: 'plan',
+          synonyms: ['phase', 'block', 'period', 'mesocycle', 'trainingsphase', 'zyklus',
+                     'makrozyklus', 'stage'] },
         { id: 'weekday', label: 'Weekday', group: 'plan',
           synonyms: ['day', 'weekday', 'tag', 'wochentag', 'week day'] },
         { id: 'discipline', label: 'Discipline', group: 'plan', required: true,

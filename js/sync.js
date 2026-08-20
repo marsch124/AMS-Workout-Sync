@@ -149,11 +149,17 @@ const AmsSync = (function () {
         state.source = source;
 
         let mapping = await getMapping();
-        if (!AmsMapping.isComplete(mapping)) {
-            mapping = await AmsMapping.autoDetect(state.workbook);
-            if (mapping) {
-                await prepareMapping(state.workbook, mapping);
-                await AmsDb.set('mapping', mapping);
+        // A mapping from an older version of the detector is re-read rather
+        // than trusted: every later improvement would otherwise never reach a
+        // phone that had already been set up once.
+        const stale = mapping && mapping.version !== AmsMapping.MAPPING_VERSION;
+        if (!AmsMapping.isComplete(mapping) || stale) {
+            const detected = await AmsMapping.autoDetect(state.workbook);
+            if (detected) {
+                await prepareMapping(state.workbook, detected);
+                await AmsDb.set('mapping', detected);
+                mapping = detected;
+                if (stale) emit('remapped', { mapping: detected });
             }
         }
         state.mapping = mapping;

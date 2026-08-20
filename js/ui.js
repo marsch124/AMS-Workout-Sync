@@ -208,10 +208,20 @@ const AmsUi = (function () {
     function renderToday() {
         const state = AmsSync.getState();
         const now = new Date();
-        $('todayDate').textContent = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
-        $('todayEyebrow').textContent = 'Today';
+        const todaysSessions = AmsSync.today();
 
-        renderStatusStrip();
+        /*
+         * The date used to be the biggest thing on the screen, which spent the
+         * most prominent line in the app telling you something your phone
+         * already says twice. It moves to the eyebrow, where reference
+         * information belongs, and the heading carries the one piece of
+         * orientation nothing else shows: which block of the plan you are in.
+         */
+        $('todayEyebrow').textContent =
+            now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+        $('todayDate').textContent = todayHeading(todaysSessions);
+
+        renderSyncState();
 
         const body = $('todayBody');
 
@@ -229,7 +239,7 @@ const AmsUi = (function () {
             return;
         }
 
-        const todays = AmsSync.today();
+        const todays = todaysSessions;
         const header = weekCard() + outstandingNudge();
 
         if (!todays.length) {
@@ -454,6 +464,29 @@ const AmsUi = (function () {
             + '<p class="hint-inline">A walk, a meditation, an unplanned run — anything the plan did not ask for.</p>';
     }
 
+    /*
+     * What to call today. The plan's own phase if it has one — "Base 1 —
+     * Foundation" tells you where you are in a 48-week build — otherwise what
+     * is on, which at least beats repeating the date.
+     */
+    function todayHeading(sessions) {
+        const phase = (sessions.map((w) => w.phase).find(Boolean))
+            || (AmsSync.upcoming(3).map((w) => w.phase).find(Boolean))
+            || '';
+        if (phase) return phase;
+
+        const training = sessions.filter((w) => w.discipline.id !== 'rest');
+        if (training.length) {
+            const names = [];
+            for (const workout of training) {
+                if (names.indexOf(workout.discipline.label) === -1) names.push(workout.discipline.label);
+            }
+            return names.join(' + ');
+        }
+        if (sessions.length) return 'Rest day';
+        return 'Today';
+    }
+
     function emptyState(icon, title, text, action) {
         return '<div class="empty-state">'
             + '<svg class="icon"><use href="#' + icon + '"></use></svg>'
@@ -463,36 +496,87 @@ const AmsUi = (function () {
             + '</div>';
     }
 
-    async function renderStatusStrip() {
-        const strip = $('statusStrip');
+    /*
+     * The sync button says how things stand, and the strip below it only
+     * appears when there is something worth spelling out.
+     *
+     * Previously a full-width bar announced "In step with Dropbox" — the least
+     * interesting state there is — directly beneath a button that meant the
+     * same thing. Now the button is simply green when everything is through,
+     * amber with a count when something is waiting, red when a sync failed,
+     * and the strip is reserved for the cases that need words.
+     */
+    let syncStateToken = 0;
+
+    async function renderSyncState() {
+        // This is called from several places at once and has to await the queue
+        // count, so two runs can finish out of order and the later-starting one
+        // lose. A status light that flickers between states is worse than none.
+        const token = ++syncStateToken;
+
         const state = AmsSync.getState();
         const pending = await AmsDb.queueCount();
         const connected = await AmsDropbox.isConnected();
+        if (token !== syncStateToken) return;
 
+        const strip = $('statusStrip');
+        const button = $('syncButton');
+
+        let tone = 'synced';
         let message = '';
-        let tone = '';
+        let stripTone = '';
 
-        if (pending > 0) {
-            message = pending + ' session' + (pending === 1 ? '' : 's') + ' waiting to reach Dropbox';
-            tone = 'warn';
-        } else if (state.source === 'cache' && connected) {
-            message = 'Showing the last copy saved on this phone';
-            tone = 'warn';
-        } else if (state.source === 'file') {
-            message = 'Reading a file from this device — not connected to Dropbox';
-            tone = 'warn';
+        /*
+         * Ordered by what most needs saying. A count of waiting entries is
+         * worth knowing, but "this is a local file and will never sync on its
+         * own" is worth knowing more — and the badge carries the count either
+         * way, so nothing is lost by putting words to the rarer case.
+         */
+        if (state.syncing) {
+            tone = 'busy';
         } else if (state.lastError) {
+            tone = 'error';
             message = state.lastError;
-            tone = 'bad';
-        } else if (state.meta && state.meta.modified) {
-            message = 'In step with Dropbox';
+            stripTone = 'bad';
+        } else if (state.source === 'file') {
+            tone = 'local';
+            message = 'Reading a file from this device — not connected to Dropbox';
+            stripTone = 'warn';
+        } else if (state.source === 'cache' && connected) {
+            tone = 'stale';
+            message = 'Showing the last copy saved on this phone';
+            stripTone = 'warn';
+        } else if (pending > 0) {
+            tone = 'pending';
+        } else if (!connected) {
+            tone = 'local';
+        }
+
+        button.className = 'icon-button sync-button is-' + tone + (state.syncing ? ' spinning' : '');
+        button.setAttribute('aria-label', {
+            synced: 'In step with Dropbox. Tap to sync again.',
+            busy: 'Syncing…',
+            pending: pending + ' waiting to reach Dropbox. Tap to sync.',
+            error: 'Last sync failed. Tap to try again.',
+            local: 'Not connected to Dropbox.',
+            stale: 'Showing a cached copy. Tap to sync.'
+        }[tone] || 'Sync');
+
+        // A count is worth carrying on the button itself; a tick is not.
+        const badge = button.querySelector('.sync-badge');
+        if (badge) badge.remove();
+        if (pending > 0 && !state.syncing) {
+            const node = document.createElement('span');
+            node.className = 'sync-badge';
+            node.textContent = pending > 9 ? '9+' : String(pending);
+            button.appendChild(node);
         }
 
         if (!message) { strip.hidden = true; return; }
         strip.hidden = false;
-        strip.className = 'status-strip' + (tone ? ' ' + tone : '');
-        strip.innerHTML = '<svg class="icon"><use href="#icon-'
-            + (tone ? 'clock' : 'check') + '"></use></svg><span>' + esc(message) + '</span>';
+        strip.className = 'status-strip' + (stripTone ? ' ' + stripTone : '');
+        strip.innerHTML = '<svg class="icon"><use href="#icon-clock"></use></svg><span>'
+            + esc(message) + '</span>';
     }
 
     /* ---------- plan ---------- */
@@ -2010,7 +2094,7 @@ const AmsUi = (function () {
                 renderToday();
                 renderPlan();
             }
-            if (event === 'sync') renderStatusStrip();
+            if (event === 'sync') renderSyncState();
         });
 
         syncTabHighlight('todayScreen');

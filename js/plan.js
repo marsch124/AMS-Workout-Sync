@@ -409,6 +409,7 @@ const AmsPlan = (function () {
                             date,
                             disciplineRaw: disciplineRaw || '',
                             title: title || '',
+                            phase: cellText(sheet, row, mapping.columns.phase),
                             sections: [],
                             planned: {},
                             results: readResults(sheet, row, mapping)
@@ -447,6 +448,7 @@ const AmsPlan = (function () {
                     disciplineRaw,
                     title,
                     sections: sectionsFromRow(sheet, row, mapping),
+                    phase: cellText(sheet, row, mapping.columns.phase),
                     planned: {
                         durationRaw: cellNumber(sheet, row, mapping.columns.plannedDuration),
                         distanceRaw: cellNumber(sheet, row, mapping.columns.plannedDistance),

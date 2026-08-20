@@ -8,13 +8,23 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.6.0';
+    const CURRENT = '1.7.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.7.0',
+            date: '2026-08-20',
+            headline: 'A quieter top of the screen',
+            items: [
+                'The date no longer takes the largest line in the app to repeat what your phone already says. It moves to the small line above, and the heading now names the block of the plan you are in — "Base 1 — Foundation" — which is the one piece of orientation nothing else on the screen carries.',
+                'The sync button says how things stand instead of a banner beneath it repeating the button: green when everything is through, amber with a count when something is waiting, red when a sync failed. The strip below is kept for the cases that genuinely need words.',
+                'A layout worked out by an older version of the app is now re-read rather than trusted for ever, so improvements to how sheets are understood reach phones that were set up before them.'
+            ]
+        },
         {
             version: '1.6.0',
             date: '2026-08-20',

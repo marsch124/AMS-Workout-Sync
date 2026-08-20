@@ -1037,3 +1037,65 @@ body.detail-open .tab-bar { display: none; }
     font-weight: 600;
     color: var(--color-text-secondary);
 }
+
+/* ---------- the sync button as the status ---------- */
+
+.sync-button {
+    position: relative;
+    transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Green when everything is through — stated once, on the control that means it,
+   rather than in a banner repeating the button beneath it. */
+.sync-button.is-synced {
+    color: var(--color-success);
+    border-color: color-mix(in srgb, var(--color-success) 55%, var(--color-border));
+}
+
+.sync-button.is-pending {
+    color: var(--color-warning);
+    border-color: var(--color-warning);
+}
+
+.sync-button.is-error {
+    color: var(--color-danger-text);
+    border-color: var(--color-danger-text);
+}
+
+.sync-button.is-stale {
+    color: var(--color-warning);
+    border-color: color-mix(in srgb, var(--color-warning) 55%, var(--color-border));
+}
+
+/* Not connected is not a fault, so it stays neutral rather than alarming. */
+.sync-button.is-local {
+    color: var(--color-text-secondary);
+    border-color: var(--color-border);
+}
+
+.sync-button.is-busy { color: var(--accent); border-color: var(--accent); }
+
+.sync-badge {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    min-width: 1.05rem;
+    height: 1.05rem;
+    padding: 0 0.22rem;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--color-warning);
+    color: #241a00;
+    font-size: 0.66rem;
+    font-weight: 800;
+    line-height: 1;
+    border: 2px solid var(--color-bg);
+}
+
+/* The heading is now a phase name rather than a date, so it needs room to
+   breathe without shouting. */
+#todayScreen .app-title {
+    font-size: 1.42rem;
+    line-height: 1.2;
+}
