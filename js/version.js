@@ -8,13 +8,23 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.8.0';
+    const CURRENT = '1.9.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.9.0',
+            date: '2026-08-20',
+            headline: 'The week explains itself',
+            items: [
+                'Tap the "This week" slate and it tells you how to read its own drawing: solid is recorded, hollow is still to do, dashed is moved to another day, hatched is marked missed, and a flat line is a rest day. Tap again and it goes away.',
+                'The colours are listed with it — only the sports this week actually contains, so the key is about your week rather than about the app.',
+                'Tapping a single day still opens that day, as before.'
+            ]
+        },
         {
             version: '1.8.0',
             date: '2026-08-20',

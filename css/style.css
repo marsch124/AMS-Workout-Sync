@@ -807,12 +807,23 @@ body.detail-open .tab-bar { display: none; }
 
 .week-card { padding: 0.85rem 1rem; }
 
+/* The head is a button because the whole slate is: tapping it opens the key
+   to the drawing below. It should not look like a button, though — the
+   surprise is the point. */
 .week-card-head {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
     gap: 0.5rem;
+    width: 100%;
     margin-bottom: 0.55rem;
+    padding: 0;
+    border: none;
+    background: none;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .week-card-label {
@@ -979,6 +990,107 @@ body.detail-open .tab-bar { display: none; }
     color: var(--accent);
     opacity: 1;
     font-weight: 700;
+}
+
+/* ---------- the key to the drawing ---------- */
+
+.week-legend-cue {
+    display: inline-block;
+    margin-left: 0.15rem;
+    font-size: 0.8em;
+    letter-spacing: 0;
+    opacity: 0.35;
+}
+
+.week-card-head[aria-expanded="true"] .week-legend-cue { opacity: 1; }
+
+.week-legend {
+    padding: 0.65rem 0.75rem;
+    margin-bottom: 0.8rem;
+    background: var(--color-surface-2);
+    border-radius: var(--radius-sm);
+    animation: legend-in 0.18s ease-out;
+}
+
+@keyframes legend-in {
+    from { opacity: 0; transform: translateY(-3px); }
+    to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .week-legend { animation: none; }
+}
+
+.week-legend-title {
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.week-legend-shapes,
+.week-legend-sports {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.35rem 0.6rem;
+    list-style: none;
+}
+
+.week-legend-shapes > li,
+.week-legend-sports > li {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.78rem;
+    color: var(--color-text-secondary);
+    min-width: 0;
+}
+
+/* The swatches are the real thing, not a drawing of it: the same classes the
+   strip uses, so the key cannot drift away from what it explains. */
+.week-legend-swatch {
+    flex-shrink: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    width: 12px;
+    height: 16px;
+}
+
+.week-legend-swatch .week-bar-seg {
+    flex: none;
+    width: 9px;
+    height: 100%;
+    --sport: var(--color-text);
+}
+
+.week-legend-swatch .week-rest {
+    align-self: flex-end;
+    width: 12px;
+}
+
+.week-legend-sports {
+    margin-top: 0.55rem;
+    padding-top: 0.55rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.week-legend-dot {
+    flex-shrink: 0;
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: var(--sport, var(--accent));
+}
+
+.week-legend-note {
+    margin-top: 0.55rem;
+    font-size: 0.74rem;
+    line-height: 1.45;
+    color: var(--color-text-secondary);
+    opacity: 0.85;
 }
 
 /* ---------- a day opened from the strip ---------- */

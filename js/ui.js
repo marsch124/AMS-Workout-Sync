@@ -11,6 +11,7 @@ const AmsUi = (function () {
 
     let currentWorkout = null;
     let expandedDay = null;
+    let legendOpen = false;
     let currentRange = 'upcoming';
     let setupDraft = null;
     let setupSheet = null;
@@ -391,6 +392,61 @@ const AmsUi = (function () {
             + '</div>';
     }
 
+    /*
+     * Tap the slate itself and the week explains its own drawing.
+     *
+     * The strip says four different things with the same shape — solid,
+     * hollow, dashed, hatched — and a shape carries no label. That is the
+     * point of it, and also the one place it can be misread, so the key lives
+     * one tap away rather than taking up room it does not need to.
+     *
+     * The sports listed are the ones this week actually contains: a legend for
+     * a week with no swim in it would be a legend for somebody else’s week.
+     */
+    function weekLegend() {
+        if (!legendOpen) return '';
+
+        const shapes = [
+            { cls: '', text: 'Recorded' },
+            { cls: 'is-todo', text: 'Still to do' },
+            { cls: 'is-moved', text: 'Moved to another day' },
+            { cls: 'is-missed', text: 'Marked missed' }
+        ];
+
+        const seen = new Map();
+        let anyRest = false;
+        AmsSync.weekDays().forEach((day) => {
+            if (day.isRest) anyRest = true;
+            day.training.forEach((workout) => {
+                if (!seen.has(workout.discipline.id)) seen.set(workout.discipline.id, workout.discipline);
+            });
+        });
+        const sports = Array.from(seen.values());
+
+        const shapeRows = shapes.map((shape) =>
+            '<li><span class="week-legend-swatch">'
+            + '<span class="week-bar-seg ' + shape.cls + '"></span></span>'
+            + esc(shape.text) + '</li>').join('')
+            + (anyRest
+                ? '<li><span class="week-legend-swatch"><span class="week-rest"></span></span>Rest day</li>'
+                : '');
+
+        const sportRows = sports.length
+            ? '<ul class="week-legend-sports">' + sports.map((discipline) =>
+                '<li style="--sport: ' + discipline.color + '">'
+                + '<span class="week-legend-dot"></span>' + esc(discipline.label)
+                + '</li>').join('') + '</ul>'
+            : '';
+
+        return '<div class="week-legend">'
+            + '<p class="week-legend-title">Reading the week</p>'
+            + '<ul class="week-legend-shapes">' + shapeRows + '</ul>'
+            + sportRows
+            + '<p class="week-legend-note">Height is the planned duration, against the '
+            + 'biggest day of the week. Tap a day to see what is on it.</p>'
+            + '</div>';
+    }
+
     function weekCard() {
         const week = AmsSync.weekSummary();
         if (!week || !week.plannedSeconds) return '';
@@ -398,13 +454,16 @@ const AmsUi = (function () {
         const percent = Math.round(week.actualSeconds / week.plannedSeconds * 100);
         const width = Math.max(0, Math.min(100, percent));
 
-        return '<div class="card week-card">'
-            + '<div class="week-card-head">'
-            + '<p class="week-card-label">This week</p>'
-            + '<p class="week-card-count">' + week.recorded + ' of ' + week.sessions + ' sessions</p>'
-            + '</div>'
+        return '<div class="card week-card" data-legend>'
+            + '<button type="button" class="week-card-head" data-legend'
+            + ' aria-expanded="' + (legendOpen ? 'true' : 'false') + '">'
+            + '<span class="week-card-label">This week'
+            + '<span class="week-legend-cue" aria-hidden="true">?</span></span>'
+            + '<span class="week-card-count">' + week.recorded + ' of ' + week.sessions + ' sessions</span>'
+            + '</button>'
             + weekStrip()
             + expandedDayBlock()
+            + weekLegend()
             + '<div class="week-bar"><span style="width:' + width + '%"></span></div>'
             + '<p class="week-card-figures">' + esc(weekFigures(week)) + '</p></div>';
     }
@@ -1184,7 +1243,7 @@ const AmsUi = (function () {
             + (nearby.length
                 ? '<div class="settings-group"><h2>Or swap it with</h2>'
                     + '<div class="prose"><p>Exchanges the two days — for when you did one session in the '
-                    + 'other\u2019s place.</p></div>'
+                    + 'other’s place.</p></div>'
                     + nearby.map((c) =>
                         '<button class="file-option" data-swap="' + esc(c.w.key) + '">'
                         + esc(c.w.discipline.label) + ' — ' + esc(c.w.title.slice(0, 46))
@@ -2171,6 +2230,14 @@ const AmsUi = (function () {
             if (day) {
                 // Tapping the open day closes it again.
                 expandedDay = expandedDay === day.dataset.day ? null : day.dataset.day;
+                renderToday();
+                return;
+            }
+
+            // Anywhere else on the week slate — but not inside an opened day,
+            // which is a read-out rather than a control.
+            if (event.target.closest('[data-legend]') && !event.target.closest('.week-expanded')) {
+                legendOpen = !legendOpen;
                 renderToday();
                 return;
             }
