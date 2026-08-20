@@ -468,19 +468,66 @@ const AmsUi = (function () {
             + '</div>';
     }
 
+    /* ---------- a choice, asked at the bottom of the screen ---------- */
+
+    /*
+     * Deliberately not a promise that resolves with the answer.
+     *
+     * The share sheet may only be opened from a tap, and a call made from a
+     * promise continuation is far enough from the tap that iOS can refuse it.
+     * So each option carries what it does, and does it in its own click.
+     */
+    function openChoice(title, options) {
+        const sheet = $('actionSheet');
+        $('actionSheetTitle').textContent = title;
+
+        const actions = $('actionSheetActions');
+        actions.innerHTML = '';
+        options.forEach((option, index) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'btn' + (index === 0 ? ' btn-primary' : '');
+            button.innerHTML = esc(option.label)
+                + (option.sub ? '<span class="action-sheet-option-sub">' + esc(option.sub) + '</span>' : '');
+            button.addEventListener('click', () => {
+                closeChoice();
+                option.act();
+            });
+            actions.appendChild(button);
+        });
+
+        sheet.hidden = false;
+        sheet.style.display = '';
+        const first = actions.querySelector('button');
+        if (first) first.focus();
+    }
+
+    function closeChoice() {
+        const sheet = $('actionSheet');
+        sheet.hidden = true;
+        sheet.style.display = 'none';
+    }
+
     /*
      * The week as plain text, for sending to somebody who does not have the
      * app. Written to be read in a message: no markdown, and no alignment by
      * spaces — a proportional font would ruin it — so one block per day.
      *
      * What is already done is marked, because a week shared on a Thursday is
-     * partly a report. The plan is still the point, so the marks stay small.
+     * partly a report. A week that has not started yet has nothing to report,
+     * so it is sent as what it is: a plan.
      */
-    function weekShareText() {
-        const days = AmsSync.weekDays();
+    function weekShareText(weeksAhead) {
+        const ahead = weeksAhead || 0;
+        const from = AmsSync.weekStart(AmsSync.todayKey());
+        if (!from) return '';
+
+        const start = ahead ? shiftDayKey(from, ahead * 7) : from;
+        const days = AmsSync.weekDays(start);
         if (!days.length) return '';
-        const week = AmsSync.weekSummary();
+        const week = AmsSync.weekSummary(start);
         const mapping = AmsSync.getState().mapping || {};
+        const future = start > AmsSync.todayKey();
 
         const first = days[0].date;
         const last = days[days.length - 1].date;
@@ -500,7 +547,7 @@ const AmsUi = (function () {
             day.training.forEach((workout) => {
                 const planned = AmsPlan.formatDuration(
                     AmsPlan.plannedDurationSeconds(workout, mapping) || 0);
-                const status = statusOf(workout);
+                const status = future ? null : statusOf(workout);
                 const mark = status && status.kind === 'logged' ? '  ✓'
                     : status && status.kind === 'missed' ? '  (missed)'
                         : '';
@@ -513,19 +560,27 @@ const AmsUi = (function () {
 
         if (week) {
             lines.push('');
-            lines.push(weekFigures(week));
+            lines.push(future
+                ? (AmsPlan.formatDuration(week.plannedSeconds) || '0m') + ' planned'
+                : weekFigures(week));
         }
 
         return lines.join('\n');
+    }
+
+    /* Monday of a week, moved by whole days, in the terms dates are held in. */
+    function shiftDayKey(dayKey, days) {
+        const at = Date.parse(dayKey + 'T00:00:00Z');
+        if (isNaN(at)) return dayKey;
+        return new Date(at + days * 86400000).toISOString().slice(0, 10);
     }
 
     /*
      * The share sheet where there is one, the clipboard where there is not.
      * Cancelling a share is not a failure and says nothing.
      */
-    async function shareWeek() {
-        const text = weekShareText();
-        if (!text) { toast('There is no week to share yet.', 'bad'); return; }
+    async function shareText(text) {
+        if (!text) { toast('There is nothing in that week to share.', 'bad'); return; }
 
         if (navigator.share) {
             try {
@@ -544,6 +599,31 @@ const AmsUi = (function () {
         } catch (err) {
             toast('This browser will not let the app share or copy.', 'bad');
         }
+    }
+
+    /*
+     * Both weeks are written out before the question is asked, so that the tap
+     * that answers it goes straight to the share sheet with nothing in between.
+     */
+    function shareWeek() {
+        const thisWeek = weekShareText(0);
+        const nextWeek = weekShareText(1);
+
+        const summarise = (weeksAhead) => {
+            const start = shiftDayKey(AmsSync.weekStart(AmsSync.todayKey()) || AmsSync.todayKey(),
+                weeksAhead * 7);
+            const week = AmsSync.weekSummary(start);
+            const days = AmsSync.weekDays(start);
+            if (!week || !days.length) return 'nothing planned';
+            const sessions = days.reduce((sum, day) => sum + day.training.length, 0);
+            return sessions + ' session' + (sessions === 1 ? '' : 's')
+                + (week.plannedSeconds ? ' · ' + AmsPlan.formatDuration(week.plannedSeconds) : '');
+        };
+
+        openChoice('Share which week?', [
+            { label: 'This week', sub: summarise(0), act: () => shareText(thisWeek) },
+            { label: 'Next week', sub: summarise(1), act: () => shareText(nextWeek) }
+        ]);
     }
 
     function weekCard() {
@@ -1979,7 +2059,7 @@ const AmsUi = (function () {
             + section('The three tabs',
                 '<p><strong>Today</strong> — what is planned for today, broken into warm-up, intervals, '
                 + 'technique and cool-down, plus anything you did that was not planned. The share button on '
-                + 'the week card sends the whole week as plain text — a message anyone can read, no app and '
+                + 'the week card asks whether you mean this week or next, and sends it as plain text — a message anyone can read, no app and '
                 + 'no workbook needed at the other end.</p>'
                 + '<p><strong>Plan</strong> — the whole schedule, in four lists. <em>Upcoming</em> is what is '
                 + 'still to do, and leads with anything from before today that was never recorded. '
@@ -2489,6 +2569,8 @@ const AmsUi = (function () {
                 return;
             }
 
+            if (event.target.closest('[data-sheet-close]')) { closeChoice(); return; }
+
             if (event.target.closest('[data-share-week]')) { shareWeek(); return; }
 
             // Anywhere else on the week slate — but not inside an opened day,
@@ -2543,6 +2625,14 @@ const AmsUi = (function () {
                 document.querySelectorAll('.segment').forEach((s) => s.classList.toggle('active', s === segment));
                 renderPlan();
             });
+        });
+
+        // Escape closes the question, as it closes anything else asked on top
+        // of the screen.
+        document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape') return;
+            const sheet = $('actionSheet');
+            if (sheet && !sheet.hidden) closeChoice();
         });
 
         AmsSync.subscribe((event, detail) => {

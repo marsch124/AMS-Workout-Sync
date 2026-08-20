@@ -8,13 +8,23 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.18.0';
+    const CURRENT = '1.19.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.19.0',
+            date: '2026-08-20',
+            headline: 'This week or next week',
+            items: [
+                'The share button now asks which one. Each choice says what is in it — "6 sessions · 3h 05m" — so the answer needs no thinking about.',
+                'A week that has not started yet is sent as a plan rather than a report: no ticks, no missed marks, and the figure at the end is simply what is planned. Sunday evening is the natural moment to send somebody the week ahead.',
+                'Both weeks are written out before the question appears, so answering it goes straight to the share sheet.'
+            ]
+        },
         {
             version: '1.18.0',
             date: '2026-08-20',

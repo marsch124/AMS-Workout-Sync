@@ -1094,6 +1094,78 @@ body.detail-open .tab-bar { display: none; }
     font-weight: 700;
 }
 
+/* ---------- a choice, asked at the bottom of the screen ---------- */
+
+.action-sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.action-sheet-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    animation: sheet-fade 0.16s ease-out;
+}
+
+.action-sheet-card {
+    position: relative;
+    width: 100%;
+    max-width: 30rem;
+    margin: 0.6rem;
+    margin-bottom: calc(0.6rem + var(--safe-bottom));
+    padding: 1rem;
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+    animation: sheet-rise 0.2s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+@keyframes sheet-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sheet-rise { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+    .action-sheet-backdrop, .action-sheet-card { animation: none; }
+}
+
+.action-sheet-title {
+    margin-bottom: 0.75rem;
+    font-size: 0.95rem;
+    font-weight: 650;
+    text-align: center;
+}
+
+.action-sheet-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Stacked, so the count sits under the name rather than beside it. */
+.action-sheet-actions .btn {
+    width: 100%;
+    flex-direction: column;
+    gap: 0;
+    padding-top: 0.7rem;
+    padding-bottom: 0.7rem;
+}
+
+.action-sheet-option-sub {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+    opacity: 0.75;
+}
+
+.action-sheet-cancel { color: var(--color-text-secondary); }
+
 /* ---------- the key to the drawing ---------- */
 
 .week-legend-cue {
