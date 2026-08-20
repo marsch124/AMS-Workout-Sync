@@ -8,13 +8,22 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.23.0';
+    const CURRENT = '1.23.1';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.23.1',
+            date: '2026-08-20',
+            headline: 'The watch bridge, written out in full',
+            items: [
+                'How this works now explains the Apple Health bridge properly, in two parts: what it is and what it will never do, and then the Shortcut itself — every action to add, the exact line of text to build, which values need quotation marks and which must not have them.',
+                'It states the exact filename and folder for your own setup, gives a worked example you can drop in by hand to test the app before building anything, lists every field with its units and its alternative spellings, and ends with what to check when nothing appears.'
+            ]
+        },
         {
             version: '1.23.0',
             date: '2026-08-20',

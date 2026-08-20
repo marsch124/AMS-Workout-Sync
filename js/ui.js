@@ -2463,6 +2463,7 @@ const AmsUi = (function () {
 
     function renderGuide() {
         const state = AmsSync.getState();
+        const workbookPath = (state.meta && state.meta.path) || '';
         const mapping = state.mapping || {};
         const sheet = AmsMapping.isComplete(mapping) ? mapping.sheets.join(', ') : null;
         const units = mapping.units || {};
@@ -2590,40 +2591,148 @@ const AmsUi = (function () {
                 + 'selects the typed minutes and skips both the total formulas and the blank rest days; then '
                 + '<strong>Paste Special → Multiply</strong>. Reopen the app and it reads the new plan.</p>')
 
-            + section('Numbers from your watch',
-                '<p>Garmin has no interface a personal app may use: their developer programme is for '
-                + 'companies, works by pushing data to a server, and this app has no server on purpose. '
-                + 'But your watch already puts every session into <strong>Apple Health</strong> on the '
-                + 'phone, and Shortcuts can read Health and write a file. So the bridge is a file.</p>'
+            + section('Numbers from your watch — what this is',
+                '<p><strong>There is no direct connection to Garmin, and there cannot be one.</strong> '
+                + 'Garmin’s Connect developer programme is open to companies rather than people: you '
+                + 'apply as a legal entity, wait weeks for a manual review, and if approved, Garmin '
+                + '<em>pushes</em> your data to a web server you are expected to run. This app has no '
+                + 'server, which is the reason it costs nothing, holds no account of yours, and keeps your '
+                + 'training in your Dropbox instead of somebody’s database. That trade is worth more '
+                + 'than the convenience would be.</p>'
 
-                + '<p>A Shortcut writes today’s workouts into <code>' + esc(AmsInbox.DEFAULT_FILE) + '</code>, '
-                + 'in the same Dropbox folder as your workbook. The app reads it, matches each one to a '
-                + 'planned session by day and sport, and offers the numbers on the Today screen. '
-                + '<strong>Nothing is written into your workbook by this.</strong> Tapping fills in the log '
-                + 'form; saving it is still yours.</p>'
+                + '<p>So the connection goes the long way round, and it works because of two things you '
+                + 'already have. <strong>One:</strong> Garmin Connect writes every session into '
+                + '<strong>Apple Health</strong> on your phone. <strong>Two:</strong> the '
+                + '<strong>Shortcuts</strong> app can read Apple Health and can write a file to Dropbox. '
+                + 'So the bridge is a file: a Shortcut writes what your watch recorded next to your '
+                + 'workbook, and this app reads it.</p>'
 
-                + '<p><strong>Building the Shortcut</strong> — once, in the Shortcuts app:</p>'
+                + '<p><strong>Nothing about this writes to your workbook.</strong> The app reads the file, '
+                + 'works out which planned session each entry belongs to, and offers the numbers under '
+                + '<em>From your watch</em> on the Today screen. Tapping fills in the log form. The form is '
+                + 'then exactly as if you had typed it: you can change any figure, and nothing reaches the '
+                + 'workbook until you press Save. A watch is usually right and occasionally certain that a '
+                + 'turbo session was a canoe; you are the better judge, and the app is built to let you be '
+                + 'one.</p>'
+
+                + '<p><strong>Where the file goes.</strong> In the same Dropbox folder as your workbook, '
+                + 'named <code>' + esc(AmsInbox.DEFAULT_FILE) + '</code>.'
+                + (workbookPath
+                    ? ' For your setup that is exactly: <code>'
+                        + esc(AmsInbox.pathFor(workbookPath)) + '</code>'
+                    : '')
+                + ' The app looks for it every time it reads the workbook. No file is the ordinary case and '
+                + 'is not an error.</p>'
+
+                + '<p><strong>How an entry is matched to a session.</strong> Same date, same sport, and the '
+                + 'session not already recorded. Where a day holds two of the same sport, the one whose '
+                + 'planned length is nearest to what the watch measured. If nothing matches — an unplanned '
+                + 'run, a walk, a hike — the entry is offered for the Extras sheet instead, so it is still '
+                + 'yours to keep without disturbing planned-against-actual.</p>'
+
+                + '<p><strong>What gets filled in.</strong> Duration, distance, average heart rate and '
+                + 'calories, and only into the columns your sheet actually has. A distance is converted to '
+                + 'whatever the sheet counts in — metres for a swim, kilometres otherwise. Anything the '
+                + 'watch did not measure is left blank, and a blank leaves that cell in your workbook '
+                + 'exactly as it was: a missing number is never written as a zero.</p>'
+
+                + '<p>The file is read and never altered or deleted. It stays in your Dropbox, like '
+                + 'everything else this app touches.</p>')
+
+            + section('Numbers from your watch — building the Shortcut',
+                '<p>Once, in the <strong>Shortcuts</strong> app. It takes about five minutes and needs no '
+                + 'account, no password and no third-party app.</p>'
+
                 + '<ol>'
-                + '<li><strong>Find Health Samples</strong> — type <em>Workouts</em>, filter '
-                + '<em>Start Date is today</em>, sort by Start Date.</li>'
-                + '<li><strong>Repeat with Each</strong> over the result. Inside the repeat, build a line of '
-                + 'text with the values you want:<br>'
-                + '<code>{"date":"[Current Date, formatted yyyy-MM-dd]","sport":"[Workout Type]",'
-                + '"minutes":[Duration in minutes],"km":[Distance in km],"avgHr":[Average Heart Rate]}</code>'
-                + '</li>'
-                + '<li>Join the repeat results <strong>with commas</strong>, then wrap the lot in square '
-                + 'brackets: <code>[</code> … <code>]</code>. That is the whole file.</li>'
-                + '<li><strong>Save File</strong> to your Dropbox folder, next to the workbook, named '
-                + '<code>' + esc(AmsInbox.DEFAULT_FILE) + '</code>, with <em>Overwrite</em> on.</li>'
+                + '<li><strong>New Shortcut</strong>, and name it something you will recognise — '
+                + '“Send workouts to AMS”.</li>'
+
+                + '<li>Add <strong>Find Health Samples</strong>. Set the type to <strong>Workouts</strong>. '
+                + 'Add a filter: <em>Start Date</em> — <em>is today</em>. Leave the limit off, so a day with '
+                + 'two sessions sends both.</li>'
+
+                + '<li>Add <strong>Repeat with Each</strong>, over the result of the step above.</li>'
+
+                + '<li><strong>Inside the repeat</strong>, add a <strong>Text</strong> action and build one '
+                + 'line, inserting the variables where shown. The words in square brackets are variables '
+                + 'you pick from <em>Repeat Item</em>, not text to type:</li>'
                 + '</ol>'
 
-                + '<p>Run it when you finish a session — from the Shortcuts widget, or as an automation. '
-                + 'Then open this app: the session is waiting with its numbers in it.</p>'
+                + '<pre>{"date":"[Current Date formatted yyyy-MM-dd]",\n'
+                + ' "sport":"[Repeat Item › Workout Type]",\n'
+                + ' "minutes":[Repeat Item › Duration in minutes],\n'
+                + ' "km":[Repeat Item › Distance in km],\n'
+                + ' "avgHr":[Repeat Item › Average Heart Rate],\n'
+                + ' "calories":[Repeat Item › Active Energy],\n'
+                + ' "name":"[Repeat Item › Name]"}</pre>'
 
-                + '<p>Every field is optional except the date. Missing numbers simply leave that box empty, '
-                + 'and an empty box leaves the cell in your workbook exactly as it was. If nothing planned '
-                + 'matches what the watch recorded — an unplanned run, a walk — it is offered as something '
-                + 'to record on the Extras sheet instead.</p>')
+                + '<p>Two things matter here and nothing else does. The text values — date, sport, name — '
+                + 'go <strong>inside quotation marks</strong>. The numbers — minutes, km, avgHr, calories — '
+                + 'go <strong>without them</strong>.</p>'
+
+                + '<ol start="5">'
+                + '<li><strong>After the repeat</strong>, add <strong>Combine Text</strong> with the repeat '
+                + 'results, separated by <strong>commas</strong>.</li>'
+
+                + '<li>Add a <strong>Text</strong> action containing <code>[</code> then the combined text '
+                + 'then <code>]</code> — the square brackets that make it a list.</li>'
+
+                + '<li>Add <strong>Save File</strong>. Choose your Dropbox, the same folder as your '
+                + 'workbook, filename <code>' + esc(AmsInbox.DEFAULT_FILE) + '</code>, and turn '
+                + '<strong>Overwrite</strong> on and <em>Ask Where to Save</em> off. Overwrite matters: the '
+                + 'Shortcut sends today’s workouts each time, so the file should be replaced rather '
+                + 'than piling up.</li>'
+                + '</ol>'
+
+                + '<p><strong>Running it.</strong> Tap it in the Shortcuts widget when you finish a session, '
+                + 'or add a personal automation so it runs by itself. Then open this app: the session is '
+                + 'waiting with its numbers in it.</p>'
+
+                + '<p><strong>What the finished file looks like.</strong> To try this side of it before '
+                + 'building the Shortcut at all, put a file of exactly this shape in the folder by hand:</p>'
+
+                + '<pre>[{"date":"' + esc(AmsSync.todayKey()) + '","sport":"Running",\n'
+                + '  "minutes":42.3,"km":8.12,"avgHr":138,\n'
+                + '  "calories":520,"name":"Morning Run"}]</pre>'
+
+                + '<p><strong>Every field except the date is optional</strong>, and each one accepts '
+                + 'several spellings, because a file assembled by hand should not fail over a word:</p>'
+                + '<ul>'
+                + '<li><code>date</code> — required. <code>2026-08-20</code>, or anything a phone would '
+                + 'call a date. Also accepted: <code>start</code>, <code>startDate</code>, <code>day</code>.</li>'
+                + '<li><code>sport</code> — what Apple Health calls it: Running, Cycling, Swimming, '
+                + 'Traditional Strength Training, Yoga, Walking and so on. Also accepted: <code>type</code>, '
+                + '<code>workoutType</code>, <code>activity</code>.</li>'
+                + '<li><code>minutes</code> — decimals are fine. Also: <code>durationMin</code>, '
+                + '<code>duration</code>.</li>'
+                + '<li><code>km</code> — always kilometres, whatever your sheet counts in; the app converts. '
+                + 'Also: <code>distanceKm</code>, <code>distance</code>.</li>'
+                + '<li><code>avgHr</code> — beats per minute. Also: <code>averageHeartRate</code>, '
+                + '<code>hr</code>.</li>'
+                + '<li><code>calories</code> — also <code>kcal</code>, <code>energy</code>.</li>'
+                + '<li><code>name</code> — free text, shown on the card. Also: <code>title</code>.</li>'
+                + '</ul>'
+
+                + '<p><strong>If something does not appear.</strong></p>'
+                + '<ul>'
+                + '<li><em>Nothing under “From your watch”</em> — check Settings, '
+                + '<em>From your watch</em>. It says how many entries it found. Nothing found usually means '
+                + 'the file is in a different folder, or named differently, or the dates in it are not '
+                + 'today.</li>'
+                + '<li><em>“Could not be read”</em> — the file is not valid JSON. The usual cause '
+                + 'is a missing comma between entries, or a number that ended up inside quotation marks, or '
+                + 'quotation marks that Shortcuts turned into the curly kind.</li>'
+                + '<li><em>The sport comes out as “Other”</em> — the app did not recognise that '
+                + 'word. It still offers the entry, as something for the Extras sheet, so nothing is '
+                + 'lost by it.</li>'
+                + '<li><em>It matched the wrong session</em> — nothing has been written; go back and log the '
+                + 'right one by hand. Two sessions of the same sport on one day are matched by planned '
+                + 'length, which is a guess rather than knowledge.</li>'
+                + '<li>This works when the workbook is in Dropbox. Reading a file from the phone instead '
+                + 'does not go looking for it.</li>'
+                + '</ul>'
+
+                + '<p>This is a first attempt, and it wants trying before it is trusted.</p>')
 
             + section('Things the plan did not ask for',
                 '<p>An unplanned run, a hike, a meditation goes on a separate <strong>Extras</strong> sheet, '
