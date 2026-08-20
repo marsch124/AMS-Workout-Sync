@@ -68,7 +68,7 @@ const AmsUi = (function () {
     /* ---------- navigation ---------- */
 
     const DETAIL_SCREENS = new Set(['workoutScreen', 'logScreen', 'setupScreen', 'rescheduleScreen',
-        'extraScreen', 'guideScreen', 'versionScreen']);
+        'extraScreen', 'guideScreen', 'versionScreen', 'queueScreen']);
     const history_ = [];
 
     function showScreen(id, options) {
@@ -229,10 +229,12 @@ const AmsUi = (function () {
         }
 
         const todays = AmsSync.today();
+        const header = weekCard() + outstandingNudge();
 
         if (!todays.length) {
             const next = AmsSync.upcoming(3);
-            body.innerHTML = emptyState('icon-check', 'Rest day',
+            body.innerHTML = header
+                + emptyState('icon-check', 'Rest day',
                 'Nothing is scheduled for today in the workbook.',
                 '')
                 + extrasBlock()
@@ -243,7 +245,7 @@ const AmsUi = (function () {
             return;
         }
 
-        body.innerHTML = todays.map((workout) => {
+        body.innerHTML = header + todays.map((workout) => {
             const state2 = AmsSync.getState();
             const planned = AmsPlan.plannedDurationSeconds(workout, state2.mapping || {});
             return '<div class="card workout-card" ' + sportStyle(workout) + '>'
@@ -272,6 +274,44 @@ const AmsUi = (function () {
                       + '</div>')
                 + '</div>';
         }).join('') + extrasBlock();
+    }
+
+    /*
+     * How the week stands. The figure that decides whether Thursday evening is
+     * a session or the sofa, and it was previously only visible by opening the
+     * workbook on a laptop.
+     */
+    function weekCard() {
+        const week = AmsSync.weekSummary();
+        if (!week || !week.plannedSeconds) return '';
+
+        const percent = Math.round(week.actualSeconds / week.plannedSeconds * 100);
+        const width = Math.max(0, Math.min(100, percent));
+
+        return '<div class="card week-card">'
+            + '<div class="week-card-head">'
+            + '<p class="week-card-label">This week</p>'
+            + '<p class="week-card-count">' + week.recorded + ' of ' + week.sessions + ' sessions</p>'
+            + '</div>'
+            + '<div class="week-bar"><span style="width:' + width + '%"></span></div>'
+            + '<p class="week-card-figures">'
+            // formatDuration(0) is "0s", which reads oddly against hours.
+            + esc(week.actualSeconds ? AmsPlan.formatDuration(week.actualSeconds) : '0m') + ' of '
+            + esc(AmsPlan.formatDuration(week.plannedSeconds)) + ' planned'
+            + (week.actualSeconds ? ' · ' + percent + '%' : '')
+            + '</p></div>';
+    }
+
+    /*
+     * Sessions in the past that were never recorded. Shown quietly rather than
+     * as an alarm — the point is to make them findable, not to nag.
+     */
+    function outstandingNudge() {
+        const missing = AmsSync.outstanding();
+        if (!missing.length) return '';
+        return '<button class="btn btn-block outstanding-nudge" data-go-outstanding="1">'
+            + missing.length + ' earlier session' + (missing.length === 1 ? '' : 's')
+            + ' not recorded</button>';
     }
 
     /*
@@ -372,6 +412,7 @@ const AmsUi = (function () {
         }
 
         let workouts;
+        let outstandingFirst = [];
         if (currentRange === 'upcoming') {
             /*
              * Still to do: dated today or later, and not yet recorded. A logged
@@ -386,6 +427,10 @@ const AmsUi = (function () {
                 const status = statusOf(w);
                 return !(status && (status.kind === 'logged' || status.kind === 'missed'));
             });
+            // Anything from before today that was never recorded is still
+            // outstanding, so it leads the list rather than falling between
+            // Upcoming and Done and never being seen again.
+            outstandingFirst = AmsSync.outstanding();
         } else if (currentRange === 'past') {
             /*
              * "Done" means recorded, not merely past. Filtering by date meant a
@@ -402,7 +447,13 @@ const AmsUi = (function () {
             workouts = state.plan.slice();
         }
 
-        if (!workouts.length) {
+        const outstandingHtml = outstandingFirst.length
+            ? '<div class="day-heading is-outstanding"><h2>Not recorded</h2>'
+                + '<span>' + outstandingFirst.length + ' from before today</span></div>'
+                + outstandingFirst.map((w) => workoutCard(w, { showDate: true })).join('')
+            : '';
+
+        if (!workouts.length && !outstandingFirst.length) {
             body.innerHTML = emptyState('icon-today', 'Nothing here',
                 currentRange === 'upcoming'
                     ? 'Nothing left to do from today onwards — everything scheduled has been recorded.'
@@ -423,7 +474,7 @@ const AmsUi = (function () {
         }
 
         const today = AmsSync.todayKey();
-        body.innerHTML = groups.map((group) => {
+        body.innerHTML = outstandingHtml + groups.map((group) => {
             const relative = relativeDay(group.dayKey);
             return '<div class="day-heading' + (group.dayKey === today ? ' is-today' : '') + '">'
                 + '<h2>' + esc(longDay(group.date)) + '</h2>'
@@ -1119,7 +1170,13 @@ const AmsUi = (function () {
                 ? 'Logged on this phone but not yet written into the workbook.'
                 : 'Every logged session has reached the workbook.')
             + '</div></div>'
-            + '<button class="btn btn-small" id="syncNowButton">Sync now</button></div>');
+            + '<button class="btn btn-small" id="syncNowButton">Sync now</button></div>'
+            + (pending
+                ? '<div class="settings-row"><div class="settings-row-main">'
+                    + '<div class="settings-row-title">See what is waiting</div>'
+                    + '<div class="settings-row-sub">Inspect each entry, and discard one that will not go through</div>'
+                    + '</div><button class="btn btn-small" data-go="queue">Review</button></div>'
+                : ''));
         if (state.meta && state.meta.modified) {
             parts.push('<div class="settings-row"><div class="settings-row-main">'
                 + '<div class="settings-row-title">Last read from Dropbox</div>'
@@ -1285,6 +1342,82 @@ const AmsUi = (function () {
                 location.reload();
             });
         }
+    }
+
+    /* ---------- what is waiting to sync ---------- */
+
+    /* Say what an entry actually is, in the terms it was created in. */
+    function describeEntry(entry) {
+        const values = entry.values || {};
+
+        if (entry.extra) {
+            const extra = values.extra || {};
+            const label = AmsExtras.activity(extra.activity).label;
+            return {
+                title: label + (extra.what ? ' — ' + extra.what : ''),
+                detail: (extra.minutes ? extra.minutes + ' min · ' : '') + (extra.date || '')
+            };
+        }
+        if (values.moveTo) {
+            return { title: 'Move: ' + (entry.title || 'a session'), detail: 'to ' + values.moveTo };
+        }
+        if (values.missed) {
+            return { title: 'Missed: ' + (entry.title || 'a session'), detail: entry.dayKey || '' };
+        }
+
+        const numbers = Object.keys(values)
+            .filter((k) => k !== 'distanceUnit' && values[k] !== '' && values[k] !== null)
+            .map((k) => {
+                const field = AmsMapping.FIELD_BY_ID.get(k);
+                return (field ? field.label : k) + ' ' + values[k];
+            });
+        return {
+            title: 'Logged: ' + (entry.title || 'a session'),
+            detail: (entry.dayKey || '') + (numbers.length ? ' · ' + numbers.join(', ') : '')
+        };
+    }
+
+    async function renderQueue() {
+        const queued = await AmsDb.listQueue();
+        const body = $('queueBody');
+
+        if (!queued.length) {
+            body.innerHTML = emptyState('icon-check', 'Nothing waiting',
+                'Everything you have logged has reached the workbook.', '');
+            return;
+        }
+
+        body.innerHTML =
+            '<div class="prose"><p>These are saved on this phone but not yet written into the workbook. '
+            + 'They are replayed onto the current file each time the app syncs — nothing is lost by waiting.</p></div>'
+            + queued.map((entry) => {
+                const described = describeEntry(entry);
+                const when = new Date(entry.createdAt);
+                return '<div class="card queue-item">'
+                    + '<div class="queue-item-main">'
+                    + '<p class="workout-card-title">' + esc(described.title) + '</p>'
+                    + '<p class="map-row-sub">' + esc(described.detail) + '</p>'
+                    + '<p class="map-row-sub">saved ' + esc(when.toLocaleString()) + '</p>'
+                    + (entry.attempts
+                        ? '<p class="queue-error">Tried ' + entry.attempts + ' time'
+                            + (entry.attempts === 1 ? '' : 's')
+                            + (entry.lastError ? ': ' + esc(entry.lastError) : '') + '</p>'
+                        : '')
+                    + '</div>'
+                    + '<button class="btn btn-small btn-danger" data-drop="' + esc(entry.id) + '">Discard</button>'
+                    + '</div>';
+            }).join('');
+    }
+
+    async function dropQueued(id) {
+        if (!confirm('Discard this entry?\n\nIt will never be written to the workbook. This cannot be undone.')) return;
+        await AmsDb.unqueue(id);
+        await AmsSync.overlayQueue();
+        toast('Discarded.');
+        await renderQueue();
+        renderToday();
+        renderPlan();
+        renderSettings();
     }
 
     /* ---------- the guide, and the version log ---------- */
@@ -1725,13 +1858,25 @@ const AmsUi = (function () {
             const swap = event.target.closest('[data-swap]');
             if (swap) { doSwap(swap.dataset.swap); return; }
 
+            const drop = event.target.closest('[data-drop]');
+            if (drop) { dropQueued(drop.dataset.drop); return; }
+
             if (event.target.closest('[data-extra]')) { openExtra(); return; }
+
+            if (event.target.closest('[data-go-outstanding]')) {
+                currentRange = 'upcoming';
+                document.querySelectorAll('.segment').forEach((seg) =>
+                    seg.classList.toggle('active', seg.dataset.range === 'upcoming'));
+                openTab('plan');
+                return;
+            }
 
             const go = event.target.closest('[data-go]');
             if (go) {
                 if (go.dataset.go === 'setup') openSetup();
                 else if (go.dataset.go === 'guide') { renderGuide(); showScreen('guideScreen'); }
                 else if (go.dataset.go === 'version') { renderVersionLog(); showScreen('versionScreen'); }
+                else if (go.dataset.go === 'queue') { renderQueue(); showScreen('queueScreen'); }
                 else openTab(go.dataset.go);
             }
         });
@@ -1741,6 +1886,10 @@ const AmsUi = (function () {
         $('saveLogButton').addEventListener('click', saveLog);
         $('saveSetupButton').addEventListener('click', saveSetup);
         $('saveExtraButton').addEventListener('click', saveExtra);
+        $('queueSyncButton').addEventListener('click', async () => {
+            await runSync(true);
+            await renderQueue();
+        });
         $('syncButton').addEventListener('click', () => runSync(true));
 
         document.querySelectorAll('.segment').forEach((segment) => {

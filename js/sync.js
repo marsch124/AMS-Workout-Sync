@@ -323,6 +323,9 @@ const AmsSync = (function () {
             const entry = matchEntry(queued, workout);
             workout.pending = null;
             workout.movedTo = null;
+            // Back to what the sheet itself says before any queued entry is
+            // applied on top, so discarding one takes its effect away with it.
+            workout.logged = !!workout.loggedInSheet;
             if (!entry) continue;
 
             workout.pending = entry;
@@ -581,6 +584,93 @@ const AmsSync = (function () {
         return state.plan.filter((w) => w.dayKey < key).slice(-(limit || 20)).reverse();
     }
 
+    /* Has this session been dealt with — logged or marked missed, in the sheet
+       or in the queue? A move is not a record of anything. */
+    function isRecorded(workout) {
+        if (workout.pending) {
+            const values = workout.pending.values || {};
+            return !values.moveTo;
+        }
+        return !!workout.logged;
+    }
+
+    /*
+     * Sessions in the past that were never recorded. These fall through both
+     * Upcoming and Done by definition, and left alone they quietly rot: the
+     * compliance figures the plan exists to produce drift away from the truth
+     * one forgotten Tuesday at a time.
+     */
+    function outstanding() {
+        const today = todayKey();
+        return state.plan.filter((w) =>
+            w.dayKey < today && w.discipline.id !== 'rest' && !isRecorded(w));
+    }
+
+    /* Monday of the week containing a day, in the UTC terms dates are held in. */
+    function weekStart(dayKey) {
+        const date = AmsPlan.parseDayKey(dayKey);
+        if (!date) return null;
+        const weekday = (date.getUTCDay() + 6) % 7;   // Monday = 0
+        date.setUTCDate(date.getUTCDate() - weekday);
+        return AmsXlsx.dayKey(date);
+    }
+
+    function addDays(dayKey, days) {
+        const date = AmsPlan.parseDayKey(dayKey);
+        if (!date) return dayKey;
+        date.setUTCDate(date.getUTCDate() + days);
+        return AmsXlsx.dayKey(date);
+    }
+
+    /*
+     * How the current week stands: planned against recorded, in minutes and in
+     * sessions. Computed from the plan already in memory, so it costs nothing
+     * and needs no formula in the sheet.
+     */
+    function weekSummary(dayKey) {
+        const mapping = state.mapping || {};
+        const from = weekStart(dayKey || todayKey());
+        if (!from) return null;
+        const to = addDays(from, 6);
+
+        const week = state.plan.filter((w) => w.dayKey >= from && w.dayKey <= to
+            && w.discipline.id !== 'rest');
+        if (!week.length) return null;
+
+        const unit = (mapping.units && mapping.units.duration) || 'hours';
+        let plannedSeconds = 0;
+        let actualSeconds = 0;
+        let recorded = 0;
+
+        for (const workout of week) {
+            const planned = AmsPlan.plannedDurationSeconds(workout, mapping);
+            if (planned) plannedSeconds += planned;
+
+            if (!isRecorded(workout)) continue;
+            recorded++;
+
+            // A queued entry holds what was typed; a synced one holds the cell.
+            if (workout.pending && workout.pending.values && !workout.pending.values.missed) {
+                const typed = AmsPlan.parseDuration(workout.pending.values.actualDuration);
+                if (typed) actualSeconds += typed;
+            } else {
+                const cell = workout.results && workout.results.actualDuration;
+                if (cell && typeof cell.number === 'number') {
+                    actualSeconds += AmsPlan.durationFromCell(cell.number, unit) || 0;
+                }
+            }
+        }
+
+        return {
+            from: from,
+            to: to,
+            sessions: week.length,
+            recorded: recorded,
+            plannedSeconds: plannedSeconds,
+            actualSeconds: actualSeconds
+        };
+    }
+
     function byKey(key) {
         return state.plan.find((w) => w.key === key) || null;
     }
@@ -609,6 +699,10 @@ const AmsSync = (function () {
         today,
         upcoming,
         recent,
-        byKey
+        byKey,
+        isRecorded,
+        outstanding,
+        weekSummary,
+        weekStart
     };
 })();

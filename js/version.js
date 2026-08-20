@@ -8,13 +8,24 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.4.0';
+    const CURRENT = '1.5.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.5.0',
+            date: '2026-08-19',
+            headline: 'Nothing falls through the cracks',
+            items: [
+                'A session in the past that was never recorded no longer disappears between Upcoming and Done. Today says how many there are, and Upcoming lists them first.',
+                'Today opens with how the week stands — sessions recorded against sessions planned, and time done against time planned.',
+                'Settings → Syncing can now show exactly what is waiting to reach the workbook, with any error, and lets you discard an entry that will never go through.',
+                'How far the plan runs is worked out afresh on every read, so extending the plan in Excel no longer leaves the new rows invisible.'
+            ]
+        },
         {
             version: '1.4.0',
             date: '2026-08-19',

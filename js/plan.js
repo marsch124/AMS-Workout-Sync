@@ -463,7 +463,13 @@ const AmsPlan = (function () {
             workout.key = workout.key || (workout.sheet + '!' + workout.row);
             workout.discipline = classifyDiscipline(workout.disciplineRaw);
             workout.dayKey = AmsXlsx.dayKey(workout.date);
-            workout.logged = isLogged(workout.results);
+            // Two flags, deliberately: one is what the sheet says and never
+            // changes until the sheet is read again, the other is what the app
+            // is showing and may be lifted by a queued entry. Without the
+            // first there is nothing to fall back to when an entry is
+            // discarded, and the session would read as recorded for ever.
+            workout.loggedInSheet = isLogged(workout.results);
+            workout.logged = workout.loggedInSheet;
             workout.sections.sort((a, b) => {
                 const ai = SECTION_ORDER.indexOf(a.kind);
                 const bi = SECTION_ORDER.indexOf(b.kind);

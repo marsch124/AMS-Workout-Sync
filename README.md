@@ -24,6 +24,13 @@ existing cells.
   duration and, as you type, what percentage of it you are at.
 - **Missed** — a session that did not happen is marked as such in one tap, writing
   only the missed marker and leaving every metric cell untouched.
+- **This week** — Today opens with how the week stands: sessions recorded against
+  sessions planned, and time done against time planned, computed from the plan
+  already loaded rather than from any formula in the sheet.
+- **Not recorded** — a session in the past that was never logged or marked missed
+  falls through both Upcoming and Done by definition. Today says how many there
+  are and Upcoming lists them first, so a forgotten Tuesday does not quietly
+  distort the compliance figures.
 - **Move** — a session can be moved to another day, or swapped with another one
   when you did the two the other way round. Only the date and weekday cells are
   rewritten, and the weekday is spelled the way your sheet already spells it.
@@ -101,6 +108,10 @@ workbook, replays the queue onto it, and uploads. The last workbook read is cach
 so today's session is readable with no connection at all.
 
 Without Dropbox at all, **Open a file** and **Save a copy** do the same job by hand.
+
+Settings → Syncing shows exactly what is waiting, with any error it hit, and lets
+you discard an entry that will never go through — a queue that silently refuses to
+drain is otherwise indistinguishable from one that is working.
 
 ## Structure
 
