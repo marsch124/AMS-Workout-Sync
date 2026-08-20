@@ -1145,6 +1145,11 @@ body.detail-open .tab-bar { display: none; }
     flex-direction: column;
     gap: 0.5rem;
     margin-bottom: 0.5rem;
+    /* A fortnight of sessions is a long list; it scrolls rather than pushing
+       Cancel off the bottom of the screen. */
+    max-height: 60vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 /* Stacked, so the count sits under the name rather than beside it. */

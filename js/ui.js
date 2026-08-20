@@ -740,6 +740,167 @@ const AmsUi = (function () {
         toast('Calendar file saved — open it to add the week.', 'good');
     }
 
+    /* ---------- one session on its own ---------- */
+
+    /*
+     * A single session as a message. Shorter than a week and shaped
+     * differently: the day is the heading, and there is room for the whole
+     * breakdown, which in a week would bury everything else.
+     */
+    function sessionShareText(workout) {
+        if (!workout) return '';
+        const mapping = AmsSync.getState().mapping || {};
+        const planned = AmsPlan.formatDuration(
+            AmsPlan.plannedDurationSeconds(workout, mapping) || 0);
+
+        const lines = [];
+        lines.push(longDay(workout.date) + ' — ' + workout.discipline.label
+            + (planned ? ', ' + planned : ''));
+        if (workout.title) lines.push(workout.title);
+
+        const detail = [];
+        if (workout.planned && workout.planned.intensity) {
+            detail.push('Intensity: ' + workout.planned.intensity);
+        }
+        const purpose = workout.planned && workout.planned.description;
+        if (purpose) detail.push('Purpose: ' + purpose);
+        (workout.sections || []).forEach((section) => {
+            if (purpose && section.text === purpose) return;
+            detail.push(section.label + ': ' + section.text
+                + (section.target ? ' (' + section.target + ')' : ''));
+        });
+
+        if (detail.length) {
+            lines.push('');
+            detail.forEach((item) => lines.push('  • ' + item));
+        }
+
+        const status = statusOf(workout);
+        if (status && status.kind === 'logged') {
+            // What was actually done, where the sheet or the queue knows it.
+            const queued = workout.pending && workout.pending.values;
+            const cell = workout.results && workout.results.actualDuration;
+            const actual = queued
+                ? AmsPlan.parseDuration(queued.actualDuration)
+                : (cell && typeof cell.number === 'number'
+                    ? AmsPlan.durationFromCell(cell.number, (mapping.units || {}).duration || 'hours')
+                    : null);
+            lines.push('');
+            lines.push(actual ? 'Done — ' + AmsPlan.formatDuration(actual) : 'Done.');
+        } else if (status && status.kind === 'missed') {
+            lines.push('');
+            lines.push('Marked missed.');
+        }
+
+        return lines.join('\n');
+    }
+
+    /* The same session as a single calendar event, on the same terms as a
+       week: six in the morning, as long as it is planned to be, no reminder. */
+    function sessionCalendar(workout) {
+        if (!workout) return null;
+        const mapping = AmsSync.getState().mapping || {};
+        const seconds = AmsPlan.plannedDurationSeconds(workout, mapping) || 0;
+        const planned = AmsPlan.formatDuration(seconds);
+
+        let summary = workout.discipline.label + (planned ? ' ' + planned : '');
+        if (workout.title) summary += ' — ' + workout.title;
+        if (summary.length > 80) summary = summary.slice(0, 79).trimEnd() + '…';
+
+        const notes = [];
+        if (workout.title) notes.push(workout.title);
+        if (workout.planned && workout.planned.intensity) {
+            notes.push('Intensity: ' + workout.planned.intensity);
+        }
+        const purpose = workout.planned && workout.planned.description;
+        if (purpose) notes.push('Purpose: ' + purpose);
+        (workout.sections || []).forEach((section) => {
+            if (purpose && section.text === purpose) return;
+            notes.push(section.label + ': ' + section.text
+                + (section.target ? ' (' + section.target + ')' : ''));
+        });
+
+        const event = {
+            key: workout.key,
+            dayKey: workout.dayKey,
+            summary: summary,
+            description: notes.join('\n'),
+            startSeconds: seconds ? CALENDAR_START_HOUR * 3600 : 0,
+            durationSeconds: seconds
+        };
+
+        return {
+            ics: AmsIcs.build([event], 'Training'),
+            name: 'session-' + workout.dayKey + '-' + workout.discipline.id + '.ics',
+            count: 1
+        };
+    }
+
+    /*
+     * Both forms are built before the question is asked, for the same reason
+     * the week's are: the tap that answers has to be the tap that shares.
+     */
+    function shareSession(workout) {
+        if (!workout) return;
+        const text = sessionShareText(workout);
+        const calendar = sessionCalendar(workout);
+        const planned = AmsPlan.formatDuration(
+            AmsPlan.plannedDurationSeconds(workout, AmsSync.getState().mapping || {}) || 0);
+
+        openChoice(workout.discipline.label + ' on ' + shortDay(workout.date), [
+            { label: 'Send as a message', sub: planned ? planned + ' · the whole session' : 'the whole session',
+              act: () => shareText(text) },
+            { label: 'Add to the calendar',
+              sub: planned
+                  ? String(CALENDAR_START_HOUR).padStart(2, '0') + ':00, ' + planned
+                  : 'all day',
+              act: () => shareCalendar(calendar) }
+        ]);
+    }
+
+    /*
+     * Everything in the two weeks worth sending on its own. Rest days are left
+     * out: nobody needs a rest day forwarded by itself.
+     */
+    function sessionsToOffer() {
+        const from = AmsSync.weekStart(AmsSync.todayKey());
+        if (!from) return [];
+
+        const out = [];
+        [0, 1].forEach((weeksAhead) => {
+            const start = weeksAhead ? shiftDayKey(from, weeksAhead * 7) : from;
+            AmsSync.weekDays(start).forEach((day) => {
+                day.training.forEach((workout) => out.push({
+                    workout: workout,
+                    thisWeek: weeksAhead === 0
+                }));
+            });
+        });
+        return out;
+    }
+
+    function openSessionPicker() {
+        const offered = sessionsToOffer();
+        if (!offered.length) {
+            toast('There are no sessions in these two weeks to send.', 'bad');
+            return;
+        }
+
+        const mapping = AmsSync.getState().mapping || {};
+        openChoice('Which session?', offered.map((item) => {
+            const workout = item.workout;
+            const planned = AmsPlan.formatDuration(
+                AmsPlan.plannedDurationSeconds(workout, mapping) || 0);
+            const title = workout.title || '';
+            return {
+                label: shortDay(workout.date) + ' · ' + workout.discipline.label
+                    + (planned ? ' ' + planned : ''),
+                sub: title.length > 46 ? title.slice(0, 45).trimEnd() + '…' : title,
+                act: () => shareSession(workout)
+            };
+        }));
+    }
+
     /*
      * Both weeks are written out before the question is asked, so that the tap
      * that answers it goes straight to the share sheet with nothing in between.
@@ -774,7 +935,9 @@ const AmsUi = (function () {
             { label: 'This week to the calendar', sub: events(thisCal),
               act: () => shareCalendar(thisCal) },
             { label: 'Next week to the calendar', sub: events(nextCal),
-              act: () => shareCalendar(nextCal) }
+              act: () => shareCalendar(nextCal) },
+            { label: 'One session on its own…', sub: 'anything in these two weeks',
+              act: () => openSessionPicker() }
         ]);
     }
 
@@ -2239,6 +2402,9 @@ const AmsUi = (function () {
                 + 'sitting on top of it. No reminders are set: a phone that pinged before every session '
                 + 'of a 48-week plan would be silenced inside a week. Rest days go in as all-day entries '
                 + '— when you are free is as much use to somebody as when you are training.</p>'
+                + '<p>A single session can go on its own too, in either form: the share button at the top '
+                + 'of a session sends that one, and the week sheet offers a list of everything in this '
+                + 'week and next to pick from.</p>'
                 + '<p><strong>Plan</strong> — the whole schedule, in four lists. <em>Upcoming</em> is what is '
                 + 'still to do, and leads with anything from before today that was never recorded. '
                 + '<em>Done</em> is what you performed. <em>Missed</em> is what you marked as not done, kept '
@@ -2785,6 +2951,8 @@ const AmsUi = (function () {
                 else openTab(go.dataset.go);
             }
         });
+
+        $('shareWorkoutButton').addEventListener('click', () => shareSession(currentWorkout));
 
         $('openLogButton').addEventListener('click', () => openLog());
         $('markMissedButton').addEventListener('click', () => markMissed());

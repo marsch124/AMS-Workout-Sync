@@ -8,13 +8,24 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.21.0';
+    const CURRENT = '1.22.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.22.0',
+            date: '2026-08-20',
+            headline: 'One session, on its own',
+            items: [
+                'A session can now be sent by itself, as a message or as a single calendar event, on the same terms as a week: 06:00, as long as it is planned to be, no reminder.',
+                'Two ways to it. A share button at the top of any session sends that one — which is where you already are when you decide to. And the week sheet has gained "One session on its own", which lists everything in this week and next to pick from.',
+                'A session sent on its own has room for the whole thing: the warm-up, the intervals, the technique work and the cool-down, each on its own line. In a week that detail would bury everything else, so there it stays in the notes.',
+                'If it has been done, the message says so and how long it took.'
+            ]
+        },
         {
             version: '1.21.0',
             date: '2026-08-20',

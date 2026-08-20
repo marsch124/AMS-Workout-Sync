@@ -17,6 +17,7 @@ node tests/column-collision.js
 node tests/foreign-extras-sheet.js
 node tests/edited-workbook.js
 node tests/calendar-export.js
+node tests/session-share.js
 ```
 
 Each script prints what it found and ends with `errors: none`. Nothing is
@@ -55,6 +56,11 @@ session is still waiting to sync. Same number of rows, different content:
 satisfy something old and fussy (RFC 5545) or a calendar refuses it without
 saying why: CRLF endings, lines folded at 75 **octets**, commas and semicolons
 escaped, and an all-day event whose end date is the day after its start.
+
+**`session-share.js`** — one session sent on its own, by both routes: the
+share button on the session, and the picker in the week sheet. Checks the
+message, the single-event calendar file, and that the picker offers everything
+in this week and next.
 
 **`column-collision.js`** — a mapping that points a results column at a column
 the plan lives in. Logging must refuse to write there rather than overwrite the
