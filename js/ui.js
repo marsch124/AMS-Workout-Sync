@@ -281,6 +281,29 @@ const AmsUi = (function () {
      * a session or the sofa, and it was previously only visible by opening the
      * workbook on a laptop.
      */
+    /*
+     * What the week's numbers should say, which is not the same sentence all
+     * week. "0m of 3h 05m planned" is a true statement and a dispiriting one:
+     * on a Monday it reports a shortfall against work that was never due yet.
+     *
+     * So: before anything is done, state the week's target and leave the zero
+     * to the session count above. Once something is banked, lead with it and
+     * point at what is left rather than at what is missing. And when the week
+     * is met, say so instead of quietly reading 100%.
+     */
+    function weekFigures(week) {
+        const planned = AmsPlan.formatDuration(week.plannedSeconds);
+        if (!week.actualSeconds) return planned + ' planned this week';
+
+        const done = AmsPlan.formatDuration(week.actualSeconds) + ' done';
+        const remaining = week.plannedSeconds - week.actualSeconds;
+
+        // Within a minute either way is met, not "1m to go".
+        if (remaining > 60) return done + ' · ' + AmsPlan.formatDuration(remaining) + ' to go';
+        if (remaining < -60) return done + ' · ' + AmsPlan.formatDuration(-remaining) + ' over';
+        return done + ' · week complete';
+    }
+
     function weekCard() {
         const week = AmsSync.weekSummary();
         if (!week || !week.plannedSeconds) return '';
@@ -294,12 +317,7 @@ const AmsUi = (function () {
             + '<p class="week-card-count">' + week.recorded + ' of ' + week.sessions + ' sessions</p>'
             + '</div>'
             + '<div class="week-bar"><span style="width:' + width + '%"></span></div>'
-            + '<p class="week-card-figures">'
-            // formatDuration(0) is "0s", which reads oddly against hours.
-            + esc(week.actualSeconds ? AmsPlan.formatDuration(week.actualSeconds) : '0m') + ' of '
-            + esc(AmsPlan.formatDuration(week.plannedSeconds)) + ' planned'
-            + (week.actualSeconds ? ' · ' + percent + '%' : '')
-            + '</p></div>';
+            + '<p class="week-card-figures">' + esc(weekFigures(week)) + '</p></div>';
     }
 
     /*
@@ -1914,6 +1932,7 @@ const AmsUi = (function () {
     return {
         init,
         toast,
+        weekFigures,   // pure, and exposed so its wording can be tested directly
         renderToday,
         renderPlan,
         renderSettings,

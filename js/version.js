@@ -8,13 +8,21 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.5.0';
+    const CURRENT = '1.5.1';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.5.1',
+            date: '2026-08-20',
+            headline: 'The week reads as encouragement, not arrears',
+            items: [
+                '"This week" no longer opens the week by reporting a shortfall. Before anything is done it states the target; once something is banked it leads with that and points at what is left; when the week is met it says so.'
+            ]
+        },
         {
             version: '1.5.0',
             date: '2026-08-19',
