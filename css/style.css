@@ -9,6 +9,14 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/*
+ * `hidden` has to win. Any class that sets `display` outbids the browser's own
+ * [hidden] rule, so an element the code believes it has hidden stays on screen:
+ * that is how the status strip kept its space with nothing to say in it, and
+ * how a rest day went on offering a "Log this session" button.
+ */
+[hidden] { display: none !important; }
+
 :root {
     --color-bg: #0a1f1f;
     --color-surface: #1a3535;

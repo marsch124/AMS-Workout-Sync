@@ -8,13 +8,22 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.10.0';
+    const CURRENT = '1.10.1';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.10.1',
+            date: '2026-08-20',
+            headline: 'Things that were hidden are now hidden',
+            items: [
+                'The empty bar above "This week" is gone. It is the strip that explains a sync problem, and it was meant to appear only when there is something to explain — but the styling was beating the instruction to hide it, so it sat there empty most of the time.',
+                'The same fault was offering "Log this session" and "Missed" on a rest day, on a screen that had already decided there was nothing to log. Both are fixed by the same one line.'
+            ]
+        },
         {
             version: '1.10.0',
             date: '2026-08-20',
