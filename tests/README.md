@@ -20,6 +20,7 @@ node tests/calendar-export.js
 node tests/session-share.js
 node tests/progress.js
 node tests/logging.js
+node tests/move-log.js
 ```
 
 Each script prints what it found and ends with `errors: none`. Nothing is
@@ -78,6 +79,19 @@ without stranding it: the card has to open the session, where Log, Missed and
 Move all still are — which matters most for a missed session you did after
 all. And the exception has to hold: a session moved *to* today keeps its
 buttons, because it still needs doing.
+
+**`move-log.js`** — the one thing this app remembers that the workbook does
+not. Rescheduling overwrites the date, so the sheet forgets the move; the app
+keeps its own record and the Progress screen leans on it. That makes it a
+small database, and it is checked for the ways small databases go wrong:
+
+- it outlives what it points at — a row inserted in Excel slides every session
+  onto its neighbour's identity, and a move must not then be read against a
+  session it has nothing to do with
+- it gets written when the deed failed — a move whose queue write threw must
+  leave no record behind
+- it comes back from storage in an unexpected shape — strings, arrays, nulls,
+  dates that are not dates
 
 **`column-collision.js`** — a mapping that points a results column at a column
 the plan lives in. Logging must refuse to write there rather than overwrite the

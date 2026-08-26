@@ -173,6 +173,23 @@ def history(path):
     wb.save(path)
 
 
+def row_inserted(path, source):
+    """
+    The same week as plain.xlsx with one extra row pushed in above the data —
+    a phase banner, a note, anything somebody types in Excel on a Sunday.
+
+    Every session below it moves down one row, which changes the identity the
+    app derives from sheet+row. Anything the app remembers *by* that identity
+    now points at the wrong session.
+    """
+    wb = openpyxl.load_workbook(source)
+    ws = wb['Weekly Schedules']
+    ws.insert_rows(2)
+    ws.cell(row=2, column=1, value='')
+    ws.cell(row=2, column=2, value='--- a note somebody added ---')
+    wb.save(path)
+
+
 def broken(path_rubbish, path_truncated, source):
     with open(path_rubbish, 'wb') as fh:
         fh.write(b'this is not a zip, it is a sentence')
@@ -189,6 +206,8 @@ if __name__ == '__main__':
     column_inserted(os.path.join(OUT, 'column-inserted.xlsx'))
     foreign_extras(os.path.join(OUT, 'foreign-extras.xlsx'))
     history(os.path.join(OUT, 'history.xlsx'))
+    row_inserted(os.path.join(OUT, 'row-inserted.xlsx'),
+                 os.path.join(OUT, 'plain.xlsx'))
     broken(os.path.join(OUT, 'rubbish.xlsx'),
            os.path.join(OUT, 'truncated.xlsx'),
            os.path.join(OUT, 'plain.xlsx'))

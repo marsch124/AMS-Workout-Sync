@@ -8,13 +8,26 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.30.0';
+    const CURRENT = '1.31.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.31.0',
+            date: '2026-08-26',
+            headline: 'Hardening the parts added since the last pass',
+            items: [
+                'Everything built since the last hardening — the Progress screen, the figures behind it, and the record of what was moved — put under the same treatment as the rest of the app. Two real faults found, both silent, both fixed.',
+                '**A move was recorded even when the move failed.** If the phone could not write the reschedule to its queue — no space, storage refusing — the attempt threw, nothing was rescheduled, and the record was written anyway. The Progress screen would then report a session moved and kept that had never moved. The record is now written only after the move itself has succeeded.',
+                '**A remembered move could attach itself to the wrong session.** A session is identified by its sheet and row number, so inserting a single row in Excel slides every session below it onto its neighbour\u2019s identity. A move recorded against a Tuesday bike could later be read against whatever now occupies that row — in testing, a rest day. Each record now carries the sport it belonged to, and a move whose sport no longer matches is ignored rather than believed. A confidently wrong answer became a missing one, which is the right trade.',
+                'The Progress figures now refresh wherever the rest of the app does. Standing on that tab while a sync landed used to leave the previous numbers on screen.',
+                'Anything read back from storage is now treated as though a stranger wrote it — because across a browser or app upgrade that is close enough to true. Records that are not dates, or not objects, or not there at all, are dropped instead of counted.',
+                'Also checked and found sound: twenty thousand sessions summarise in nine milliseconds; a workbook full of hostile text reaches the screen as text; and opening the tab twenty-five times in a row does not leave a stale answer or a duplicated screen.',
+            ]
+        },
         {
             version: '1.30.0',
             date: '2026-08-26',

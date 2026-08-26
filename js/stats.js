@@ -87,11 +87,35 @@ const AmsStats = (function () {
      * slip. Moves made from this app are recorded separately and put back (see
      * plannedDayOf); moves made in Excel cannot be, and are invisible.
      */
-    function plannedDayOf(workout, moves) {
+    /*
+     * A remembered move is only believed if the session it names is still the
+     * session it was. The key is sheet plus row, and a row inserted in Excel
+     * slides every session below it onto its neighbour's identity — so without
+     * this check a move recorded against a bike session would later be read
+     * against whatever now sits in that row, which may be a rest day. The
+     * sport is the cheapest thing that survives an edit and settles the
+     * question; when it disagrees the record is ignored, and the session simply
+     * counts on the day the sheet currently gives it.
+     */
+    function moveFor(workout, moves) {
         const move = moves[workout.key];
-        const from = move && move.from ? move.from : workout.dayKey;
+        if (!move) return null;
+        if (move.disciplineId && workout.discipline
+                && move.disciplineId !== workout.discipline.id) return null;
+        return move;
+    }
+
+    function plannedDayOf(workout, moves) {
+        const move = moveFor(workout, moves);
+        const from = move && typeof move.from === 'string' ? move.from : workout.dayKey;
         const date = new Date(from + 'T00:00:00Z');
-        return isNaN(date.getTime()) ? null : date.getUTCDay();
+        if (isNaN(date.getTime())) {
+            // An unusable origin must not remove the session from the chart —
+            // fall back to where the sheet says it is.
+            const fallback = new Date(workout.dayKey + 'T00:00:00Z');
+            return isNaN(fallback.getTime()) ? null : fallback.getUTCDay();
+        }
+        return date.getUTCDay();
     }
 
     function byDay(past, moves) {
@@ -186,7 +210,7 @@ const AmsStats = (function () {
          */
         const moved = past.filter((workout) => {
             if (workout.outcome === 'missed') return false;
-            const move = moves[workout.key];
+            const move = moveFor(workout, moves);
             return !!(move && move.from && move.to && move.from !== move.to);
         }).length;
 

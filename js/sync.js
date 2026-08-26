@@ -388,33 +388,74 @@ const AmsSync = (function () {
     const MOVES_KEY = 'moveLog';
     const MOVES_LIMIT = 600;
 
+    const DAY_KEY = /^\d{4}-\d{2}-\d{2}$/;
+
+    /*
+     * Anything read back out of storage is treated as though a stranger wrote
+     * it, because across a version or a browser upgrade that is effectively
+     * true. A record that does not survive this is dropped rather than
+     * repaired: a wrong statistic is worse than a missing one.
+     */
+    function usableMove(record) {
+        return !!(record && typeof record === 'object'
+            && typeof record.from === 'string' && DAY_KEY.test(record.from)
+            && typeof record.to === 'string' && DAY_KEY.test(record.to));
+    }
+
     async function readMoves() {
         try {
             const stored = await AmsDb.get(MOVES_KEY);
-            if (stored && typeof stored === 'object' && stored.moves) return stored;
+            if (stored && typeof stored === 'object' && !Array.isArray(stored)
+                    && stored.moves && typeof stored.moves === 'object'
+                    && !Array.isArray(stored.moves)) {
+                const moves = {};
+                Object.keys(stored.moves).forEach((key) => {
+                    if (usableMove(stored.moves[key])) moves[key] = stored.moves[key];
+                });
+                return { since: typeof stored.since === 'string' ? stored.since : null, moves: moves };
+            }
         } catch (err) {
             /* A statistic is never worth failing a load for. */
         }
         return { since: null, moves: {} };
     }
 
-    async function rememberMove(workout, toDayKey) {
-        if (!workout || !workout.key || !toDayKey) return;
+    /*
+     * `origin` is what the session was before it moved — its key, the day it
+     * came from, and its sport.
+     *
+     * The sport is stored because the key is not stable. A key is sheet name
+     * plus row number, so inserting a single row in Excel shifts every session
+     * below it onto the identity of the one above, and a remembered move would
+     * then be read against a session it has nothing to do with — a bike moved
+     * on Tuesday reappearing as a rest day that slipped. Recording the sport
+     * lets the reader notice the row no longer holds what it did and ignore the
+     * record, which turns a confidently wrong answer into a missing one.
+     */
+    async function rememberMove(origin, toDayKey) {
+        if (!origin || !origin.key || !toDayKey) return;
         try {
             const log = await readMoves();
-            const existing = log.moves[workout.key];
-            log.moves[workout.key] = {
+            const existing = log.moves[origin.key];
+            const record = {
                 // Keep the *first* origin: a session moved twice slipped from
                 // where it was planned, not from where it paused on the way.
-                from: (existing && existing.from) || workout.dayKey,
+                from: (existing && existing.from) || origin.dayKey,
                 to: toDayKey,
+                disciplineId: (existing && existing.disciplineId) || origin.disciplineId || '',
                 at: new Date().toISOString()
             };
-            log.since = log.since || new Date().toISOString();
+            if (!usableMove(record)) return;
+            log.moves[origin.key] = record;
+            log.since = log.since || record.at;
 
             const keys = Object.keys(log.moves);
             if (keys.length > MOVES_LIMIT) {
-                keys.sort((a, b) => String(log.moves[a].at).localeCompare(String(log.moves[b].at)));
+                const stamp = (key) => {
+                    const at = log.moves[key] && log.moves[key].at;
+                    return typeof at === 'string' ? at : '';
+                };
+                keys.sort((a, b) => stamp(a).localeCompare(stamp(b)));
                 keys.slice(0, keys.length - MOVES_LIMIT).forEach((key) => { delete log.moves[key]; });
             }
 
@@ -454,8 +495,16 @@ const AmsSync = (function () {
     async function rescheduleWorkout(workout, toDayKey) {
         const state = getState();
         const weekdayNames = await weekdayNamesFor(workout.sheet);
-        await rememberMove(workout, toDayKey);
-        return logWorkout(workout, { moveTo: toDayKey, weekdayNames: weekdayNames });
+
+        // Read the origin before queueing, because queueing rewrites dayKey on
+        // the plan straight away — but do not *record* it until the move has
+        // actually been queued. A move that failed is not a move, and a log
+        // claiming otherwise would quietly inflate "moved and kept".
+        const origin = { key: workout.key, dayKey: workout.dayKey,
+                         disciplineId: workout.discipline && workout.discipline.id };
+        const result = await logWorkout(workout, { moveTo: toDayKey, weekdayNames: weekdayNames });
+        await rememberMove(origin, toDayKey);
+        return result;
     }
 
     async function swapWorkouts(a, b) {

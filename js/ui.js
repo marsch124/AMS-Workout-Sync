@@ -1579,6 +1579,7 @@ const AmsUi = (function () {
             }
             renderToday();
             renderPlan();
+            renderProgress();
         } catch (err) {
             toast(err.message || 'That could not be saved.', 'bad');
         } finally {
@@ -1609,6 +1610,7 @@ const AmsUi = (function () {
             if (active && active.id === 'workoutScreen') openWorkout(workout.key);
             renderToday();
             renderPlan();
+            renderProgress();
         } catch (err) {
             toast(err.message || 'That could not be saved.', 'bad');
         }
@@ -1873,6 +1875,7 @@ const AmsUi = (function () {
         goBack();
         renderToday();
         renderPlan();
+        renderProgress();
         const active = document.querySelector('.screen.active');
         if (active && active.id === 'workoutScreen' && rescheduleTarget) {
             const refreshed = AmsSync.byKey(rescheduleTarget.key);
@@ -2153,6 +2156,7 @@ const AmsUi = (function () {
                 renderSettings();
                 renderToday();
                 renderPlan();
+                renderProgress();
             });
         }
 
@@ -2170,6 +2174,7 @@ const AmsUi = (function () {
                     renderSettings();
                     renderToday();
                     renderPlan();
+                    renderProgress();
                 } catch (err) {
                     toast(err.message, 'bad');
                 }
@@ -2395,6 +2400,7 @@ const AmsUi = (function () {
         await renderQueue();
         renderToday();
         renderPlan();
+        renderProgress();
         renderSettings();
     }
 
@@ -2864,6 +2870,7 @@ const AmsUi = (function () {
                 goBack();
                 renderToday();
                 renderPlan();
+                renderProgress();
                 renderSettings();
                 return;
             }
@@ -2873,6 +2880,7 @@ const AmsUi = (function () {
         goBack();
         renderToday();
         renderPlan();
+        renderProgress();
         renderSettings();
     }
 
@@ -2912,6 +2920,7 @@ const AmsUi = (function () {
             button.classList.remove('spinning');
             renderToday();
             renderPlan();
+            renderProgress();
             renderSettings();
         }
     }
@@ -2959,7 +2968,7 @@ const AmsUi = (function () {
     function sportRows(sport) {
         return '<div class="stat-rows">'
             + sport.rows.map((row) =>
-                '<div class="stat-row" style="--sport: ' + (row.color || 'var(--sport-other)') + '">'
+                '<div class="stat-row" style="--sport: ' + esc(row.color || 'var(--sport-other)') + '">'
                 + '<span class="stat-row-dot"></span>'
                 + '<span class="stat-row-label">' + esc(row.label) + '</span>'
                 + '<span class="stat-row-bar">'
@@ -2971,9 +2980,15 @@ const AmsUi = (function () {
             + '</div>';
     }
 
+    let progressToken = 0;
+
     async function renderProgress() {
         const body = $('progressBody');
         if (!body) return;
+        // Opening the tab twice, or a sync landing mid-render, would otherwise
+        // let the older answer arrive last and win.
+        const token = ++progressToken;
+        const stale = () => token !== progressToken;
         const state = AmsSync.getState();
 
         if (!state.workbook || !AmsMapping.isComplete(state.mapping)) {
@@ -2983,13 +2998,21 @@ const AmsUi = (function () {
             return;
         }
 
+        if (typeof AmsStats === 'undefined') {
+            body.innerHTML = emptyState('icon-progress', 'Not loaded yet',
+                'The part that works this out has not arrived. Close the app and open it again.');
+            return;
+        }
+
         let stats;
         try {
             stats = await AmsSync.stats();
         } catch (err) {
+            if (stale()) return;
             body.innerHTML = emptyState('icon-progress', 'Could not work it out', err.message || 'Something went wrong.');
             return;
         }
+        if (stale()) return;
 
         if (!stats.any) {
             body.innerHTML = emptyState('icon-progress', 'Nothing has happened yet',
@@ -3223,6 +3246,7 @@ const AmsUi = (function () {
             if (event === 'plan') {
                 renderToday();
                 renderPlan();
+                renderProgress();
             }
             if (event === 'sync') renderSyncState();
 
