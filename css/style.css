@@ -59,7 +59,18 @@
         --color-text-secondary: #5c7373;
         --color-border: #dce6e6;
         --accent: #00875A;
-        --sport-strength: #b45309;
+        /* The dark theme's sport colours are bright by design, and on white
+           they wash out to half the contrast standard — the RUN label measured
+           2.3:1 against the 4.5 it needs. Strength was given a darker light
+           variant from the start; these finish the job. Same hue, more ink. */
+        --sport-swim: #155e75;
+        --sport-bike: #3f6212;
+        --sport-run: #166534;
+        --sport-mobility: #9d174d;
+        --sport-strength: #92400e;
+        --sport-other: #5b21b6;
+        --sport-rest: #475569;
+        --sport-race: #991b1b;
         --color-danger-text: #c81e1e;
     }
 }
@@ -907,6 +918,40 @@ body.detail-open .tab-bar { display: none; }
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
 }
+
+/*
+ * Hit areas, extended without changing what is drawn.
+ *
+ * Apple's floor for a touch target is 44 points, and three things here sat
+ * well under it — the legend toggle at 15px tall was the worst: the most
+ * interesting tap on the card, and the hardest to land. A transparent
+ * pseudo-element grows what a finger can hit while every visible pixel stays
+ * where it was. Each one extends vertically only, because these controls all
+ * have neighbours to the side that a wider halo would steal taps from.
+ */
+.week-card-head-main,
+.week-share,
+.btn-small,
+.segment { position: relative; }
+
+.week-card-head-main::after,
+.week-share::after,
+.btn-small::after,
+.segment::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -8px;
+    bottom: -8px;
+}
+
+/* 15px tall needs more reach than the rest to make 44 — and it has to come
+   from above, where only the card's own padding sits. Below it, 9px away, the
+   day columns are themselves tappable, and a positioned halo paints over
+   them: an even split would have quietly stolen the top of every day's tap. */
+.week-card-head-main::after { top: -21px; bottom: -8px; }
+.week-share::after { top: -8px; bottom: -8px; left: -8px; right: -8px; }
 
 /* Small, quiet, and out of the way of the tap that opens the key. */
 .week-share {

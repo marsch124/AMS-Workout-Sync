@@ -8,13 +8,26 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.37.0';
+    const CURRENT = '1.38.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.38.0',
+            date: '2026-08-26',
+            headline: 'The audit’s four findings, fixed the same evening',
+            items: [
+                'A full quality check of the app found four things; all four are in this release.',
+                '**The phone is now asked to keep the app’s storage.** Sessions waiting to sync, the Dropbox connection and the cached workbook all live in storage the system may tidy away under pressure; the app now makes the standard request to treat it as worth keeping, every time it starts. One line of insurance against the ugliest kind of surprise.',
+                '**“Disconnect & clear” counts what it deletes.** If sessions are still waiting to sync, the confirm now says so — “including 2 sessions not yet written to the workbook” — instead of quietly taking them with the cache.',
+                '**Light mode’s sport colours grew up.** The bright dark-theme palette washed out to half the readable-contrast standard on white; every sport now has a deeper light variant, the way Strength always did. Measured after: 6.4–7.6 to 1, against the 4.5 required.',
+                '**Small controls are thumb-sized now.** The “This week ?” legend toggle was 15 pixels tall — the most interesting tap on the card and the hardest to land. It, the share button, the plan segments and the small Settings buttons all grew invisible tap halos to 44 pixels or more, without a visible pixel moving. The toggle’s halo grows upward, deliberately: the day columns below are tappable themselves, and an even halo would have stolen the top of every day.',
+                'And a new permanent check keeps all four promises kept, so the audit is a ratchet rather than a snapshot.',
+            ]
+        },
         {
             version: '1.37.0',
             date: '2026-08-26',

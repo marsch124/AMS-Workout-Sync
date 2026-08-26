@@ -38,6 +38,22 @@
             AmsUi.toast('This browser will not let the app store anything locally.', 'bad');
         }
 
+        /*
+         * Everything the app owns — the queue of sessions not yet written to
+         * Dropbox, the connection, the cached workbook — lives in storage the
+         * operating system may evict under pressure. This is the one standard
+         * way to ask it not to. The answer is advisory and the request is
+         * remembered by the browser, so asking on every start costs nothing;
+         * a refusal is only logged, because there is nothing further to do
+         * about it and a toast would be noise about a hypothetical.
+         */
+        try {
+            if (navigator.storage && navigator.storage.persist) {
+                const kept = await navigator.storage.persist();
+                if (!kept) console.warn('The browser declined persistent storage; the app\'s data may be evicted under pressure.');
+            }
+        } catch (err) { /* an old browser without the API — nothing to ask */ }
+
         // The activity list is the user's own, and the extras form reads it as
         // it renders, so it has to be in place before the first paint.
         try {

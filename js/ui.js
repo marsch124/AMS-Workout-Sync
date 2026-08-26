@@ -2340,7 +2340,18 @@ const AmsUi = (function () {
         const reset = $('resetButton');
         if (reset) {
             reset.addEventListener('click', async () => {
-                if (!confirm('Clear the Dropbox connection, the cached workbook and the saved layout from this phone?')) return;
+                // The one confirm in the app that can delete real training
+                // data, so it has to say so — the queue holds sessions not yet
+                // written to the workbook, and "the cached workbook and the
+                // saved layout" does not cover them.
+                const pending = await AmsDb.queueCount();
+                const question = 'Clear the Dropbox connection, the cached workbook and the saved layout from this phone?'
+                    + (pending
+                        ? ' This includes ' + pending + ' session' + (pending === 1 ? '' : 's')
+                          + ' not yet written to the workbook — '
+                          + (pending === 1 ? 'it' : 'they') + ' will be lost.'
+                        : '');
+                if (!confirm(question)) return;
                 await AmsDb.reset();
                 location.reload();
             });
@@ -2704,7 +2715,8 @@ const AmsUi = (function () {
                 + 'folding it in would make the one number the plan exists to produce meaningless.</p>')
 
             + section('Offline, and how syncing works',
-                '<p>Logging never waits for a network. An entry is saved on the phone and shown immediately; '
+                '<p><strong>What this phone holds.</strong> Sessions you log wait here until they are written to Dropbox, alongside the connection itself and a cached copy of the workbook. The app asks the phone to treat that storage as worth keeping, which is the standard protection against the system tidying it away — but the workbook in Dropbox is always the real record, so syncing soon after logging is still the habit that makes everything else unimportant.</p>'
+                + '<p>Logging never waits for a network. An entry is saved on the phone and shown immediately; '
                 + 'syncing then downloads the workbook <em>as it stands now</em>, replays the queue onto that '
                 + 'copy, and uploads.</p>'
                 + '<p>Replaying rather than uploading a locally edited copy is what stops the app overwriting '

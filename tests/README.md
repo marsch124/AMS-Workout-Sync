@@ -22,6 +22,7 @@ node tests/progress.js
 node tests/logging.js
 node tests/move-log.js
 node tests/leaving-a-form.js
+node tests/august-audit.js
 ```
 
 Each script prints what it found and ends with `errors: none`. Nothing is
@@ -106,6 +107,12 @@ doing that in silence. Most of this checks when it must *not* appear — on a
 form nobody touched, and on the way out after a save — plus the awkward case:
 the extras form rebuilds itself when the activity changes and must not forget
 it had been typed into.
+
+**`august-audit.js`** — the August quality check's four findings, kept fixed:
+storage persistence is requested at boot, the reset confirm counts the queued
+sessions it would delete, the sport colours hold contrast in light mode, and
+the small controls are tappable at thumb size without their halos stealing
+taps from the day columns.
 
 **`column-collision.js`** — a mapping that points a results column at a column
 the plan lives in. Logging must refuse to write there rather than overwrite the

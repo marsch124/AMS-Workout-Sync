@@ -8,7 +8,11 @@ step, no framework, no server. Live at
 
 ## Where things stand
 
-Nothing outstanding. Shipped and confirmed working on his phone up to **v1.37.0**.
+Nothing outstanding. Shipped and confirmed working on his phone up to **v1.37.0**;
+v1.38.0 then fixed all four findings of a full audit (persist() at boot, the
+reset confirm counts the queue, darker light-mode sport palette, 44px tap halos
+— guarded permanently by `tests/august-audit.js`). The audit itself is published
+as an artifact ("The August Audit").
 
 The last run of work came from the input page and from screenshots:
 
