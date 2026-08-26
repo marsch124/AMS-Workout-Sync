@@ -313,6 +313,26 @@ const AmsSync = (function () {
         if (!AmsMapping.isComplete(mapping)) {
             mapping = await AmsMapping.autoDetect(state.workbook);
             if (mapping) await prepareMapping(state.workbook, mapping);
+        } else {
+            /*
+             * The saved layout belongs to whichever workbook was open last,
+             * which is not necessarily this one. Opening a second workbook from
+             * the phone used to carry the first one's columns straight over
+             * unchecked — and two training plans built from the same template
+             * agree closely enough that nothing looks wrong until a result is
+             * written into a column that means something else here.
+             *
+             * The Dropbox path has always checked. This one now does the same,
+             * which is the whole point of having recorded the headings.
+             */
+            await prepareMapping(state.workbook, mapping);
+            try {
+                mapping = await mappingForWorkbook(state.workbook, mapping);
+            } catch (err) {
+                // Neither the old layout nor a fresh reading fits. Asking is
+                // the only safe answer; writing into guessed columns is not.
+                mapping = null;
+            }
         }
         state.mapping = mapping;
         if (mapping) await AmsDb.set('mapping', mapping);

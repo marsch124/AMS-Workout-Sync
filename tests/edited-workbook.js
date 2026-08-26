@@ -179,6 +179,48 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
     if (out.stillQueued.length) line('kept in the queue:', JSON.stringify(out.stillQueued));
   }
 
+  // ----------------------------------------------------------------
+  // A different workbook entirely. The saved layout belongs to whichever was
+  // open before, and two plans built from the same template agree closely
+  // enough that nothing looks wrong until a result lands in a column that
+  // means something else here.
+  console.log('\nOPENING A DIFFERENT WORKBOOK');
+  await freshStart();
+  await page.click('.tab[data-tab="settings"]');
+  await page.waitForTimeout(300);
+  await page.setInputFiles('#localFileInput', SP + '/plain.xlsx');
+  await page.waitForTimeout(2600);
+  const firstCols = await page.evaluate(() => {
+    const m = AmsSync.getState().mapping;
+    return Object.keys(m.columns).filter(k => m.columns[k]).length;
+  });
+  await page.click('.tab[data-tab="settings"]');
+  await page.waitForTimeout(300);
+  await page.setInputFiles('#localFileInput', SP + '/column-inserted.xlsx');
+  await page.waitForTimeout(2800);
+  const check = await page.evaluate(async () => {
+    const s = AmsSync.getState();
+    const m = s.mapping;
+    if (!m || !m.columns) return { ok: false, why: 'no layout at all' };
+    const sheet = await s.workbook.readSheet(m.sheets[0]);
+    return {
+      ok: AmsMapping.headingsHold(sheet, m),
+      cols: Object.keys(m.columns).filter(k => m.columns[k]).length,
+      duration: m.columns.actualDuration,
+      heading: sheet.textAt(m.headerRow || 1, m.columns.actualDuration)
+    };
+  });
+  line('columns in the first workbook', firstCols);
+  line('columns after opening another', check.cols);
+  line('recorded headings describe it', check.ok ? 'yes' : 'NO');
+  line('actual-duration column holds', '"' + (check.heading || '') + '"');
+  if (!check.ok) {
+    errors.push('after opening a second workbook the recorded headings do not describe it');
+  }
+  if (check.heading && !/actual/i.test(check.heading)) {
+    errors.push('actual duration points at "' + check.heading + '" in the new workbook');
+  }
+
   console.log('\nerrors:', errors.length ? errors : 'none');
   await browser.close();
 })().catch(e => { console.error('FAILED:', e); process.exit(1); });

@@ -8,13 +8,25 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.31.0';
+    const CURRENT = '1.32.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.32.0',
+            date: '2026-08-26',
+            headline: 'Opening a second workbook reads its columns again',
+            items: [
+                'Found while rehearsing the switch from Pre-Season to the Ironman plan, which is the one thing coming up that had never been tried end to end.',
+                '**Opening a workbook from the phone kept the previous workbook\u2019s column layout, unchecked.** The saved layout belongs to whichever workbook was open last — and two plans built from the same template agree closely enough that nothing looks wrong. In this case the Ironman plan inherited a *Notes* column that only Pre-Season has, so a note would have gone into an empty column off the end of the sheet.',
+                'The protection against exactly this already existed — the app records what each heading said and refuses to write when they no longer agree — but the file-from-the-phone path never asked it. Only the Dropbox path did. It now asks too, and if neither the old layout nor a fresh reading fits, it says so and offers Sheet setup rather than writing into guessed columns.',
+                'Your September switch was never in danger, because choosing a workbook from Dropbox has always been checked. This was the *Open a file* route, used when the app is not connected.',
+                'Rehearsed on the real files afterwards: Pre-Season\u2019s 25 sessions and the Ironman plan\u2019s 419 both read correctly, the layout is worked out fresh each time, a session logged before the switch survives it, and switching back gives an identical layout to the one that was there before.',
+            ]
+        },
         {
             version: '1.31.0',
             date: '2026-08-26',
