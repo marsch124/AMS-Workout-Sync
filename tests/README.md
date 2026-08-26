@@ -80,6 +80,12 @@ Move all still are — which matters most for a missed session you did after
 all. And the exception has to hold: a session moved *to* today keeps its
 buttons, because it still needs doing.
 
+It also checks that the one shared pace column asks each sport its own
+question — km/h on a bike, min/km on a run, per 100m on a swim — and that the
+field stays text rather than number, so a rider recording `168 W` can still
+type it. That check needs `paced.xlsx`: `plain.xlsx` has no pace column, so
+the same check run there would pass by finding nothing.
+
 **`move-log.js`** — the one thing this app remembers that the workbook does
 not. Rescheduling overwrites the date, so the sheet forgets the move; the app
 keeps its own record and the Progress screen leans on it. That makes it a
