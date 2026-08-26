@@ -8,13 +8,23 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.32.0';
+    const CURRENT = '1.33.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.33.0',
+            date: '2026-08-26',
+            headline: 'The pace field asks each sport its own question',
+            items: [
+                'Your sheet has one column for all three sports — *Avg Pace/Pwr* — but it is not asking them the same thing. The log form used to call it **Pace (min/km)** whatever you were doing, which is a number no cyclist has in their head and the wrong unit for a swimmer.',
+                'It now follows the sport: **Average speed (km/h)** on a bike, **Pace (min/km)** on a run, **Pace (per 100m)** on a swim. Still the same single column in the workbook — the app does not get to add columns to your plan — only the question changes.',
+                'On a bike the field opens the number keypad, since a speed is digits and a decimal point. It stays a text field underneath, deliberately: the column is named for power as well as pace, so **168 W** must still be typeable. A number-only field would have quietly forbidden half of what the column is for.',
+            ]
+        },
         {
             version: '1.32.0',
             date: '2026-08-26',

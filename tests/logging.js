@@ -207,6 +207,61 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
     }
   }
 
+  // ----------------------------------------------------------------
+  // One column, three sports. A sheet with a single "Avg Pace/Pwr" column is
+  // asking something different of each: minutes per kilometre of a runner,
+  // minutes per hundred metres of a swimmer, and km/h of anybody on a bike,
+  // who does not think in pace at all.
+  console.log('');
+  console.log('WHAT THAT ONE COLUMN IS CALLED');
+  // A workbook whose sheet actually has that column, and all three sports on
+  // one day. plain.xlsx has no pace column at all, so testing it there would
+  // pass by finding nothing.
+  await p.click('.tab[data-tab="settings"]');
+  await p.waitForTimeout(300);
+  await p.setInputFiles('#localFileInput', __dirname + '/fixtures/paced.xlsx');
+  await p.waitForTimeout(2600);
+  const paceFor = async (sportId) => {
+    const opened = await p.evaluate((id) => {
+      const t = AmsSync.getState().plan.find(w => w.discipline.id === id);
+      if (!t) return false;
+      const btn = document.createElement('button');
+      btn.setAttribute('data-log', t.key);
+      document.body.appendChild(btn); btn.click(); btn.remove();
+      return true;
+    }, sportId);
+    if (!opened) return null;
+    await p.waitForSelector('#log-actualDuration');
+    await p.waitForTimeout(250);
+    const out = await p.evaluate(() => {
+      const i = document.getElementById('log-avgPace');
+      if (!i) return null;
+      return { label: i.closest('.field').querySelector('label').innerText.replace(/\s+/g, ' ').trim(),
+               type: i.type, mode: i.getAttribute('inputmode') || '-' };
+    });
+    await p.click('#logScreen [data-back]');
+    await p.waitForTimeout(350);
+    return out;
+  };
+
+  const expected = { bike: /km\/h/, run: /min\/km/, swim: /100m/ };
+  for (const sport of ['bike', 'run', 'swim']) {
+    const r = await paceFor(sport);
+    if (!r) { line(sport, 'no pace column in this workbook — skipped'); continue; }
+    line(sport, r.label + '   [' + r.type + ', keypad: ' + r.mode + ']');
+    if (!expected[sport].test(r.label)) {
+      errs.push(sport + ' pace field reads "' + r.label + '"');
+    }
+    if (sport === 'bike' && r.mode !== 'decimal') {
+      errs.push('a speed in km/h should open the digits, not "' + r.mode + '"');
+    }
+    // The column is "Avg Pace/Pwr": a number field would forbid "168 W", which
+    // is half of what the column is named for.
+    if (r.type !== 'text') {
+      errs.push(sport + ' pace field is type=' + r.type + ', so a unit cannot be typed');
+    }
+  }
+
   console.log('');
   console.log('errors: ' + (errs.length ? '\n  - ' + errs.join('\n  - ') : 'none'));
   await b.close();

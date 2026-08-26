@@ -1438,9 +1438,13 @@ const AmsUi = (function () {
             const value = previous && previous[field.id] !== undefined ? previous[field.id] : '';
             // Duration is typed freehand, so showing the column's unit here would
             // read as an instruction to enter decimal hours.
+            const pace = field.id === 'avgPace' ? paceFieldFor(workout) : null;
             const unit = field.id === 'actualDistance' ? distanceUnit
-                : field.id === 'actualDuration' ? '' : field.unit;
-            const label = '<label for="log-' + field.id + '">' + esc(field.label)
+                : field.id === 'actualDuration' ? ''
+                : pace ? pace.unit
+                : field.unit;
+            const label = '<label for="log-' + field.id + '">'
+                + esc(pace ? pace.label : field.label)
                 + (unit ? ' <span class="field-unit">(' + esc(unit) + ')</span>' : '') + '</label>';
 
             if (field.id === 'notes') {
@@ -1515,6 +1519,45 @@ const AmsUi = (function () {
         showScreen('logScreen');
     }
 
+    /*
+     * One column, three different questions.
+     *
+     * A sheet with a single "Avg Pace/Pwr" column is asking something different
+     * of each sport. A runner thinks in minutes per kilometre and a swimmer in
+     * minutes per hundred metres — but nobody riding a bike thinks in either.
+     * They think in km/h. Labelling that field "Pace (min/km)" on a ride asks
+     * for a number no cyclist has in their head, and labelling it that way on
+     * a swim is simply the wrong unit.
+     *
+     * So the column stays one column — it is the sheet's, and the app does not
+     * get to add another — but what it is called, and the kind of keyboard it
+     * asks for, follow the sport.
+     */
+    const PACE_BY_SPORT = {
+        /*
+         * A decimal keypad without a number field. inputmode is what decides
+         * the keyboard on a phone, so this still opens the digits — but the
+         * field stays text, and that matters here: the column is "Avg
+         * Pace/Pwr", and a rider who wants to record 168 W rather than a speed
+         * must still be able to type it. A number input would have quietly
+         * forbidden every unit the column was named for.
+         */
+        bike: { label: 'Average speed', unit: 'km/h', placeholder: 'e.g. 32.5',
+                type: 'text', mode: 'decimal' },
+        swim: { label: 'Pace', unit: 'per 100m', placeholder: 'e.g. 1:45',
+                type: 'text', mode: 'text' },
+        run:  { label: 'Pace', unit: 'min/km', placeholder: 'e.g. 4:52',
+                type: 'text', mode: 'text' }
+    };
+
+    const PACE_DEFAULT = { label: 'Pace', unit: 'min/km', placeholder: 'e.g. 4:52',
+                           type: 'text', mode: 'text' };
+
+    function paceFieldFor(workout) {
+        return (workout && workout.discipline && PACE_BY_SPORT[workout.discipline.id])
+            || PACE_DEFAULT;
+    }
+
     function inputConfig(field, workout) {
         if (field.id === 'actualDuration') {
             /* A bare number has always been read as minutes; the examples used
@@ -1524,8 +1567,9 @@ const AmsUi = (function () {
                          + 'Or write it out: 1:15, 1h20, 90min.' };
         }
         if (field.id === 'avgPace') {
-            return { type: 'text', mode: 'text',
-                     placeholder: workout.discipline.id === 'swim' ? 'e.g. 1:45 per 100m' : 'e.g. 4:52' };
+            const pace = paceFieldFor(workout);
+            return { type: pace.type, mode: pace.mode, step: pace.step,
+                     placeholder: pace.placeholder };
         }
         if (field.id === 'actualDistance') {
             return { type: 'number', mode: 'decimal', step: 'any',

@@ -190,6 +190,31 @@ def row_inserted(path, source):
     wb.save(path)
 
 
+def paced(path):
+    """
+    A week with a swim, a bike and a run today, and a single shared
+    "Avg Pace/Pwr" column — the shape a real triathlon plan uses, where one
+    column has to answer for three sports that measure themselves differently.
+    """
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Weekly Schedules'
+    ws.append(['Week', 'Date', 'Day', 'Sport', 'Workout', 'Duration (min)',
+               'Intensity', 'Purpose', 'Done', 'Actual (min)', 'Actual (km)',
+               'Avg Pace/Pwr', 'Avg HR', 'Effort', 'Notes'])
+
+    today = datetime.date.today()
+    for sport, minutes, what in [
+        ('Swim', 45, 'Technique: 8x50 drills'),
+        ('Bike', 90, 'Steady aerobic ride'),
+        ('Run', 40, 'Easy run, conversational'),
+    ]:
+        ws.append([1, today, DAYS[today.weekday()], sport, what, minutes,
+                   'Z2', 'Base', '', None, None, None, None, None, None])
+
+    wb.save(path)
+
+
 def broken(path_rubbish, path_truncated, source):
     with open(path_rubbish, 'wb') as fh:
         fh.write(b'this is not a zip, it is a sentence')
@@ -206,6 +231,7 @@ if __name__ == '__main__':
     column_inserted(os.path.join(OUT, 'column-inserted.xlsx'))
     foreign_extras(os.path.join(OUT, 'foreign-extras.xlsx'))
     history(os.path.join(OUT, 'history.xlsx'))
+    paced(os.path.join(OUT, 'paced.xlsx'))
     row_inserted(os.path.join(OUT, 'row-inserted.xlsx'),
                  os.path.join(OUT, 'plain.xlsx'))
     broken(os.path.join(OUT, 'rubbish.xlsx'),
