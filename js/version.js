@@ -8,13 +8,25 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.28.0';
+    const CURRENT = '1.29.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.29.0',
+            date: '2026-08-26',
+            headline: 'A recorded session gets out of the way',
+            items: [
+                'Once a session is logged, its three buttons go. There is nothing left to decide about a session you have already recorded, and *Log again*, *Missed* and *Move* sitting there afterwards were three offers to decide it again. The card shrinks to a line — *Recorded. Tap to see it or change it* — which leaves the day shorter and gives **Log something else** room to be seen.',
+                'Nothing is lost by it. The card now opens the session itself, where *Log again*, *Missed* and *Move to another day* all still are. Logging again overwrites; nothing is ever written twice.',
+                'The duration field now says what it always did. Typing a plain number has always meant minutes — **45** is forty-five minutes, **90** is an hour and a half — but the examples on the field were *45min, 1:15, 1h20*, every one of them carrying a unit, which read as an instruction to include one. It now shows **e.g. 45** and says so underneath. The parsing has not changed: *1:15*, *1h20*, *0.5h*, *1,5h* and *90min* all still work and still mean what they look like.',
+                'Both are written up under **How this works** — the duration formats in *Logging, missing, moving*, alongside a note that a colon means hours and minutes, so 1:15 is an hour and a quarter rather than seventy-five seconds.',
+                'That section also stopped saying "the three tabs", which it had been saying since Progress arrived and made four of them. Progress is now described there properly, including what it does not count and why.',
+            ]
+        },
         {
             version: '1.28.0',
             date: '2026-08-26',

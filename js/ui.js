@@ -268,7 +268,19 @@ const AmsUi = (function () {
         body.innerHTML = header + todays.map((workout) => {
             const state2 = AmsSync.getState();
             const planned = AmsPlan.plannedDurationSeconds(workout, state2.mapping || {});
-            return '<div class="card workout-card" ' + sportStyle(workout) + '>'
+            /*
+             * Once a session is recorded there is nothing left to decide about
+             * it, and three buttons offering to decide again are just noise
+             * between you and the next thing. So they go, and the card becomes
+             * tappable instead: everything is still there on the session's own
+             * screen, which is where you would go to correct a mistake anyway.
+             */
+            const settled = statusOf(workout);
+            const done = !!(settled && settled.kind === 'logged');
+
+            return '<div class="card workout-card' + (done ? ' card-tappable' : '') + '"'
+                + (done ? ' data-workout="' + esc(workout.key) + '"' : '') + ' '
+                + sportStyle(workout) + '>'
                 + '<div class="workout-card-head">'
                 +   '<div class="sport-badge"><svg class="icon"><use href="#icon-' + esc(workout.discipline.icon) + '"></use></svg></div>'
                 +   '<div class="workout-card-titles">'
@@ -285,13 +297,13 @@ const AmsUi = (function () {
                 + '<div style="margin-top:0.9rem">' + sectionsHtml(workout) + '</div>'
                 + (workout.discipline.id === 'rest'
                     ? '<p class="hint-inline">Nothing to log — the adaptation happens now.</p>'
-                    : '<div class="button-row" style="margin-top:0.4rem">'
-                        + '<button class="btn btn-primary" data-log="' + esc(workout.key) + '">'
-                        + (statusOf(workout) && statusOf(workout).kind === 'logged' ? 'Log again' : 'Log this session')
-                        + '</button>'
-                        + '<button class="btn btn-small" data-missed="' + esc(workout.key) + '">Missed</button>'
-                        + '<button class="btn btn-small" data-move="' + esc(workout.key) + '">Move</button>'
-                      + '</div>')
+                    : done
+                        ? '<p class="hint-inline">Recorded. Tap to see it or change it.</p>'
+                        : '<div class="button-row" style="margin-top:0.4rem">'
+                            + '<button class="btn btn-primary" data-log="' + esc(workout.key) + '">Log this session</button>'
+                            + '<button class="btn btn-small" data-missed="' + esc(workout.key) + '">Missed</button>'
+                            + '<button class="btn btn-small" data-move="' + esc(workout.key) + '">Move</button>'
+                          + '</div>')
                 + '</div>';
         }).join('') + extrasBlock();
     }
@@ -1496,8 +1508,11 @@ const AmsUi = (function () {
 
     function inputConfig(field, workout) {
         if (field.id === 'actualDuration') {
-            return { type: 'text', mode: 'text', placeholder: 'e.g. 45min, 1:15, 1h20',
-                     hint: 'Minutes, h:mm, or "1h 20" — whichever is quicker to type.' };
+            /* A bare number has always been read as minutes; the examples used
+               to imply otherwise by carrying a unit on every one of them. */
+            return { type: 'text', mode: 'text', placeholder: 'e.g. 45',
+                     hint: 'Just a number means minutes — 45 is 45 minutes, 90 is an hour and a half. '
+                         + 'Or write it out: 1:15, 1h20, 90min.' };
         }
         if (field.id === 'avgPace') {
             return { type: 'text', mode: 'text',
@@ -2392,7 +2407,7 @@ const AmsUi = (function () {
             + 'This app reads today’s session out of it, and writes what you did back into the same cells '
             + 'your totals and charts already point at. It never keeps a copy of your training anywhere else.</p></div>'
 
-            + section('The three tabs',
+            + section('The four tabs',
                 '<p><strong>Today</strong> — what is planned for today, broken into warm-up, intervals, '
                 + 'technique and cool-down, plus anything you did that was not planned. The share button on '
                 + 'the week card asks which week you mean, and whether to send it as a message or add '
@@ -2411,6 +2426,15 @@ const AmsUi = (function () {
                 + '<em>Done</em> is what you performed. <em>Missed</em> is what you marked as not done, kept '
                 + 'apart from the sessions you did and still open to log if it turns out you did it. '
                 + '<em>All</em> is everything.</p>'
+                + '<p><strong>Progress</strong> — four things your workbook cannot say about itself: which '
+                + 'weekday you actually skip, which sport is running behind, how many sessions you have '
+                + 'kept in a row, and how often one was moved rather than lost. It is worked out from your '
+                + 'sessions each time you open it, and it never writes anything: the totals and the chart '
+                + 'on your own Progress sheet stay exactly as Excel keeps them. Rest days are not counted '
+                + '(a day off cannot be kept or missed), sessions still to come are not counted, and a '
+                + 'session you never answered either way counts against you rather than vanishing. Until '
+                + 'there is enough history to mean anything, it says so instead of drawing confident '
+                + 'shapes over three data points.</p>'
                 + '<p><strong>Settings</strong> — the Dropbox connection, which workbook to use, and how its '
                 + 'columns are read.</p>')
 
@@ -2452,6 +2476,19 @@ const AmsUi = (function () {
                 '<p><strong>Log</strong> asks first for the numbers that suit the sport; every other column '
                 + 'your sheet has is one tap away, and once you ask for the full set it keeps showing it. '
                 + 'Anything left blank leaves that cell exactly as it was.</p>'
+
+                + '<p><strong>How long it took.</strong> Type a plain number and it means minutes — '
+                + '<code>45</code> is forty-five minutes, <code>90</code> is an hour and a half. That is '
+                + 'the quickest thing to type and it is what the field expects, so there is no need to '
+                + 'add a unit. If you would rather be explicit, all of these work and mean what they '
+                + 'look like: <code>45min</code>, <code>1:15</code>, <code>1h20</code>, <code>0.5h</code>, '
+                + '<code>1,5h</code>. A colon is read as hours and minutes, so <code>1:15</code> is an '
+                + 'hour and a quarter rather than seventy-five seconds. Whatever you type, the sheet '
+                + 'receives it in whichever unit your workbook counts in.</p>'
+
+                + '<p><strong>Once a session is recorded</strong> its buttons go away, because there is '
+                + 'nothing left to decide about it. Tap the card itself to see what was written or to '
+                + 'change it — logging again simply overwrites, and nothing is ever added twice.</p>'
                 + '<p><strong>Missed</strong> writes the missed marker and nothing else. Leaving the metric '
                 + 'cells empty is what keeps the session out of your actual-hours totals rather than scoring '
                 + 'it zero.</p>'

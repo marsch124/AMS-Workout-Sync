@@ -19,6 +19,7 @@ node tests/edited-workbook.js
 node tests/calendar-export.js
 node tests/session-share.js
 node tests/progress.js
+node tests/logging.js
 ```
 
 Each script prints what it found and ends with `errors: none`. Nothing is
@@ -69,6 +70,11 @@ behind, the last fortnight is clean. It checks that those are the answers it
 finds, that a rest day is never counted as a session it could have kept, that
 an unanswered session does not read as a completed one, and that a move is
 remembered even though the workbook forgets it.
+
+**`logging.js`** — what you type into the duration field, and what the card
+does once the session is recorded. A bare `45` must mean forty-five minutes,
+and the buttons must disappear afterwards *without* stranding the session: the
+card has to open it, where Log again, Missed and Move all still are.
 
 **`column-collision.js`** — a mapping that points a results column at a column
 the plan lives in. Logging must refuse to write there rather than overwrite the

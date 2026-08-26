@@ -1,0 +1,113 @@
+/*
+ * Logging a session: what you type, and what the card does afterwards.
+ *
+ * Two things that are easy to break and easy not to notice:
+ *
+ *   - a bare number in the duration field means minutes. It always has, but
+ *     the field used to show three examples that all carried a unit, which
+ *     read as though a unit were required.
+ *   - once a session is recorded its buttons go away, because there is
+ *     nothing left to decide. That is only safe while the card itself opens
+ *     the session, where all three actions still live — otherwise a mistaken
+ *     log would be uncorrectable from the Today screen.
+ */
+const { chromium } = require('playwright');
+const errs = [];
+const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
+(async () => {
+  const b = await chromium.launch({ ...(process.env.CHROME_PATH && require('fs').existsSync(process.env.CHROME_PATH)
+      ? { executablePath: process.env.CHROME_PATH } : {}) });
+  const ctx = await b.newContext({ viewport: { width: 390, height: 900 } });
+  const p = await ctx.newPage();
+  p.on('pageerror', e => errs.push('PAGEERROR: ' + e.message));
+  p.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
+  p.on('dialog', d => d.accept());
+  await p.goto('http://localhost:7810/', { waitUntil: 'networkidle' });
+  await p.click('.tab[data-tab="settings"]');
+  await p.waitForSelector('#openLocalButton');
+  await p.setInputFiles('#localFileInput', __dirname + '/fixtures/plain.xlsx');
+  await p.waitForTimeout(2500);
+  await p.click('.tab[data-tab="today"]');
+  await p.waitForTimeout(600);
+
+  const before = await p.evaluate(() => {
+    const c = document.querySelector('#todayBody .workout-card');
+    return { log: !!c.querySelector('[data-log]'), missed: !!c.querySelector('[data-missed]'),
+             move: !!c.querySelector('[data-move]'), tappable: c.classList.contains('card-tappable'),
+             label: (c.querySelector('[data-log]')||{}).textContent };
+  });
+  console.log('BEFORE LOGGING');
+  line('Log button', before.log ? '"' + before.label + '"' : 'absent');
+  line('Missed / Move', (before.missed ? 'yes' : 'no') + ' / ' + (before.move ? 'yes' : 'no'));
+  if (!before.log || !before.missed || !before.move) errs.push('buttons missing before logging');
+
+  // The field itself, and a bare number through the real form.
+  await p.click('#todayBody .workout-card [data-log]');
+  await p.waitForSelector('#log-actualDuration');
+  const field = await p.evaluate(() => {
+    const i = document.getElementById('log-actualDuration');
+    return { placeholder: i.placeholder,
+             hint: (i.closest('.field')||i.parentElement).innerText.replace(/\s+/g,' ').slice(0,150) };
+  });
+  console.log('');
+  console.log('THE DURATION FIELD');
+  line('placeholder', field.placeholder);
+  console.log('   ' + field.hint);
+  if (!/^e\.g\. 45$/.test(field.placeholder)) errs.push('placeholder still implies a unit is needed');
+
+  await p.fill('#log-actualDuration', '45');
+  const shown = await p.evaluate(() => (document.getElementById('complianceLine')||{}).textContent || '');
+  line('typing "45" reads as', shown || '(no planned line)');
+  await p.click('#saveLogButton');
+  await p.waitForTimeout(1500);
+
+  const written = await p.evaluate(async () => {
+    const q = await AmsDb.listQueue();
+    return q.length ? q[q.length-1].values.actualDuration : null;
+  });
+  line('stored from "45"', JSON.stringify(written));
+  const secs = await p.evaluate(v => AmsPlan.parseDuration(v), written);
+  line('which parses to', secs + 's = ' + Math.round(secs/60) + ' min');
+  if (secs !== 2700) errs.push('a bare 45 did not become 45 minutes (got ' + secs + 's)');
+
+  await p.click('.tab[data-tab="today"]');
+  await p.waitForTimeout(700);
+  const after = await p.evaluate(() => {
+    const c = document.querySelector('#todayBody .workout-card');
+    return { log: !!c.querySelector('[data-log]'), missed: !!c.querySelector('[data-missed]'),
+             move: !!c.querySelector('[data-move]'), tappable: c.classList.contains('card-tappable'),
+             workout: c.getAttribute('data-workout'), text: c.innerText.replace(/\s+/g,' ').slice(-70) };
+  });
+  console.log('');
+  console.log('AFTER LOGGING');
+  line('Log again / Missed / Move', [after.log, after.missed, after.move].map(x => x?'yes':'no').join(' / '));
+  line('card is tappable', after.tappable && after.workout ? 'yes' : 'NO');
+  console.log('   ...' + after.text);
+  if (after.log || after.missed || after.move) errs.push('buttons still present after logging');
+  if (!after.tappable || !after.workout) errs.push('logged card is not tappable — no way back to correct it');
+
+  // And that tapping really does reach the session, where the actions live.
+  await p.click('#todayBody .workout-card');
+  await p.waitForTimeout(600);
+  const detail = await p.evaluate(() => ({
+    screen: document.querySelector('.screen.active') ? document.querySelector('.screen.active').id : '?',
+    log: (document.getElementById('openLogButton')||{}).textContent,
+    logHidden: (document.getElementById('openLogButton')||{}).hidden,
+    missed: (document.getElementById('markMissedButton')||{}).textContent,
+    move: !!document.querySelector('#workoutScreen [data-move]')
+  }));
+  console.log('');
+  console.log('TAPPING THE CARD');
+  line('opens', detail.screen);
+  line('offers', (detail.log || '(nothing)').trim() + (detail.logHidden ? ' (HIDDEN)' : '')
+      + ' / ' + (detail.missed||'').trim() + ' / ' + (detail.move ? 'Move' : 'no move'));
+  if (!detail.log || detail.logHidden) errs.push('no way to log again from the session screen');
+  if (detail.log.trim() !== 'Log again') errs.push('expected "Log again", got "' + detail.log + '"');
+  if (!detail.move) errs.push('no way to move from the session screen');
+  if (detail.screen !== 'workoutScreen') errs.push('tapping a logged card did not open the session');
+
+  console.log('');
+  console.log('errors: ' + (errs.length ? '\n  - ' + errs.join('\n  - ') : 'none'));
+  await b.close();
+  process.exit(errs.length ? 1 : 0);
+})();
