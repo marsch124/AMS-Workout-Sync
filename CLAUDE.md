@@ -8,13 +8,23 @@ step, no framework, no server. Live at
 
 ## Where things stand
 
-Nothing outstanding. The last piece was the confirm before leaving a form with
-unsaved typing (v1.35.0) — a Cancel button was considered and rejected: the
-back arrow already is Cancel, two identical exits is worse than one, and
-splitting the footer would shrink Save, which is pressed hundreds of times a
-season. Guarded screens are listed in `GUARDED_FORMS` in `js/ui.js`; dirtiness
-is tracked by a captured listener on the document, because both forms rebuild
-themselves and per-field listeners would go with the old inputs.
+Nothing outstanding. Shipped and confirmed working on his phone up to **v1.37.0**.
+
+The last run of work came from the input page and from screenshots:
+
+- the shared `Avg Pace/Pwr` column now asks each sport its own question (1.33.0)
+- a decimal comma no longer loses the number — see invariant 5, which is the
+  general rule that fell out of it (1.34.0, and 1.34.1 for the second form,
+  which was missed the first time)
+- back asks before discarding a form with typing in it (1.35.0). A Cancel
+  button was considered and rejected: back already is Cancel, two identical
+  exits is worse than one, and splitting the footer would shrink Save, which is
+  pressed hundreds of times a season. Guarded screens are in `GUARDED_FORMS`;
+  dirtiness is tracked by a captured listener on the document, because both
+  forms rebuild themselves and per-field listeners would go with the old inputs
+- the week card's bar moved below the line it measures, with a rule closing off
+  the day columns (1.36.0), and is now drawn hollow-for-planned, solid-for-done
+  like everything else on that card (1.37.0)
 
 The open question is for Martin, not the code: after a month of real training,
 is **which day slips** on the Progress tab worth keeping, or does he already
