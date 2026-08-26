@@ -1047,8 +1047,20 @@ const AmsUi = (function () {
             + weekStrip()
             + expandedDayBlock()
             + weekLegend()
+            /*
+             * The sentence first, then the bar it belongs to.
+             *
+             * The other way round, the bar sat immediately under seven day
+             * columns and the same width as them, so it read as though it
+             * were part of that chart — a thing filling up left to right
+             * across Monday, Tuesday, Wednesday. It is nothing of the kind:
+             * it is the hours, against the hours the week asked for. Putting
+             * it under the words that say so attaches it to the right idea.
+             */
+            + '<div class="week-total">'
+            + '<p class="week-card-figures">' + esc(weekFigures(week)) + '</p>'
             + '<div class="week-bar"><span style="width:' + width + '%"></span></div>'
-            + '<p class="week-card-figures">' + esc(weekFigures(week)) + '</p></div>';
+            + '</div></div>';
     }
 
     /*

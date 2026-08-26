@@ -8,13 +8,23 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.35.0';
+    const CURRENT = '1.36.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.36.0',
+            date: '2026-08-26',
+            headline: 'The week’s bar sits with the words it belongs to',
+            items: [
+                'The green bar used to run directly beneath the seven day columns and at exactly their width, which made it look like part of that chart — something filling up left to right across Monday, Tuesday, Wednesday.',
+                'It is nothing of the kind. It is the hours you have done against the hours the week asked for, and it has no more to do with Monday than with Sunday.',
+                'So it has moved below the line that says so, with a rule separating both from the days above. The sentence and its bar now read as one thing, and the day columns end where they should.',
+            ]
+        },
         {
             version: '1.35.0',
             date: '2026-08-26',
