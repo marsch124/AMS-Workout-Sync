@@ -364,6 +364,87 @@ const AmsSync = (function () {
         return logWorkout(workout, { missed: true, notes: note || '' });
     }
 
+    /* ---------- what was moved rather than lost ---------- */
+
+    /*
+     * Rescheduling writes the new date over the old one, because that is what
+     * the workbook wants: nothing in a plan of this shape keys on the date, so
+     * restating it is the whole of the change. The cost is that the sheet then
+     * has no memory of the move — a Thursday session shifted to Saturday and
+     * completed is indistinguishable, ever after, from one always planned for
+     * Saturday.
+     *
+     * That matters for two of the figures on the Progress screen: a session
+     * moved and kept is not a session missed, and the day that keeps slipping
+     * is the day it was *planned* for. So the move is noted here, on this
+     * phone, keyed by the workout it belongs to. It is small, it is not sent
+     * anywhere, and it deliberately does not touch the workbook — a statistic
+     * is not worth writing a column into somebody's training plan for.
+     *
+     * It only knows about moves made since it started, and moves made in Excel
+     * are invisible to it. The screen says as much rather than presenting a
+     * partial count as a complete one.
+     */
+    const MOVES_KEY = 'moveLog';
+    const MOVES_LIMIT = 600;
+
+    async function readMoves() {
+        try {
+            const stored = await AmsDb.get(MOVES_KEY);
+            if (stored && typeof stored === 'object' && stored.moves) return stored;
+        } catch (err) {
+            /* A statistic is never worth failing a load for. */
+        }
+        return { since: null, moves: {} };
+    }
+
+    async function rememberMove(workout, toDayKey) {
+        if (!workout || !workout.key || !toDayKey) return;
+        try {
+            const log = await readMoves();
+            const existing = log.moves[workout.key];
+            log.moves[workout.key] = {
+                // Keep the *first* origin: a session moved twice slipped from
+                // where it was planned, not from where it paused on the way.
+                from: (existing && existing.from) || workout.dayKey,
+                to: toDayKey,
+                at: new Date().toISOString()
+            };
+            log.since = log.since || new Date().toISOString();
+
+            const keys = Object.keys(log.moves);
+            if (keys.length > MOVES_LIMIT) {
+                keys.sort((a, b) => String(log.moves[a].at).localeCompare(String(log.moves[b].at)));
+                keys.slice(0, keys.length - MOVES_LIMIT).forEach((key) => { delete log.moves[key]; });
+            }
+
+            await AmsDb.set(MOVES_KEY, log);
+        } catch (err) {
+            /* Losing a move record costs a statistic, not a session. */
+        }
+    }
+
+    /*
+     * The Progress screen's figures. Everything is derived here and now from
+     * the plan already in memory; nothing is cached, and nothing is written.
+     */
+    async function stats() {
+        const state = getState();
+        const mapping = state.mapping || {};
+        const log = await readMoves();
+
+        return Object.assign(AmsStats.summarise({
+            workouts: state.plan || [],
+            moves: log.moves || {},
+            movesSince: log.since,
+            todayKey: todayKey(),
+            isMissed: isMissed,
+            isRecorded: isRecorded,
+            orderOf: AmsPlan.disciplineOrder,
+            plannedSecondsOf: (workout) => AmsPlan.plannedDurationSeconds(workout, mapping)
+        }), { hasPlan: !!(state.plan && state.plan.length) });
+    }
+
     /*
      * Move a session to another day, and swap two sessions' days.
      *
@@ -373,6 +454,7 @@ const AmsSync = (function () {
     async function rescheduleWorkout(workout, toDayKey) {
         const state = getState();
         const weekdayNames = await weekdayNamesFor(workout.sheet);
+        await rememberMove(workout, toDayKey);
         return logWorkout(workout, { moveTo: toDayKey, weekdayNames: weekdayNames });
     }
 
@@ -1075,6 +1157,7 @@ const AmsSync = (function () {
         sync,
         persistWorkbookEdits,
         exportWorkbook,
+        stats,
         todayKey,
         forDay,
         today,

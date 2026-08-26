@@ -103,7 +103,7 @@ const AmsUi = (function () {
     }
 
     function syncTabHighlight(screenId) {
-        const map = { todayScreen: 'today', planScreen: 'plan', settingsScreen: 'settings' };
+        const map = { todayScreen: 'today', planScreen: 'plan', progressScreen: 'progress', settingsScreen: 'settings' };
         const tab = map[screenId];
         if (!tab) return;
         document.body.dataset.tab = tab;
@@ -113,11 +113,12 @@ const AmsUi = (function () {
     }
 
     function openTab(tab) {
-        const map = { today: 'todayScreen', plan: 'planScreen', settings: 'settingsScreen' };
+        const map = { today: 'todayScreen', plan: 'planScreen', progress: 'progressScreen', settings: 'settingsScreen' };
         history_.length = 0;
         showScreen(map[tab] || 'todayScreen', { replace: true });
         syncTabHighlight(map[tab] || 'todayScreen');
         if (tab === 'plan') renderPlan();
+        if (tab === 'progress') renderProgress();
         if (tab === 'settings') {
             // Shut again every time the tab is opened: the fold is a place to
             // go on purpose, not a state to leave lying open.
@@ -2864,6 +2865,194 @@ const AmsUi = (function () {
             renderPlan();
             renderSettings();
         }
+    }
+
+    /* ---------- how it is going ---------- */
+
+    /*
+     * Four questions the workbook cannot answer about itself. Each one is
+     * stated in a sentence first and shown in figures second, because a number
+     * without its meaning attached is just decoration — and because the honest
+     * answer to most of these, for the first month of a plan, is "not enough
+     * has happened yet to say".
+     */
+    function percent(value) {
+        return value === null || value === undefined ? '—' : Math.round(value * 100) + '%';
+    }
+
+    function statBlock(title, lead, body, note) {
+        return '<section class="stat-block">'
+            + '<h2 class="stat-title">' + esc(title) + '</h2>'
+            + (lead ? '<p class="stat-lead">' + lead + '</p>' : '')
+            + (body || '')
+            + (note ? '<p class="stat-note">' + note + '</p>' : '')
+            + '</section>';
+    }
+
+    /* A bar per weekday, drawn as the share kept. */
+    function dayChart(day) {
+        return '<div class="stat-bars">'
+            + day.rows.map((row) => {
+                const height = row.rate === null ? 0 : Math.max(row.rate * 100, row.done ? 4 : 0);
+                const empty = row.planned === 0;
+                return '<div class="stat-bar' + (empty ? ' is-empty' : '')
+                    + (day.worst && row.index === day.worst.index && !empty ? ' is-worst' : '') + '">'
+                    + '<div class="stat-bar-track">'
+                    + '<div class="stat-bar-fill" style="height: ' + height.toFixed(1) + '%"></div>'
+                    + '</div>'
+                    + '<div class="stat-bar-value">' + (empty ? '·' : percent(row.rate)) + '</div>'
+                    + '<div class="stat-bar-label">' + esc(row.short) + '</div>'
+                    + '</div>';
+            }).join('')
+            + '</div>';
+    }
+
+    function sportRows(sport) {
+        return '<div class="stat-rows">'
+            + sport.rows.map((row) =>
+                '<div class="stat-row" style="--sport: ' + (row.color || 'var(--sport-other)') + '">'
+                + '<span class="stat-row-dot"></span>'
+                + '<span class="stat-row-label">' + esc(row.label) + '</span>'
+                + '<span class="stat-row-bar">'
+                + '<span class="stat-row-fill" style="width: ' + ((row.rate || 0) * 100).toFixed(1) + '%"></span>'
+                + '</span>'
+                + '<span class="stat-row-value">' + percent(row.rate) + '</span>'
+                + '<span class="stat-row-detail">' + row.done + '/' + row.planned + '</span>'
+                + '</div>').join('')
+            + '</div>';
+    }
+
+    async function renderProgress() {
+        const body = $('progressBody');
+        if (!body) return;
+        const state = AmsSync.getState();
+
+        if (!state.workbook || !AmsMapping.isComplete(state.mapping)) {
+            body.innerHTML = emptyState('icon-progress', 'Nothing loaded',
+                'Connect your workbook in Settings and this fills itself in.',
+                '<button class="btn btn-primary" data-go="settings">Open settings</button>');
+            return;
+        }
+
+        let stats;
+        try {
+            stats = await AmsSync.stats();
+        } catch (err) {
+            body.innerHTML = emptyState('icon-progress', 'Could not work it out', err.message || 'Something went wrong.');
+            return;
+        }
+
+        if (!stats.any) {
+            body.innerHTML = emptyState('icon-progress', 'Nothing has happened yet',
+                'Once sessions are behind you, this is where the patterns in them show up.');
+            return;
+        }
+
+        /*
+         * Said plainly and early: a handful of sessions cannot support a
+         * statistic, and a screen that draws confident bars over four data
+         * points is lying with a straight face.
+         */
+        const thin = stats.counted < 12;
+        const preamble = thin
+            ? '<div class="stat-caution">'
+                + '<p><strong>Too early to read much into this.</strong> '
+                + esc(String(stats.counted)) + ' session' + (stats.counted === 1 ? '' : 's')
+                + ' ' + (stats.counted === 1 ? 'has' : 'have') + ' gone by. '
+                + 'The figures below are real, but a fortnight of training cannot tell you '
+                + 'which day you skip — it can only tell you about that fortnight.</p></div>'
+            : '';
+
+        const answered = stats.answered;
+        const overall = answered ? stats.done / answered : null;
+
+        const summary = statBlock('So far',
+            esc(String(stats.done)) + ' of ' + esc(String(stats.counted))
+            + ' sessions behind you were completed'
+            + (stats.unlogged
+                ? ', and ' + esc(String(stats.unlogged)) + ' ' + (stats.unlogged === 1 ? 'was' : 'were')
+                  + ' never answered either way'
+                : '')
+            + '.',
+            '<div class="stat-figures">'
+            + '<div class="stat-figure"><span class="stat-figure-value">' + esc(String(stats.done)) + '</span>'
+            + '<span class="stat-figure-label">completed</span></div>'
+            + '<div class="stat-figure"><span class="stat-figure-value">' + esc(String(stats.missed)) + '</span>'
+            + '<span class="stat-figure-label">missed</span></div>'
+            + '<div class="stat-figure"><span class="stat-figure-value">' + esc(String(stats.unlogged)) + '</span>'
+            + '<span class="stat-figure-label">unanswered</span></div>'
+            + '</div>',
+            stats.unlogged
+                ? 'An unanswered session counts against you here, because a plan you did not '
+                  + 'reply to is not a plan you kept. Log or dismiss them and this settles down.'
+                : '');
+
+        /* 1 — consistency */
+        const streak = stats.streak;
+        const consistency = statBlock('Consistency',
+            streak.current
+                ? '<strong>' + esc(String(streak.current)) + ' in a row</strong> right now.'
+                : 'The run ended at the last session. Longest so far is <strong>'
+                  + esc(String(streak.longest)) + '</strong>.',
+            '<div class="stat-figures">'
+            + '<div class="stat-figure"><span class="stat-figure-value">' + esc(String(streak.current)) + '</span>'
+            + '<span class="stat-figure-label">current run</span></div>'
+            + '<div class="stat-figure"><span class="stat-figure-value">' + esc(String(streak.longest)) + '</span>'
+            + '<span class="stat-figure-label">longest run</span></div>'
+            + '<div class="stat-figure"><span class="stat-figure-value">' + percent(overall) + '</span>'
+            + '<span class="stat-figure-label">of those answered</span></div>'
+            + '</div>');
+
+        /* 2 — the day that slips */
+        const day = stats.day;
+        const dayLead = day.worst && day.worst.planned >= 3 && day.worst.rate !== null && day.worst.rate < 0.999
+            ? '<strong>' + esc(day.worst.name) + '</strong> is the one that slips — '
+              + esc(percent(day.worst.rate)) + ' kept, against '
+              + esc(percent(overall)) + ' across the week.'
+            : 'No day stands out yet. Every one of them is being kept about as well as the others.';
+
+        const dayBlock = statBlock('Which day slips', dayLead, dayChart(day),
+            'Counted against the day a session was <em>planned</em> for. Moves made in this app '
+            + 'are put back where they started; moves made in Excel overwrite the date, so those '
+            + 'are counted on the day they landed.');
+
+        /* 3 — the sport that runs behind */
+        const sport = stats.sport;
+        const sportLead = sport.worst && sport.worst.planned >= 3 && sport.worst.rate !== null
+            && sport.rows.length > 1 && sport.worst.rate < 0.999
+            ? '<strong>' + esc(sport.worst.label) + '</strong> is furthest behind, at '
+              + esc(percent(sport.worst.rate)) + ' of its sessions kept.'
+            : 'Nothing is being dropped more than anything else.';
+
+        const sportBlock = statBlock('Which sport runs behind', sportLead, sportRows(sport));
+
+        /* 4 — moved rather than lost */
+        const moves = stats.moves;
+        const movesLead = moves.moved
+            ? '<strong>' + esc(String(moves.moved)) + '</strong> session'
+              + (moves.moved === 1 ? ' was' : 's were') + ' moved rather than lost, against '
+              + esc(String(moves.missed)) + ' missed outright.'
+            : (moves.missed
+                ? esc(String(moves.missed)) + ' session' + (moves.missed === 1 ? '' : 's')
+                  + ' missed, and none rescheduled.'
+                : 'Nothing missed and nothing moved.');
+
+        const movesBlock = statBlock('Missed, or moved', movesLead,
+            '<div class="stat-figures">'
+            + '<div class="stat-figure"><span class="stat-figure-value">' + esc(String(moves.moved)) + '</span>'
+            + '<span class="stat-figure-label">moved and kept</span></div>'
+            + '<div class="stat-figure"><span class="stat-figure-value">' + esc(String(moves.missed)) + '</span>'
+            + '<span class="stat-figure-label">missed</span></div>'
+            + '</div>',
+            'Moving a session rewrites its date in the workbook, so the sheet keeps no record that '
+            + 'it ever moved. This app remembers its own moves'
+            + (moves.since ? ' since ' + esc(shortDay(new Date(moves.since))) : '')
+            + ', on this phone only. Anything rescheduled in Excel is invisible here.');
+
+        body.innerHTML = preamble + summary + consistency + dayBlock + sportBlock + movesBlock
+            + '<p class="stat-footnote">Worked out from the sessions in your workbook each time this '
+            + 'screen is opened. Nothing here is stored in the plan, and nothing here writes to it — '
+            + 'the totals and the chart on your Progress sheet remain the ones Excel keeps.</p>';
     }
 
     /* ---------- wiring ---------- */

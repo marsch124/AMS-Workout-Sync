@@ -115,6 +115,64 @@ def foreign_extras(path):
     wb.save(path)
 
 
+def history(path):
+    """
+    Twelve weeks already behind us, with a deliberate shape to find:
+
+      - Thursday is the day that slips (most Thursdays missed or ignored)
+      - Swim is the sport that runs behind
+      - a run of completed sessions at the end, for the streak
+      - some sessions left unanswered, which must not read as completed
+
+    Rest days are included precisely because they must NOT be counted: they
+    cannot be kept or missed, and counting them would flatter every figure.
+    """
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Weekly Schedules'
+    ws.append(HEADERS)
+
+    monday = monday_of_this_week()
+    start = monday - datetime.timedelta(weeks=12)
+
+    # (weekday, sport, minutes)
+    template = [
+        (0, 'Swim', 45),
+        (1, 'Bike', 60),
+        (2, 'Run', 40),
+        (3, 'Swim', 45),        # Thursday: the one that gets skipped
+        (4, 'Rest', None),
+        (5, 'Bike', 90),
+        (6, 'Strength', 30),
+    ]
+
+    for week in range(12):
+        for weekday, sport, minutes in template:
+            date = start + datetime.timedelta(weeks=week, days=weekday)
+            row = [week + 1, date, DAYS[weekday], sport,
+                   f'{sport} session', minutes, 'Z2', 'Base']
+
+            if sport == 'Rest':
+                ws.append(row + ['', None, None, None, None])
+                continue
+
+            done = ''
+            actual = None
+            # Thursday slips; swim slips generally; the last fortnight is clean.
+            if week >= 10:
+                done, actual = '\u2713', minutes
+            elif weekday == 3:
+                done = 'Missed' if week % 2 else ''      # missed, or never answered
+            elif sport == 'Swim' and week % 3 == 0:
+                done = 'Missed'
+            else:
+                done, actual = '\u2713', minutes
+
+            ws.append(row + [done, actual, None, None, None])
+
+    wb.save(path)
+
+
 def broken(path_rubbish, path_truncated, source):
     with open(path_rubbish, 'wb') as fh:
         fh.write(b'this is not a zip, it is a sentence')
@@ -130,6 +188,7 @@ if __name__ == '__main__':
     hostile_text(os.path.join(OUT, 'nasty.xlsx'))
     column_inserted(os.path.join(OUT, 'column-inserted.xlsx'))
     foreign_extras(os.path.join(OUT, 'foreign-extras.xlsx'))
+    history(os.path.join(OUT, 'history.xlsx'))
     broken(os.path.join(OUT, 'rubbish.xlsx'),
            os.path.join(OUT, 'truncated.xlsx'),
            os.path.join(OUT, 'plain.xlsx'))

@@ -1405,6 +1405,7 @@ body.detail-open .tab-bar { display: none; }
 :root {
     --tab-today: #00C97B;
     --tab-plan: #3B9EFF;
+    --tab-progress: #C084FC;
     --tab-settings: #94A3B8;
 
     /* Text that sits on top of a filled accent. */
@@ -1413,24 +1414,27 @@ body.detail-open .tab-bar { display: none; }
 
 body[data-tab="today"]    { --accent: var(--tab-today);    --accent-ink: #04201a; }
 body[data-tab="plan"]     { --accent: var(--tab-plan);     --accent-ink: #04182b; }
+body[data-tab="progress"] { --accent: var(--tab-progress); --accent-ink: #1c0a2b; }
 body[data-tab="settings"] { --accent: var(--tab-settings); --accent-ink: #16202a; }
 
 @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {
         --tab-today: #00875A;
         --tab-plan: #1266C8;
+        --tab-progress: #7C3AED;
         --tab-settings: #5A6B7B;
         --accent-ink: #ffffff;
     }
     :root:not([data-theme="dark"]) body[data-tab="today"],
     :root:not([data-theme="dark"]) body[data-tab="plan"],
+    :root:not([data-theme="dark"]) body[data-tab="progress"],
     :root:not([data-theme="dark"]) body[data-tab="settings"] { --accent-ink: #ffffff; }
 }
 
 /* The sync badge is amber whatever the tab, so it keeps its own dark ink. */
 
 /* Each tab wears its own colour when active, and grows a bar above it, so the
-   bottom of the screen reads as three coloured sections rather than one. */
+   bottom of the screen reads as four coloured sections rather than one. */
 .tab { position: relative; }
 
 .tab::before {
@@ -1506,4 +1510,128 @@ body[data-tab="settings"] { --accent: var(--tab-settings); --accent-ink: #16202a
     color: var(--color-danger-text);
     border-color: transparent;
     background: transparent;
+}
+
+/* ---------- progress ---------- */
+
+.stat-block {
+    background: var(--color-surface);
+    border-radius: var(--radius);
+    padding: 1rem 1rem 1.1rem;
+    margin-bottom: 0.75rem;
+}
+.stat-title {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+    margin: 0 0 0.5rem;
+}
+.stat-lead {
+    margin: 0 0 0.9rem;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    color: var(--color-text);
+}
+.stat-lead strong { font-weight: 650; }
+.stat-note {
+    margin: 0.85rem 0 0;
+    font-size: 0.76rem;
+    line-height: 1.5;
+    color: var(--color-text-secondary);
+}
+.stat-note em { font-style: normal; color: var(--color-text); }
+.stat-footnote {
+    margin: 0.4rem 0.2rem 0;
+    font-size: 0.74rem;
+    line-height: 1.55;
+    color: var(--color-text-secondary);
+}
+
+/* A caution that has to be read before the numbers under it, not after. */
+.stat-caution {
+    background: var(--color-surface-2);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 0.85rem;
+    margin-bottom: 0.75rem;
+}
+.stat-caution p { margin: 0; font-size: 0.82rem; line-height: 1.5; color: var(--color-text-secondary); }
+.stat-caution strong { color: var(--color-text); }
+
+.stat-figures { display: flex; gap: 0.5rem; }
+.stat-figure {
+    flex: 1;
+    background: var(--color-surface-2);
+    border-radius: var(--radius-sm);
+    padding: 0.6rem 0.4rem;
+    text-align: center;
+}
+.stat-figure-value {
+    display: block;
+    font-size: 1.3rem;
+    font-weight: 650;
+    line-height: 1.1;
+    color: var(--color-text);
+    font-variant-numeric: tabular-nums;
+}
+.stat-figure-label {
+    display: block;
+    margin-top: 0.2rem;
+    font-size: 0.68rem;
+    line-height: 1.25;
+    color: var(--color-text-secondary);
+}
+
+/* Seven bars, one per weekday. Height is the share kept, so the short bar is
+   the one worth looking at — which is the whole point of the panel. */
+.stat-bars { display: flex; gap: 0.3rem; align-items: flex-end; }
+.stat-bar { flex: 1; display: flex; flex-direction: column; align-items: center; }
+.stat-bar-track {
+    width: 100%;
+    height: 76px;
+    background: var(--color-surface-2);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: flex-end;
+    overflow: hidden;
+}
+.stat-bar-fill {
+    width: 100%;
+    background: var(--accent);
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    min-height: 0;
+}
+.stat-bar.is-worst .stat-bar-fill { background: var(--color-warning); }
+.stat-bar.is-empty .stat-bar-track { opacity: 0.45; }
+.stat-bar-value {
+    margin-top: 0.35rem;
+    font-size: 0.68rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text);
+}
+.stat-bar.is-empty .stat-bar-value { color: var(--color-text-secondary); }
+.stat-bar-label { font-size: 0.66rem; color: var(--color-text-secondary); }
+
+.stat-rows { display: flex; flex-direction: column; gap: 0.5rem; }
+.stat-row { display: flex; align-items: center; gap: 0.5rem; }
+.stat-row-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--sport); flex: none;
+}
+.stat-row-label { font-size: 0.82rem; color: var(--color-text); width: 4.6rem; flex: none; }
+.stat-row-bar {
+    flex: 1; height: 7px;
+    background: var(--color-surface-2);
+    border-radius: 4px; overflow: hidden;
+}
+.stat-row-fill { display: block; height: 100%; background: var(--sport); border-radius: 4px; }
+.stat-row-value {
+    font-size: 0.78rem; font-variant-numeric: tabular-nums;
+    color: var(--color-text); width: 2.6rem; text-align: right; flex: none;
+}
+.stat-row-detail {
+    font-size: 0.72rem; font-variant-numeric: tabular-nums;
+    color: var(--color-text-secondary); width: 2.8rem; text-align: right; flex: none;
 }

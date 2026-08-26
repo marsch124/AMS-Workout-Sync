@@ -8,13 +8,30 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.27.0';
+    const CURRENT = '1.28.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.28.0',
+            date: '2026-08-26',
+            headline: 'A Progress tab: four things the spreadsheet cannot tell you',
+            items: [
+                'A fourth tab, between Plan and Settings. It reads your workbook and answers four questions about how the training is actually going — nothing is written, nothing is stored in the plan, and your Progress sheet keeps every total and the chart exactly as Excel works them out.',
+                '**Which day slips.** Every weekday, with the share of its sessions you kept. There is almost always one that quietly runs behind the others, and it is worth knowing which — a session you keep moving off Thursday might simply belong on Friday.',
+                '**Which sport runs behind.** The same question by sport. A discipline can lose a third of its sessions without ever looking like a problem in a week-by-week total.',
+                '**Consistency.** How many sessions in a row you have kept, and the longest run so far.',
+                '**Missed, or moved.** A session shifted to another day and completed is not a session lost, and the two are worth counting apart.',
+                'Why not simply show what the Progress sheet already computes? Because it cannot be read from here. Those cells are formulas, and a formula in a saved file carries the answer Excel worked out last time it had the file open. This app edits only the cell you asked it to edit, so those cached answers sit unchanged until you next open the workbook — reading them would show you a stale number with total confidence. Excel recalculates the instant you open it, which is exactly why the sheet is right and copying it here would be wrong.',
+                'Rest days are not counted as sessions. A day off cannot be kept or missed, and counting it as kept would flatter every figure on the screen.',
+                'A session you never answered either way counts against you rather than being quietly dropped — a plan you did not reply to is not a plan you kept. Sessions still in the future are not counted at all.',
+                'Under about a dozen sessions of history the screen says so plainly before showing anything. A fortnight of training cannot tell you which day you skip; it can only tell you about that fortnight.',
+                'One honest limitation, stated on the screen itself: moving a session rewrites its date in the workbook, so the sheet keeps no memory that it ever moved. The app now records its own moves on this phone, which is what makes the fourth figure possible and lets the weekday chart count a session against the day it was *planned* for. Moves made in Excel cannot be seen and are counted on the day they landed.',
+            ]
+        },
         {
             version: '1.27.0',
             date: '2026-08-20',

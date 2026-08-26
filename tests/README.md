@@ -18,6 +18,7 @@ node tests/foreign-extras-sheet.js
 node tests/edited-workbook.js
 node tests/calendar-export.js
 node tests/session-share.js
+node tests/progress.js
 ```
 
 Each script prints what it found and ends with `errors: none`. Nothing is
@@ -61,6 +62,13 @@ escaped, and an all-day event whose end date is the day after its start.
 share button on the session, and the picker in the week sheet. Checks the
 message, the single-event calendar file, and that the picker offers everything
 in this week and next.
+
+**`progress.js`** — the Progress tab, over twelve weeks of history built with
+a known shape: Thursday is the day that slips, swim is the sport that runs
+behind, the last fortnight is clean. It checks that those are the answers it
+finds, that a rest day is never counted as a session it could have kept, that
+an unanswered session does not read as a completed one, and that a move is
+remembered even though the workbook forgets it.
 
 **`column-collision.js`** — a mapping that points a results column at a column
 the plan lives in. Logging must refuse to write there rather than overwrite the
