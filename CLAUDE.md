@@ -6,22 +6,20 @@ step, no framework, no server. Live at
 <https://marsch124.github.io/AMS-Workout-Sync/>, served straight off `main` —
 **every push to `main` publishes**, there is no workflow and no deploy step.
 
-## NEXT TASK (agreed, not yet built)
+## Where things stand
 
-**Confirm before leaving a form with unsaved typing.** Pressing back on a log
-form discards silently — type four fields, brush the arrow, it is all gone. We
-decided *against* adding a Cancel button (the back arrow already is Cancel; two
-identical exits is worse than one; and splitting the footer would shrink Save,
-which is pressed hundreds of times a season). Instead: if anything has been
-typed and back is pressed, ask first.
+Nothing outstanding. The last piece was the confirm before leaving a form with
+unsaved typing (v1.35.0) — a Cancel button was considered and rejected: the
+back arrow already is Cancel, two identical exits is worse than one, and
+splitting the footer would shrink Save, which is pressed hundreds of times a
+season. Guarded screens are listed in `GUARDED_FORMS` in `js/ui.js`; dirtiness
+is tracked by a captured listener on the document, because both forms rebuild
+themselves and per-field listeners would go with the old inputs.
 
-Applies to **both** forms, which are built by different code:
-
-- the planned-session form — `openLog()` / `inputConfig()` in `js/ui.js`
-- **Log something else** — `renderExtra()` in `js/ui.js`, its own inputs
-
-Both currently discard cleanly and queue nothing; that part is correct and
-should stay. Only the silent-ness is the problem. It should almost never fire.
+The open question is for Martin, not the code: after a month of real training,
+is **which day slips** on the Progress tab worth keeping, or does he already
+know the answer? If the latter it should come off rather than sit there looking
+informative.
 
 ## How it is put together
 
@@ -93,8 +91,8 @@ node tests/failure-paths.js          # and the rest
 
 Repo tests: `failure-paths`, `column-collision`, `foreign-extras-sheet`,
 `edited-workbook`, `calendar-export`, `session-share`, `progress`, `logging`,
-`move-log`. Fixtures are synthetic and gitignored — **no real training data in
-this repository**.
+`move-log`, `leaving-a-form`. Fixtures are synthetic and gitignored — **no real
+training data in this repository**.
 
 Extra scripts live in the session scratchpad and drive Martin's *real*
 workbooks (`ironman.xlsx`, `Pre-Season 2026.xlsx`): `e2e-iron.js`,

@@ -102,6 +102,47 @@ const AmsUi = (function () {
         syncTabHighlight(previous);
     }
 
+    /*
+     * Leaving a form with something typed in it.
+     *
+     * Back is the only way out of these screens — the tab bar is hidden while
+     * one is open — and it discards, which is right: nothing has been written,
+     * and a Cancel button beside Save would do exactly the same thing while
+     * making the button you press hundreds of times a season half as wide.
+     *
+     * What was wrong was the silence. Four fields filled in, a thumb near the
+     * arrow, and it is all gone with nothing said. So the discard is now
+     * spoken aloud, and only when there is something to lose: this asks
+     * nothing of a form you opened and did not touch, which is most of them.
+     *
+     * Dirtiness is tracked by listening at the document rather than on each
+     * field, because both forms rebuild themselves — the log form when you ask
+     * for the columns it hid, the extras form whenever you change the
+     * activity — and listeners attached to the old inputs would go with them.
+     */
+    const GUARDED_FORMS = new Set(['logScreen', 'extraScreen']);
+    let dirtyForm = null;
+
+    /* A form has just been opened: nothing has been typed into it yet. */
+    function watchForm(screenId) {
+        if (GUARDED_FORMS.has(screenId)) dirtyForm = null;
+    }
+
+    function markFormDirty(screenId) {
+        if (GUARDED_FORMS.has(screenId)) dirtyForm = screenId;
+    }
+
+    function formSaved() { dirtyForm = null; }
+
+    /* True if it is all right to leave the screen showing now. */
+    function mayLeaveForm() {
+        const active = document.querySelector('.screen.active');
+        if (!active || !dirtyForm || active.id !== dirtyForm) return true;
+        const ok = confirm('Leave without saving? What you have typed here will be lost.');
+        if (ok) dirtyForm = null;
+        return ok;
+    }
+
     function syncTabHighlight(screenId) {
         const map = { todayScreen: 'today', planScreen: 'plan', progressScreen: 'progress', settingsScreen: 'settings' };
         const tab = map[screenId];
@@ -1423,6 +1464,7 @@ const AmsUi = (function () {
                 'Your sheet has no columns for results yet — add them in Sheet setup and they will appear here.',
                 '<button class="btn btn-primary" data-go="setup">Open sheet setup</button>');
             $('saveLogButton').disabled = true;
+            watchForm('logScreen');
             showScreen('logScreen');
             return;
         }
@@ -1496,6 +1538,12 @@ const AmsUi = (function () {
                     const node = document.getElementById('log-' + id);
                     if (node) node.value = value;
                 }
+                // Restoring those does not fire an event, so say so directly:
+                // asking for more columns must not quietly forget that the
+                // form already had something in it.
+                if (Object.keys(kept).some((id) => id !== 'distanceUnit')) {
+                    markFormDirty('logScreen');
+                }
             });
         }
 
@@ -1516,6 +1564,7 @@ const AmsUi = (function () {
             update();
         }
 
+        watchForm('logScreen');
         showScreen('logScreen');
     }
 
@@ -1628,6 +1677,7 @@ const AmsUi = (function () {
 
         try {
             await AmsSync.logWorkout(currentWorkout, values);
+            formSaved();
             const connected = await AmsDropbox.isConnected();
             toast(connected ? 'Saved — writing it into the workbook.' : 'Saved on this phone.', 'good');
             goBack();
@@ -1700,6 +1750,7 @@ const AmsUi = (function () {
         }, extraDraft && extraDraft.keep ? extraDraft : {});
         extraDraft.keep = false;
         renderExtra();
+        watchForm('extraScreen');
         showScreen('extraScreen');
     }
 
@@ -1817,6 +1868,7 @@ const AmsUi = (function () {
                 isTraining: !!extraDraft.isTraining,
                 notes: extraDraft.notes
             });
+            formSaved();
             const connected = await AmsDropbox.isConnected();
             toast(connected ? 'Saved — writing it to the Extras sheet.' : 'Saved on this phone.', 'good');
             extraDraft = null;
@@ -3201,7 +3253,18 @@ const AmsUi = (function () {
         });
 
         document.querySelectorAll('[data-back]').forEach((button) => {
-            button.addEventListener('click', goBack);
+            button.addEventListener('click', () => { if (mayLeaveForm()) goBack(); });
+        });
+
+        // Typing anywhere inside a guarded form makes it worth asking about.
+        // Captured at the document so a form that rebuilds itself keeps this.
+        ['input', 'change'].forEach((kind) => {
+            document.addEventListener(kind, (event) => {
+                const node = event.target;
+                if (!node || !node.closest) return;
+                const screen = node.closest('.screen');
+                if (screen) markFormDirty(screen.id);
+            }, true);
         });
 
         document.body.addEventListener('click', (event) => {

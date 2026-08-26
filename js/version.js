@@ -8,13 +8,24 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.34.1';
+    const CURRENT = '1.35.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.35.0',
+            date: '2026-08-26',
+            headline: 'It asks before throwing away what you typed',
+            items: [
+                'Pressing back on a log form has always discarded it, which is right — nothing has been written yet. What was wrong was the silence: four fields filled in, a thumb near the arrow, and it was gone with nothing said.',
+                'Now it asks, and only when there is something to lose. A form you opened and did not touch closes as it always did, and so does one you have just saved. In practice it should almost never appear.',
+                'This is instead of a **Cancel** button. The back arrow already does exactly what Cancel would, two exits that behave identically is worse than one, and a Cancel beside Save would make the button you press several hundred times a season half as wide.',
+                'Both forms are covered — a planned session and **Log something else** — including the moment the second one rebuilds itself because you changed the activity. It does not forget you had already typed something.',
+            ]
+        },
         {
             version: '1.34.1',
             date: '2026-08-26',

@@ -21,6 +21,7 @@ node tests/session-share.js
 node tests/progress.js
 node tests/logging.js
 node tests/move-log.js
+node tests/leaving-a-form.js
 ```
 
 Each script prints what it found and ends with `errors: none`. Nothing is
@@ -98,6 +99,13 @@ small database, and it is checked for the ways small databases go wrong:
   leave no record behind
 - it comes back from storage in an unexpected shape — strings, arrays, nulls,
   dates that are not dates
+
+**`leaving-a-form.js`** — pressing back with something typed in. Back is the
+only way out of a log form, and it discards; the confirm exists so it stops
+doing that in silence. Most of this checks when it must *not* appear — on a
+form nobody touched, and on the way out after a save — plus the awkward case:
+the extras form rebuilds itself when the activity changes and must not forget
+it had been typed into.
 
 **`column-collision.js`** — a mapping that points a results column at a column
 the plan lives in. Logging must refuse to write there rather than overwrite the
