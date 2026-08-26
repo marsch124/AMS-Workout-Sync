@@ -943,12 +943,24 @@ body.detail-open .tab-bar { display: none; }
     color: var(--color-text-secondary);
 }
 
+/* Hollow is what the week asked for, solid is what you did — the same grammar
+   the day columns use, and the legend already explains it there. Outlining the
+   whole length gives the planned hours a visible extent, so the green is read
+   as a share of something rather than as a line of unknown ambition. */
 .week-bar {
-    height: 7px;
+    height: 10px;
     border-radius: 999px;
-    background: var(--color-surface-2);
+    border: 1.5px solid color-mix(in srgb, var(--accent) var(--week-bar-edge, 45%), transparent);
+    background: transparent;
     overflow: hidden;
 }
+
+/* On white the same proportion of ink disappears, and the outline has to hold
+   its own beside the hollow day columns rather than fading out beneath them. */
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) { --week-bar-edge: 70%; }
+}
+:root[data-theme="light"] { --week-bar-edge: 70%; }
 
 .week-bar > span {
     display: block;

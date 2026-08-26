@@ -8,13 +8,23 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.36.0';
+    const CURRENT = '1.37.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.37.0',
+            date: '2026-08-26',
+            headline: 'The week’s bar shows what it is a share of',
+            items: [
+                'The bar is now drawn as an outline for the whole week, filled solid as far as you have got. Before, the part you had not done was a grey block, which said nothing; now the outline is the hours the week asked for, and the green is your share of them.',
+                'This is the same grammar the day columns already use, and the key explains it there: **solid is what you did, hollow is what is still to do**. The week’s bar had been the one thing on the card not obeying it.',
+                'It reads best on a week not yet started — an empty outline beside seven empty columns, all saying the same thing.',
+            ]
+        },
         {
             version: '1.36.0',
             date: '2026-08-26',
