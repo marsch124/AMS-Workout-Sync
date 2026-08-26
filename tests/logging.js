@@ -106,6 +106,107 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
   if (!detail.move) errs.push('no way to move from the session screen');
   if (detail.screen !== 'workoutScreen') errs.push('tapping a logged card did not open the session');
 
+  // ---------------------------------------------------------------- 
+  // A missed session is answered too, so it collapses the same way — but the
+  // way back matters more here: marking missed in the morning and doing it
+  // that evening is a real thing, and it must still be one tap.
+  console.log('');
+  console.log('A SESSION MARKED MISSED');
+  // We are on the session screen from the step above, where the tab bar is
+  // hidden; come back out before reaching for it.
+  await p.click('#workoutScreen [data-back]');
+  await p.waitForTimeout(600);
+  const beforeMiss = await p.evaluate(() => {
+    const cards = [...document.querySelectorAll('#todayBody .workout-card')];
+    const c = cards.find(x => x.querySelector('[data-missed]'));
+    return c ? { key: c.querySelector('[data-missed]').dataset.missed } : null;
+  });
+  if (!beforeMiss) { errs.push('no un-answered session left to mark missed'); }
+  else {
+    await p.click('#todayBody .workout-card [data-missed]');
+    await p.waitForTimeout(1400);
+    await p.click('.tab[data-tab="today"]');
+    await p.waitForTimeout(700);
+    const missedCard = await p.evaluate((key) => {
+      const c = document.querySelector('#todayBody [data-workout="' + key + '"]')
+        || [...document.querySelectorAll('#todayBody .workout-card')]
+             .find(x => /missed/i.test(x.innerText));
+      if (!c) return null;
+      return { log: !!c.querySelector('[data-log]'), missed: !!c.querySelector('[data-missed]'),
+               move: !!c.querySelector('[data-move]'),
+               tappable: c.classList.contains('card-tappable'),
+               workout: c.getAttribute('data-workout'),
+               text: c.innerText.replace(/\s+/g, ' ').slice(-60) };
+    }, beforeMiss.key);
+    if (!missedCard) { errs.push('could not find the card after marking it missed'); }
+    else {
+      line('Log / Missed / Move', [missedCard.log, missedCard.missed, missedCard.move]
+        .map(x => x ? 'yes' : 'no').join(' / '));
+      line('card is tappable', missedCard.tappable && missedCard.workout ? 'yes' : 'NO');
+      console.log('   ...' + missedCard.text);
+      if (missedCard.log || missedCard.missed || missedCard.move) {
+        errs.push('a missed session still shows buttons');
+      }
+      if (!missedCard.tappable || !missedCard.workout) {
+        errs.push('missed card is not tappable — no way to log it if you did it after all');
+      }
+      await p.click('#todayBody [data-workout="' + missedCard.workout + '"]');
+      await p.waitForTimeout(600);
+      const back = await p.evaluate(() => ({
+        screen: (document.querySelector('.screen.active') || {}).id,
+        log: (document.getElementById('openLogButton') || {}).textContent,
+        hidden: (document.getElementById('openLogButton') || {}).hidden
+      }));
+      line('tapping it opens', back.screen + ' — offers "' + (back.log || '').trim() + '"');
+      if (back.screen !== 'workoutScreen' || back.hidden || !/Log this session/.test(back.log || '')) {
+        errs.push('a missed session cannot be logged from its own screen');
+      }
+    }
+  }
+
+  // ----------------------------------------------------------------
+  // The deliberate exception: a session moved *to* today has not been done,
+  // it has been rescheduled. Collapsing it would hide the buttons at exactly
+  // the moment they are wanted.
+  console.log('');
+  console.log('A SESSION MOVED TO TODAY');
+  await p.click('#workoutScreen [data-back]');
+  await p.waitForTimeout(500);
+  const movedIn = await p.evaluate(async () => {
+    const plan = AmsSync.getState().plan;
+    const today = AmsSync.todayKey();
+    const target = plan.find(w => w.discipline.id !== 'rest' && w.dayKey > today && !w.logged);
+    if (!target) return { error: 'no future session available to move' };
+    await AmsSync.rescheduleWorkout(target, today);
+    return { key: target.key, from: target.dayKey };
+  });
+  if (movedIn.error) { console.log('   ' + movedIn.error + ' — skipped'); }
+  else {
+    await p.click('.tab[data-tab="plan"]');
+    await p.waitForTimeout(200);
+    await p.click('.tab[data-tab="today"]');
+    await p.waitForTimeout(700);
+    const card = await p.evaluate((key) => {
+      const c = [...document.querySelectorAll('#todayBody .workout-card')]
+        .find(x => x.querySelector('[data-log][data-log="' + key + '"], [data-workout="' + key + '"]'))
+        || [...document.querySelectorAll('#todayBody .workout-card')]
+             .find(x => /moved/i.test(x.innerText));
+      if (!c) return null;
+      return { log: !!c.querySelector('[data-log]'), missed: !!c.querySelector('[data-missed]'),
+               move: !!c.querySelector('[data-move]'),
+               text: c.innerText.replace(/\s+/g, ' ').slice(-70) };
+    }, movedIn.key);
+    if (!card) { errs.push('the session moved to today did not appear on Today'); }
+    else {
+      line('Log / Missed / Move', [card.log, card.missed, card.move]
+        .map(x => x ? 'yes' : 'no').join(' / '));
+      console.log('   ...' + card.text);
+      if (!card.log || !card.missed || !card.move) {
+        errs.push('a session moved to today lost its buttons — it still needs doing');
+      }
+    }
+  }
+
   console.log('');
   console.log('errors: ' + (errs.length ? '\n  - ' + errs.join('\n  - ') : 'none'));
   await b.close();

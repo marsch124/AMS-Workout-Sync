@@ -72,9 +72,12 @@ an unanswered session does not read as a completed one, and that a move is
 remembered even though the workbook forgets it.
 
 **`logging.js`** — what you type into the duration field, and what the card
-does once the session is recorded. A bare `45` must mean forty-five minutes,
-and the buttons must disappear afterwards *without* stranding the session: the
-card has to open it, where Log again, Missed and Move all still are.
+does once the session is answered. A bare `45` must mean forty-five minutes.
+The buttons must disappear once a session is logged *or* marked missed,
+without stranding it: the card has to open the session, where Log, Missed and
+Move all still are — which matters most for a missed session you did after
+all. And the exception has to hold: a session moved *to* today keeps its
+buttons, because it still needs doing.
 
 **`column-collision.js`** — a mapping that points a results column at a column
 the plan lives in. Logging must refuse to write there rather than overwrite the

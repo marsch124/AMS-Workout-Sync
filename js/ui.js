@@ -269,17 +269,24 @@ const AmsUi = (function () {
             const state2 = AmsSync.getState();
             const planned = AmsPlan.plannedDurationSeconds(workout, state2.mapping || {});
             /*
-             * Once a session is recorded there is nothing left to decide about
-             * it, and three buttons offering to decide again are just noise
-             * between you and the next thing. So they go, and the card becomes
-             * tappable instead: everything is still there on the session's own
-             * screen, which is where you would go to correct a mistake anyway.
+             * Once a session has been answered — logged or marked missed —
+             * there is nothing left to decide about it, and three buttons
+             * offering to decide it again are just noise between you and the
+             * next thing. So they go, and the card becomes tappable instead:
+             * everything is still there on the session's own screen, which is
+             * where you would go to correct a mistake anyway. That matters
+             * most for a missed session, which you may well do after all in
+             * the evening — the way back is one tap, not none.
+             *
+             * A pending *move* is deliberately not included. A session moved
+             * to today arrives here still needing to be done, and collapsing
+             * it would hide the buttons at exactly the moment they are wanted.
              */
             const settled = statusOf(workout);
-            const done = !!(settled && settled.kind === 'logged');
+            const answered = !!(settled && (settled.kind === 'logged' || settled.kind === 'missed'));
 
-            return '<div class="card workout-card' + (done ? ' card-tappable' : '') + '"'
-                + (done ? ' data-workout="' + esc(workout.key) + '"' : '') + ' '
+            return '<div class="card workout-card' + (answered ? ' card-tappable' : '') + '"'
+                + (answered ? ' data-workout="' + esc(workout.key) + '"' : '') + ' '
                 + sportStyle(workout) + '>'
                 + '<div class="workout-card-head">'
                 +   '<div class="sport-badge"><svg class="icon"><use href="#icon-' + esc(workout.discipline.icon) + '"></use></svg></div>'
@@ -297,8 +304,10 @@ const AmsUi = (function () {
                 + '<div style="margin-top:0.9rem">' + sectionsHtml(workout) + '</div>'
                 + (workout.discipline.id === 'rest'
                     ? '<p class="hint-inline">Nothing to log — the adaptation happens now.</p>'
-                    : done
-                        ? '<p class="hint-inline">Recorded. Tap to see it or change it.</p>'
+                    : answered
+                        ? '<p class="hint-inline">'
+                            + (settled.kind === 'missed' ? 'Marked missed.' : 'Recorded.')
+                            + ' Tap to see it or change it.</p>'
                         : '<div class="button-row" style="margin-top:0.4rem">'
                             + '<button class="btn btn-primary" data-log="' + esc(workout.key) + '">Log this session</button>'
                             + '<button class="btn btn-small" data-missed="' + esc(workout.key) + '">Missed</button>'
@@ -2486,9 +2495,12 @@ const AmsUi = (function () {
                 + 'hour and a quarter rather than seventy-five seconds. Whatever you type, the sheet '
                 + 'receives it in whichever unit your workbook counts in.</p>'
 
-                + '<p><strong>Once a session is recorded</strong> its buttons go away, because there is '
-                + 'nothing left to decide about it. Tap the card itself to see what was written or to '
-                + 'change it — logging again simply overwrites, and nothing is ever added twice.</p>'
+                + '<p><strong>Once a session has been answered</strong> — logged, or marked missed — its '
+                + 'buttons go away, because there is nothing left to decide about it. Tap the card itself '
+                + 'to see it or change it: everything is still there, including logging a session you had '
+                + 'marked missed and then did after all. Logging again simply overwrites, and nothing is '
+                + 'ever added twice. A session moved to today keeps its buttons, because it still needs '
+                + 'doing.</p>'
                 + '<p><strong>Missed</strong> writes the missed marker and nothing else. Leaving the metric '
                 + 'cells empty is what keeps the session out of your actual-hours totals rather than scoring '
                 + 'it zero.</p>'

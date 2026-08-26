@@ -8,13 +8,23 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.29.0';
+    const CURRENT = '1.30.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.30.0',
+            date: '2026-08-26',
+            headline: 'A missed session settles down too',
+            items: [
+                'Marking a session missed now clears its buttons the same way logging it does. The card becomes one line — *Marked missed. Tap to see it or change it* — because a session you have answered is answered, whichever answer you gave.',
+                'The way back matters more here than it does for a logged session, so it is worth saying plainly: marking something missed in the morning and then doing it that evening is an ordinary thing to happen. Tap the card and **Log this session** is right there, exactly as before. Nothing about the missed marker prevents logging it afterwards; the numbers simply overwrite it.',
+                'One deliberate exception. A session **moved to today** keeps all three buttons, because it has not been done — it has been rescheduled, and it still needs doing. Collapsing that card would hide the buttons at the one moment they are most wanted.',
+            ]
+        },
         {
             version: '1.29.0',
             date: '2026-08-26',
