@@ -316,6 +316,52 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
   line('fields still type=number', numeric.length ? numeric.join(', ') : 'none');
   if (numeric.length) errs.push('type=number fields remain: ' + numeric.join(', '));
 
+  // ----------------------------------------------------------------
+  // "Log something else" is a separate form with its own inputs, and it had
+  // the same fault. On a phone the keypad shows the comma; a number input
+  // then refuses the key, so pressing it does nothing at all.
+  console.log('');
+  console.log('A COMMA IN "LOG SOMETHING ELSE"');
+  await p.click('.tab[data-tab="today"]');
+  await p.waitForTimeout(600);
+  await p.click('[data-extra]');
+  await p.waitForSelector('#extraDistance');
+  await p.waitForTimeout(400);
+
+  const kinds = await p.evaluate(() =>
+    ['extraDistance', 'extraAvgHr', 'extraEffort']
+      .map(id => { const n = document.getElementById(id); return n ? n.type : 'missing'; }));
+  line('input types', kinds.join(', '));
+  if (kinds.some(k => k === 'number')) {
+    errs.push('an extras field is still type=number, so its keypad comma does nothing');
+  }
+
+  await p.fill('#extraDistance', '7,5');
+  const held = await p.evaluate(() => document.getElementById('extraDistance').value);
+  line('typed "7,5", field holds', '"' + held + '"');
+  if (held !== '7,5') errs.push('the comma will not go into the extras distance field');
+
+  const extraOut = await p.evaluate(async () => {
+    const dur = document.getElementById('extraDuration');
+    if (dur) dur.value = '40';
+    document.getElementById('saveExtraButton').click();
+    await new Promise(r => setTimeout(r, 1500));
+    const out = await AmsSync.exportWorkbook();
+    const wb = await AmsXlsx.open(new Uint8Array(await out.blob.arrayBuffer()));
+    const name = wb.sheets.map(s => s.name).find(n => /extra/i.test(n));
+    if (!name) return null;
+    const sh = await wb.readSheet(name);
+    for (let r = 2; r <= 40; r++) {
+      if (sh.textAt(r, 6)) return { sheet: name, distance: sh.textAt(r, 6) };
+    }
+    return { sheet: name, distance: null };
+  });
+  line('reaches the sheet as', extraOut ? String(extraOut.distance) : '(no Extras sheet)');
+  if (!extraOut || String(extraOut.distance) !== '7.5') {
+    errs.push('an extra distance typed "7,5" reached the sheet as '
+      + JSON.stringify(extraOut && extraOut.distance));
+  }
+
   console.log('');
   console.log('errors: ' + (errs.length ? '\n  - ' + errs.join('\n  - ') : 'none'));
   await b.close();

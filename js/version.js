@@ -8,13 +8,23 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.34.0';
+    const CURRENT = '1.34.1';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.34.1',
+            date: '2026-08-26',
+            headline: 'The comma works in “Log something else” too',
+            items: [
+                'The last release fixed this on the form for a planned session and missed the other one. **Log something else** is built separately and still had the fault: the keypad offered the comma, and pressing it did nothing at all.',
+                'Distance, heart rate and effort on that form are now ordinary text fields like the rest. A distance typed *7,5* is written to the Extras sheet as **7.5**.',
+                'The two row-number boxes in Sheet setup are still number fields, and that is right — they take whole numbers, so their keypad offers no separator to press in the first place.',
+            ]
+        },
         {
             version: '1.34.0',
             date: '2026-08-26',

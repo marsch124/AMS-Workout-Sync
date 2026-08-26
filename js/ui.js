@@ -1732,15 +1732,19 @@ const AmsUi = (function () {
             + '<input id="extraDuration" type="text" placeholder="e.g. 20min, 1:15" value="'
             + esc(extraDraft.duration) + '"></div>'
 
+            /* Text fields, not number fields — see inputConfig for why. The
+               keypad offers the separator your phone was set up with, and a
+               number input silently refuses to accept it: the key does
+               nothing, which is a maddening thing for a form to do. */
             + (metrics
                 ? '<div class="field"><label for="extraDistance">Distance <span class="field-unit">(km)</span></label>'
-                    + '<input id="extraDistance" type="number" inputmode="decimal" step="any" value="'
+                    + '<input id="extraDistance" type="text" inputmode="decimal" value="'
                     + esc(extraDraft.distance) + '"></div>'
                     + '<div class="field-row">'
                     + '<div class="field"><label for="extraAvgHr">Avg HR <span class="field-unit">(bpm)</span></label>'
-                    + '<input id="extraAvgHr" type="number" inputmode="numeric" value="' + esc(extraDraft.avgHr) + '"></div>'
+                    + '<input id="extraAvgHr" type="text" inputmode="numeric" value="' + esc(extraDraft.avgHr) + '"></div>'
                     + '<div class="field"><label for="extraEffort">Effort <span class="field-unit">(1-10)</span></label>'
-                    + '<input id="extraEffort" type="number" inputmode="numeric" value="' + esc(extraDraft.effort) + '"></div>'
+                    + '<input id="extraEffort" type="text" inputmode="numeric" value="' + esc(extraDraft.effort) + '"></div>'
                     + '</div>'
                 : '')
 
