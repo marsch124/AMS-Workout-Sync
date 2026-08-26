@@ -137,6 +137,17 @@ const AmsPlan = (function () {
      * Read a duration the way a person would write one: 45, 45min, 1:15,
      * 1:15:30, 1h20, 1,5h, 90 min. Returns seconds, or null.
      */
+    /*
+     * A phone keypad offers whichever decimal separator the phone was set up
+     * with, and a sheet wants the one it was written for. Only a value that is
+     * nothing but digits, one comma, digits is touched — so a speed typed
+     * "32,5" arrives as 32.5, while a running pace of "4:52" and a power of
+     * "168 W" are handed over exactly as they were typed.
+     */
+    function decimalDot(text) {
+        return /^\d+,\d+$/.test(text) ? text.replace(',', '.') : text;
+    }
+
     function parseDuration(input) {
         if (input === null || input === undefined) return null;
         if (typeof input === 'number') return isNaN(input) ? null : Math.round(input * 60);
@@ -691,7 +702,7 @@ const AmsPlan = (function () {
                 const paceSeconds = parsePace(entry.avgPace);
                 if (paceSeconds !== null) push('avgPace', 'number', paceSeconds / 86400);
             } else {
-                push('avgPace', 'text', String(entry.avgPace).trim());
+                push('avgPace', 'text', decimalDot(String(entry.avgPace).trim()));
             }
         }
 

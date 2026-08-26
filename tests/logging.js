@@ -262,6 +262,60 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
     }
   }
 
+  // ----------------------------------------------------------------
+  // A decimal comma. Half the world types one, and a phone gives whichever
+  // separator it was set up with. A type="number" input parses with a full
+  // stop and reports an empty value for anything else — so the field looks
+  // filled in, and the number never reaches the workbook.
+  console.log('');
+  console.log('A DECIMAL COMMA');
+  const comma = await p.evaluate(async () => {
+    const t = AmsSync.getState().plan.find(w => w.discipline.id === 'bike')
+           || AmsSync.getState().plan.find(w => w.discipline.id !== 'rest');
+    await AmsDb.clearQueue();
+    const btn = document.createElement('button');
+    btn.setAttribute('data-log', t.key);
+    document.body.appendChild(btn); btn.click(); btn.remove();
+    await new Promise(r => setTimeout(r, 500));
+
+    const set = (id, v) => { const n = document.getElementById(id); if (n) n.value = v; };
+    set('log-actualDuration', '105');
+    set('log-actualDistance', '52,4');
+    set('log-avgPace', '32,5');
+    document.getElementById('saveLogButton').click();
+    await new Promise(r => setTimeout(r, 1400));
+
+    const q = await AmsDb.listQueue();
+    const out = await AmsSync.exportWorkbook();
+    const wb = await AmsXlsx.open(new Uint8Array(await out.blob.arrayBuffer()));
+    const sh = await wb.readSheet(t.sheet);
+    const m = AmsSync.getState().mapping;
+    return {
+      queued: q.length ? q[0].values : null,
+      distance: sh.textAt(t.row, m.columns.actualDistance),
+      pace: m.columns.avgPace ? sh.textAt(t.row, m.columns.avgPace) : '(no column)'
+    };
+  });
+  line('typed 52,4 — queued as', comma.queued ? comma.queued.actualDistance : '(nothing)');
+  line('reaches the sheet as', comma.distance);
+  line('typed 32,5 in pace — sheet', comma.pace);
+  if (!comma.queued || comma.queued.actualDistance === undefined) {
+    errs.push('a distance typed with a comma never reached the queue');
+  }
+  if (!/52[.,]4/.test(String(comma.distance))) {
+    errs.push('a distance typed with a comma reached the sheet as "' + comma.distance + '"');
+  }
+  if (comma.pace !== '(no column)' && comma.pace !== '32.5') {
+    errs.push('a speed typed with a comma should be normalised to 32.5, got "' + comma.pace + '"');
+  }
+
+  // No field on this form may be type=number, for the reason above.
+  const numeric = await p.evaluate(() =>
+    [...document.querySelectorAll('#logBody input')].filter(n => n.type === 'number')
+      .map(n => n.id));
+  line('fields still type=number', numeric.length ? numeric.join(', ') : 'none');
+  if (numeric.length) errs.push('type=number fields remain: ' + numeric.join(', '));
+
   console.log('');
   console.log('errors: ' + (errs.length ? '\n  - ' + errs.join('\n  - ') : 'none'));
   await b.close();

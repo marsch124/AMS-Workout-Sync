@@ -8,13 +8,26 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.33.0';
+    const CURRENT = '1.34.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.34.0',
+            date: '2026-08-26',
+            headline: 'A decimal comma no longer loses the number',
+            items: [
+                'Found by a question about the phone keypad, and it turned out to be a real fault that had been there from the beginning.',
+                '**Typing a distance with a comma lost it silently.** Enter *52,4* on a form where the keypad offers a comma, and the field looked perfectly normal — but nothing was recorded. The duration saved, the distance simply never reached the workbook, and nothing anywhere said so.',
+                'The cause: a *number* input hands back only what the browser can parse, and it parses with a full stop. Anything else comes back empty. The app has always read a comma as a decimal point — the value never survived long enough to be read.',
+                'No field on the log form is a number input any more. They are ordinary text fields, and the keyboard is chosen with `inputmode`, which is what governs it on a phone regardless. Nothing is discarded before the app sees it.',
+                'Distance and speed offer the decimal keypad. Heart rate, effort and cadence offer plain digits, since none of them is ever a fraction — if you see no decimal point on those, that is why.',
+                'A speed typed as *32,5* is now written to the sheet as **32.5**. Only a plain number is converted: a running pace of *4:52* is left exactly as typed.',
+            ]
+        },
         {
             version: '1.33.0',
             date: '2026-08-26',

@@ -1571,15 +1571,33 @@ const AmsUi = (function () {
             return { type: pace.type, mode: pace.mode, step: pace.step,
                      placeholder: pace.placeholder };
         }
+        /*
+         * Nothing here is type="number", deliberately.
+         *
+         * A number input holds a value the browser is willing to parse, and it
+         * parses with a full stop. Type "52,4" into one — which is what a
+         * decimal comma keypad gives you — and the field looks perfectly
+         * normal while reporting an empty value. The distance then never
+         * reaches the workbook, and nothing anywhere says so.
+         *
+         * A text field hands over exactly what was typed, and every writer
+         * downstream already reads a comma as a decimal point. So the keyboard
+         * is chosen with inputmode, which is what governs it on a phone
+         * anyway, and the value is left alone.
+         */
         if (field.id === 'actualDistance') {
-            return { type: 'number', mode: 'decimal', step: 'any',
+            return { type: 'text', mode: 'decimal',
                      placeholder: workout.discipline.id === 'swim' ? 'e.g. 2400' : 'e.g. 12.4' };
         }
         if (field.id === 'rpe') {
-            return { type: 'number', mode: 'numeric', step: '1', placeholder: '1 easy — 10 all out' };
+            return { type: 'text', mode: 'numeric', placeholder: '1 easy — 10 all out' };
+        }
+        if (field.id === 'avgHr' || field.id === 'maxHr' || field.id === 'cadence') {
+            /* Whole numbers, so the plain digit pad is the right keyboard. */
+            return { type: 'text', mode: 'numeric', placeholder: '' };
         }
         if (field.kind === 'number') {
-            return { type: 'number', mode: 'decimal', step: 'any', placeholder: '' };
+            return { type: 'text', mode: 'decimal', placeholder: '' };
         }
         return { type: 'text', mode: 'text', placeholder: '' };
     }
