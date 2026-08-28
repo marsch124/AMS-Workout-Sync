@@ -2602,8 +2602,8 @@ const AmsUi = (function () {
                 + '<em>Done</em> is what you performed. <em>Missed</em> is what you marked as not done, kept '
                 + 'apart from the sessions you did and still open to log if it turns out you did it. '
                 + '<em>All</em> is everything.</p>'
-                + '<p><strong>Progress</strong> — four things your workbook cannot say about itself: which '
-                + 'weekday you actually skip, which sport is running behind, how many sessions you have '
+                + '<p><strong>Progress</strong> — three things your workbook cannot say about itself: '
+                + 'which sport is running behind, how many sessions you have '
                 + 'kept in a row, and how often one was moved rather than lost. It is worked out from your '
                 + 'sessions each time you open it, and it never writes anything: the totals and the chart '
                 + 'on your own Progress sheet stay exactly as Excel keeps them. Rest days are not counted '
@@ -3109,24 +3109,6 @@ const AmsUi = (function () {
             + '</section>';
     }
 
-    /* A bar per weekday, drawn as the share kept. */
-    function dayChart(day) {
-        return '<div class="stat-bars">'
-            + day.rows.map((row) => {
-                const height = row.rate === null ? 0 : Math.max(row.rate * 100, row.done ? 4 : 0);
-                const empty = row.planned === 0;
-                return '<div class="stat-bar' + (empty ? ' is-empty' : '')
-                    + (day.worst && row.index === day.worst.index && !empty ? ' is-worst' : '') + '">'
-                    + '<div class="stat-bar-track">'
-                    + '<div class="stat-bar-fill" style="height: ' + height.toFixed(1) + '%"></div>'
-                    + '</div>'
-                    + '<div class="stat-bar-value">' + (empty ? '·' : percent(row.rate)) + '</div>'
-                    + '<div class="stat-bar-label">' + esc(row.short) + '</div>'
-                    + '</div>';
-            }).join('')
-            + '</div>';
-    }
-
     function sportRows(sport) {
         return '<div class="stat-rows">'
             + sport.rows.map((row) =>
@@ -3193,8 +3175,8 @@ const AmsUi = (function () {
                 + '<p><strong>Too early to read much into this.</strong> '
                 + esc(String(stats.counted)) + ' session' + (stats.counted === 1 ? '' : 's')
                 + ' ' + (stats.counted === 1 ? 'has' : 'have') + ' gone by. '
-                + 'The figures below are real, but a fortnight of training cannot tell you '
-                + 'which day you skip — it can only tell you about that fortnight.</p></div>'
+                + 'The figures below are real, but a fortnight of training is '
+                + 'a fortnight — the patterns need more road behind them.</p></div>'
             : '';
 
         const answered = stats.answered;
@@ -3221,7 +3203,7 @@ const AmsUi = (function () {
                   + 'reply to is not a plan you kept. Log or dismiss them and this settles down.'
                 : '');
 
-        /* 1 — consistency */
+        /* consistency */
         const streak = stats.streak;
         const consistency = statBlock('Consistency',
             streak.current
@@ -3237,20 +3219,7 @@ const AmsUi = (function () {
             + '<span class="stat-figure-label">of those answered</span></div>'
             + '</div>');
 
-        /* 2 — the day that slips */
-        const day = stats.day;
-        const dayLead = day.worst && day.worst.planned >= 3 && day.worst.rate !== null && day.worst.rate < 0.999
-            ? '<strong>' + esc(day.worst.name) + '</strong> is the one that slips — '
-              + esc(percent(day.worst.rate)) + ' kept, against '
-              + esc(percent(overall)) + ' across the week.'
-            : 'No day stands out yet. Every one of them is being kept about as well as the others.';
-
-        const dayBlock = statBlock('Which day slips', dayLead, dayChart(day),
-            'Counted against the day a session was <em>planned</em> for. Moves made in this app '
-            + 'are put back where they started; moves made in Excel overwrite the date, so those '
-            + 'are counted on the day they landed.');
-
-        /* 3 — the sport that runs behind */
+        /* the sport that runs behind */
         const sport = stats.sport;
         const sportLead = sport.worst && sport.worst.planned >= 3 && sport.worst.rate !== null
             && sport.rows.length > 1 && sport.worst.rate < 0.999
@@ -3260,7 +3229,7 @@ const AmsUi = (function () {
 
         const sportBlock = statBlock('Which sport runs behind', sportLead, sportRows(sport));
 
-        /* 4 — moved rather than lost */
+        /* moved rather than lost */
         const moves = stats.moves;
         const movesLead = moves.moved
             ? '<strong>' + esc(String(moves.moved)) + '</strong> session'
@@ -3283,7 +3252,7 @@ const AmsUi = (function () {
             + (moves.since ? ' since ' + esc(shortDay(new Date(moves.since))) : '')
             + ', on this phone only. Anything rescheduled in Excel is invisible here.');
 
-        body.innerHTML = preamble + summary + consistency + dayBlock + sportBlock + movesBlock
+        body.innerHTML = preamble + summary + consistency + sportBlock + movesBlock
             + '<p class="stat-footnote">Worked out from the sessions in your workbook each time this '
             + 'screen is opened. Nothing here is stored in the plan, and nothing here writes to it — '
             + 'the totals and the chart on your Progress sheet remain the ones Excel keeps.</p>';

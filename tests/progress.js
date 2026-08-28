@@ -1,10 +1,12 @@
 /*
  * The Progress screen, over twelve weeks of history with a known shape.
  *
- * The fixture is built so the answers are known in advance: Thursday is the
- * day that slips, swim is the sport that runs behind, the last fortnight is
- * clean so there is a streak to find, and some sessions are left unanswered
- * so that "not logged" cannot quietly read as "completed".
+ * The fixture is built so the answers are known in advance: swim is the sport
+ * that runs behind, the last fortnight is clean so there is a streak to find,
+ * and some sessions are left unanswered so that "not logged" cannot quietly
+ * read as "completed". (It also plants Thursday as a day that slips — the
+ * weekday panel that once read that was removed at Martin's word, and the
+ * fixture keeps the shape in case it ever comes back.)
  *
  * The one that matters most is the rest days. They must not be counted at
  * all — a day off cannot be kept or missed, and counting it as a kept session
@@ -67,23 +69,6 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(34) + v);
   line('rest days in the plan', rest);
   line('counted in the figures', 'no (72 = 12 x 6 sessions)');
   if (rest === 0) errors.push('fixture has no rest days, so the exclusion is untested');
-
-  // ---------------------------------------------------------------- 3
-  console.log('');
-  console.log('WHICH DAY SLIPS');
-  stats.day.rows.forEach(r => {
-    if (r.planned) line(r.name, Math.round(r.rate * 100) + '%  (' + r.done + '/' + r.planned + ')');
-  });
-  line('worst', stats.day.worst ? stats.day.worst.name : '(none)');
-  if (!stats.day.worst || stats.day.worst.name !== 'Thursday') {
-    errors.push('expected Thursday to be the day that slips, got '
-      + (stats.day.worst ? stats.day.worst.name : 'none'));
-  }
-  // Friday is the rest day: it must have no sessions at all.
-  const friday = stats.day.rows.find(r => r.name === 'Friday');
-  if (friday && friday.planned !== 0) {
-    errors.push('the rest day was counted as ' + friday.planned + ' sessions');
-  }
 
   // ---------------------------------------------------------------- 4
   console.log('');
@@ -148,14 +133,14 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(34) + v);
     };
   });
   line('panels drawn', screen.blocks);
-  line('weekday bars', screen.bars);
+  line('weekday bars (must be gone)', screen.bars);
   line('sport rows', screen.rows);
   line('"too early" caution', screen.caution ? 'shown' : 'not shown (enough history)');
   line('page scrolls sideways', screen.overflow ? 'YES' : 'no');
   console.log('   ' + screen.text);
 
-  if (screen.blocks !== 5) errors.push('expected 5 panels, got ' + screen.blocks);
-  if (screen.bars !== 7) errors.push('expected 7 weekday bars, got ' + screen.bars);
+  if (screen.blocks !== 4) errors.push('expected 4 panels, got ' + screen.blocks);
+  if (screen.bars !== 0) errors.push('the weekday chart is back: ' + screen.bars + ' bars');
   if (screen.overflow) errors.push('the page scrolls sideways on a phone-width screen');
   if (screen.caution) errors.push('the "too early" caution showed with 72 sessions of history');
 

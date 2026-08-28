@@ -35,10 +35,11 @@ The last run of work came from the input page and from screenshots:
   the day columns (1.36.0), and is now drawn hollow-for-planned, solid-for-done
   like everything else on that card (1.37.0)
 
-The open question is for Martin, not the code: after a month of real training,
-is **which day slips** on the Progress tab worth keeping, or does he already
-know the answer? If the latter it should come off rather than sit there looking
-informative.
+**Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
+not interested and never would be, so it came off rather than sit there looking
+informative. Progress answers three questions now. Do not propose it again. The
+attribution rule it forced (never believe a move whose sport no longer matches
+its row) stays, because the moved-rather-than-lost count needs it too.
 
 ## How it is put together
 
@@ -126,7 +127,13 @@ starts **7 September 2026** — 419 sessions, race at Kalmar **8 August 2027**.
 Switching workbook is done in Settings → Workbook; the layout is re-read then.
 
 Both share a layout except Pre-Season has a `Notes` column at R. The Ironman
-book needs `Notes` typed into R1 by hand (offered, his call, may be done by now).
+book needs `Notes` typed into the header cell right of *Compliance* by hand
+(offered, his call, may be done by now).
+
+**Do not name his Dropbox files.** `ironman.xlsx` and `Pre-Season 2026.xlsx` are
+the names of the *local copies* in the scratchpad; nobody here knows what they
+are called in his Dropbox. Say "your Ironman plan" and let the file picker
+show him his own names.
 
 The sheet's `Avg Pace/Pwr` column asks a different question per sport, so the
 form follows it: **km/h** on a bike, **min/km** on a run, **per 100m** on a

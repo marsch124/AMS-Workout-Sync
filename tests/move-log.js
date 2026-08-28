@@ -58,31 +58,15 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
       plannedSecondsOf: () => 3600
     });
 
-    const dayOf = (s) => (s.day.rows.find(r => r.planned > 0) || {}).name;
     const same = run_('bike');     // the row still holds what it held
     const other = run_('run');     // a row insert put a different sport here
-    return {
-      honouredDay: dayOf(same), honouredMoved: same.moves.moved,
-      ignoredDay: dayOf(other), ignoredMoved: other.moves.moved,
-      sheetDay: new Date(day(3) + 'T00:00:00Z').toLocaleDateString('en', { weekday: 'long', timeZone: 'UTC' }),
-      originDay: new Date(day(6) + 'T00:00:00Z').toLocaleDateString('en', { weekday: 'long', timeZone: 'UTC' })
-    };
+    return { honouredMoved: same.moves.moved, ignoredMoved: other.moves.moved };
   });
 
-  line('sport still matches — counted on', attribution.honouredDay + ' (moved from ' + attribution.originDay + ')');
-  line('  and counted as moved', attribution.honouredMoved);
-  line('sport no longer matches — counted on', attribution.ignoredDay + ' (sheet says ' + attribution.sheetDay + ')');
-  line('  and counted as moved', attribution.ignoredMoved);
+  line('sport still matches — counted as moved', attribution.honouredMoved);
+  line('sport no longer matches — counted as moved', attribution.ignoredMoved);
 
-  if (attribution.honouredDay !== attribution.originDay) {
-    errors.push('a valid move was not honoured: expected ' + attribution.originDay
-      + ', counted on ' + attribution.honouredDay);
-  }
   if (attribution.honouredMoved !== 1) errors.push('a valid move was not counted');
-  if (attribution.ignoredDay !== attribution.sheetDay) {
-    errors.push('a move was believed for a session of a different sport — counted on '
-      + attribution.ignoredDay + ' instead of ' + attribution.sheetDay);
-  }
   if (attribution.ignoredMoved !== 0) {
     errors.push('a stale move was counted as moved-and-kept');
   }

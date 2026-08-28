@@ -8,13 +8,23 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.39.1';
+    const CURRENT = '1.40.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.40.0',
+            date: '2026-08-28',
+            headline: 'Which day slips is gone',
+            items: [
+                'You said you were not interested and never would be, so it has come off. That was the deal when it went on: a figure nobody wants is not neutral, it is noise dressed as information, and it was taking a fifth of the Progress tab to be ignored in.',
+                'Progress now answers three questions instead of four: which sport is running behind, how many sessions in a row you have kept, and how often one was moved rather than lost.',
+                'The weekday chart and everything only it used are gone from the app, not merely hidden. What stays is the rule the chart forced into existence: a remembered move is never believed if the row no longer holds the sport it was recorded against. That protects the moved-rather-than-lost count too, so it earns its keep without the chart.',
+            ]
+        },
         {
             version: '1.39.1',
             date: '2026-08-28',

@@ -20,18 +20,20 @@
  * So this asks the questions a spreadsheet of that shape structurally cannot,
  * from the rows themselves:
  *
- *   - which day of the week actually gets skipped
  *   - which sport quietly runs behind the others
  *   - how consistent the last stretch has been
  *   - how often a session was moved rather than lost
  *
- * All four are derived, none are stored, and nothing here writes anything.
+ * A fourth — which weekday gets skipped — was built, shown, and removed at
+ * Martin's word: he was not interested and never would be, and a figure
+ * nobody wants is noise wearing the clothes of information. The commit that
+ * removed it restores it if that ever changes.
+ *
+ * All three are derived, none are stored, and nothing here writes anything.
  */
 const AmsStats = (function () {
     'use strict';
 
-    const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
     /*
      * A session in the future has not been missed; it simply has not happened.
@@ -78,16 +80,6 @@ const AmsStats = (function () {
     }
 
     /*
-     * Which weekday gets skipped.
-     *
-     * A caveat that matters more than the number: this counts the day a session
-     * ended up on, not the day it was first planned for. Moving a session
-     * rewrites its date in the sheet, so a Thursday swim shifted to Saturday and
-     * completed reads here as a kept Saturday, and Thursday never shows the
-     * slip. Moves made from this app are recorded separately and put back (see
-     * plannedDayOf); moves made in Excel cannot be, and are invisible.
-     */
-    /*
      * A remembered move is only believed if the session it names is still the
      * session it was. The key is sheet plus row, and a row inserted in Excel
      * slides every session below it onto its neighbour's identity — so without
@@ -105,46 +97,6 @@ const AmsStats = (function () {
         return move;
     }
 
-    function plannedDayOf(workout, moves) {
-        const move = moveFor(workout, moves);
-        const from = move && typeof move.from === 'string' ? move.from : workout.dayKey;
-        const date = new Date(from + 'T00:00:00Z');
-        if (isNaN(date.getTime())) {
-            // An unusable origin must not remove the session from the chart —
-            // fall back to where the sheet says it is.
-            const fallback = new Date(workout.dayKey + 'T00:00:00Z');
-            return isNaN(fallback.getTime()) ? null : fallback.getUTCDay();
-        }
-        return date.getUTCDay();
-    }
-
-    function byDay(past, moves) {
-        const rows = DAY_NAMES.map((name, index) => ({
-            index: index, name: name, short: DAY_SHORT[index],
-            planned: 0, done: 0, missed: 0, unlogged: 0, rate: null
-        }));
-
-        past.forEach((workout) => {
-            const day = plannedDayOf(workout, moves);
-            if (day === null) return;
-            const row = rows[day];
-            row.planned += 1;
-            row[workout.outcome] += 1;
-        });
-
-        rows.forEach((row) => {
-            if (row.planned) row.rate = row.done / row.planned;
-        });
-
-        // Monday first, the way a training week is read.
-        const ordered = rows.slice(1).concat(rows.slice(0, 1));
-        const seen = ordered.filter((row) => row.planned > 0);
-        const worst = seen.length
-            ? seen.reduce((low, row) => (row.rate < low.rate ? row : low))
-            : null;
-
-        return { rows: ordered, worst: worst, counted: seen.length };
-    }
 
     /*
      * Which sport runs behind. Counted in minutes as well as sessions, because
@@ -267,15 +219,12 @@ const AmsStats = (function () {
             firstDay: past.length ? past[0].dayKey : null,
             lastDay: past.length ? past[past.length - 1].dayKey : null,
             streak: streaks(past),
-            day: byDay(past, moves),
             sport: bySport(past),
             moves: movedVsMissed(past, moves, (options && options.movesSince) || null)
         };
     }
 
     return {
-        summarise: summarise,
-        DAY_NAMES: DAY_NAMES,
-        DAY_SHORT: DAY_SHORT
+        summarise: summarise
     };
 })();
