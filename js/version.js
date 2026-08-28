@@ -8,13 +8,22 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.39.0';
+    const CURRENT = '1.39.1';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.39.1',
+            date: '2026-08-28',
+            headline: 'The wash stops at the line',
+            items: [
+                'Asked for, and right: the week’s figures now sit on plain ground again. The wash ends exactly at the grey rule under the day columns instead of running on beneath the numbers.',
+                'It ends *at the rule wherever the rule is* — open the key or a day and the rule moves down, and the wash’s edge moves with it. The statistics block repaints the card’s own surface over the wash rather than the wash trying to guess where to stop, which is why nothing on screen moved by a pixel.',
+            ]
+        },
         {
             version: '1.39.0',
             date: '2026-08-28',

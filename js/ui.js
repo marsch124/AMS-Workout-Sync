@@ -549,8 +549,8 @@ const AmsUi = (function () {
             + sportRows
             + '<p class="week-legend-note">Height is the planned duration, against the '
             + 'biggest day of the week. Tap a day to see what is on it. The pale green wash '
-            + 'behind everything is the week itself passing: its edge is now, and it reaches '
-            + 'the far side of the card as Sunday ends.</p>'
+            + 'across the top of the card is the week itself passing: its edge is now, and it '
+            + 'reaches the far side as Sunday ends.</p>'
             + '</div>';
     }
 
