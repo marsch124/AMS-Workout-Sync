@@ -891,7 +891,22 @@ body.detail-open .tab-bar { display: none; }
 
 /* ---------- the week at a glance ---------- */
 
-.week-card { padding: 0.85rem 1rem; }
+/*
+ * The wash: the week itself, painted as ground. The tint's right edge is the
+ * present moment, moving across the card from Monday's edge to Sunday's; a
+ * glance says "mid-week" before a single number is read. It is a background
+ * layer rather than an element, so it can never sit on top of anything, never
+ * intercept a tap, and is clipped by the card's own corners for free. The
+ * colour is mixed from the accent so both themes get their own version, and a
+ * browser too old for color-mix simply shows no wash — nothing breaks.
+ */
+.week-card {
+    padding: 0.85rem 1rem;
+    background-image: linear-gradient(90deg,
+        color-mix(in srgb, var(--accent) 13%, transparent) 0,
+        color-mix(in srgb, var(--accent) 13%, transparent) var(--week-f, 0%),
+        transparent calc(var(--week-f, 0%) + 3%));
+}
 
 .week-card-head {
     display: flex;

@@ -23,6 +23,7 @@ node tests/logging.js
 node tests/move-log.js
 node tests/leaving-a-form.js
 node tests/august-audit.js
+node tests/week-wash.js
 ```
 
 Each script prints what it found and ends with `errors: none`. Nothing is
@@ -113,6 +114,11 @@ storage persistence is requested at boot, the reset confirm counts the queued
 sessions it would delete, the sport colours hold contrast in light mode, and
 the small controls are tappable at thumb size without their halos stealing
 taps from the day columns.
+
+**`week-wash.js`** — the tint that crosses the week card as the week passes.
+Driven at three frozen moments of the current week — Monday 00:30, Thursday
+noon, Sunday 23:30 — checking the fraction the gradient is built from, that it
+is painted as background rather than DOM, and that nothing new can sit on a tap.
 
 **`column-collision.js`** — a mapping that points a results column at a column
 the plan lives in. Logging must refuse to write there rather than overwrite the

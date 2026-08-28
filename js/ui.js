@@ -373,6 +373,22 @@ const AmsUi = (function () {
      * point at what is left rather than at what is missing. And when the week
      * is met, say so instead of quietly reading 100%.
      */
+    /*
+     * How far through the week the clock is, as a share of Monday 00:00 to
+     * Sunday midnight — local time, because "how far into my week am I" is a
+     * lived question, not a spreadsheet one. It paints the wash across the
+     * week card: the tint's right edge is now, and it reaches the card's far
+     * side as Sunday ends. Computed at render time; the card re-renders on
+     * every logging action and whenever the app comes back to the foreground,
+     * which keeps it honest enough for something that moves 14% a day.
+     */
+    function weekFraction() {
+        const now = new Date();
+        const day = (now.getDay() + 6) % 7;
+        const f = (day + now.getHours() / 24 + now.getMinutes() / 1440) / 7;
+        return Math.max(0, Math.min(1, f));
+    }
+
     function weekFigures(week) {
         // Both numbers, every week, in that order: what you did, then what the
         // week asked for. Performed leads because it is the half you earned;
@@ -532,7 +548,9 @@ const AmsUi = (function () {
             + '<ul class="week-legend-shapes">' + shapeRows + '</ul>'
             + sportRows
             + '<p class="week-legend-note">Height is the planned duration, against the '
-            + 'biggest day of the week. Tap a day to see what is on it.</p>'
+            + 'biggest day of the week. Tap a day to see what is on it. The pale green wash '
+            + 'behind everything is the week itself passing: its edge is now, and it reaches '
+            + 'the far side of the card as Sunday ends.</p>'
             + '</div>';
     }
 
@@ -1016,7 +1034,8 @@ const AmsUi = (function () {
         if (!week || !week.plannedSeconds) {
             const ahead = weekCalendar(1);
             if (!ahead) return '';
-            return '<div class="card week-card" data-legend>'
+            return '<div class="card week-card" data-legend style="--week-f: '
+                + (weekFraction() * 100).toFixed(1) + '%">'
                 + '<div class="week-card-head">'
                 + '<span class="week-card-head-main"><span class="week-card-label">This week</span></span>'
                 + '<button type="button" class="week-share" data-share-week'
@@ -1031,7 +1050,8 @@ const AmsUi = (function () {
         const percent = Math.round(week.actualSeconds / week.plannedSeconds * 100);
         const width = Math.max(0, Math.min(100, percent));
 
-        return '<div class="card week-card" data-legend>'
+        return '<div class="card week-card" data-legend style="--week-f: '
+                + (weekFraction() * 100).toFixed(1) + '%">'
             + '<div class="week-card-head">'
             + '<button type="button" class="week-card-head-main" data-legend'
             + ' aria-expanded="' + (legendOpen ? 'true' : 'false') + '">'

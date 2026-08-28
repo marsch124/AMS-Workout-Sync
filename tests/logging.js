@@ -25,7 +25,7 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
   await p.goto('http://localhost:7810/', { waitUntil: 'networkidle' });
   await p.click('.tab[data-tab="settings"]');
   await p.waitForSelector('#openLocalButton');
-  await p.setInputFiles('#localFileInput', __dirname + '/fixtures/plain.xlsx');
+  await p.setInputFiles('#localFileInput', __dirname + '/fixtures/everyday.xlsx');
   await p.waitForTimeout(2500);
   await p.click('.tab[data-tab="today"]');
   await p.waitForTimeout(600);

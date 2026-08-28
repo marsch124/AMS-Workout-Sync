@@ -12,7 +12,12 @@ Nothing outstanding. Shipped and confirmed working on his phone up to **v1.37.0*
 v1.38.0 then fixed all four findings of a full audit (persist() at boot, the
 reset confirm counts the queue, darker light-mode sport palette, 44px tap halos
 — guarded permanently by `tests/august-audit.js`). The audit itself is published
-as an artifact ("The August Audit").
+as an artifact ("The August Audit"). v1.39.0 added the *wash*: the week card's
+background tints left-to-right with the week's passage (chosen from five
+mocked variants; `weekFraction()` in ui.js, gradient on `.week-card`, guarded
+by `tests/week-wash.js`). Note for tests: `plain.xlsx` starts its week on
+Wednesday and rests on Friday by design — tests that need *today* loggable use
+`everyday.xlsx`, which has two sessions every day.
 
 The last run of work came from the input page and from screenshots:
 

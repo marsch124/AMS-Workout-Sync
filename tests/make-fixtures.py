@@ -215,6 +215,31 @@ def paced(path):
     wb.save(path)
 
 
+def everyday(path):
+    """
+    Two sessions on every day of this week and next, no rest days, no blanks.
+
+    Exists for the tests that drive *today's* card — logging it, marking it
+    missed, watching the buttons collapse. plain.xlsx starts its week on
+    Wednesday and rests on Friday, so any test that needed "something to log
+    today" was green three days a week and red the other four, which is how a
+    suite quietly trains people to rerun it until it passes.
+    """
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Weekly Schedules'
+    ws.append(HEADERS)
+
+    monday = monday_of_this_week()
+    sports = [('Run', 35, 'Z2'), ('Swim', 30, 'Z1-Z2')]
+    for offset in range(14):
+        date = monday + datetime.timedelta(days=offset)
+        for sport, minutes, zone in sports:
+            ws.append([1 if offset < 7 else 2, date.isoformat(), DAYS[date.weekday()],
+                       sport, sport + ' session', minutes, zone, 'Base'])
+    wb.save(path)
+
+
 def broken(path_rubbish, path_truncated, source):
     with open(path_rubbish, 'wb') as fh:
         fh.write(b'this is not a zip, it is a sentence')
@@ -232,6 +257,7 @@ if __name__ == '__main__':
     foreign_extras(os.path.join(OUT, 'foreign-extras.xlsx'))
     history(os.path.join(OUT, 'history.xlsx'))
     paced(os.path.join(OUT, 'paced.xlsx'))
+    everyday(os.path.join(OUT, 'everyday.xlsx'))
     row_inserted(os.path.join(OUT, 'row-inserted.xlsx'),
                  os.path.join(OUT, 'plain.xlsx'))
     broken(os.path.join(OUT, 'rubbish.xlsx'),

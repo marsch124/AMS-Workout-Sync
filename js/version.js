@@ -8,13 +8,24 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.38.0';
+    const CURRENT = '1.39.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.39.0',
+            date: '2026-08-28',
+            headline: 'The week card wears the week',
+            items: [
+                'A pale green wash now moves across the This Week card as the week does. Its right edge is the present moment: a sliver on Monday morning, halfway through Thursday lunchtime, the whole card as Sunday ends. Chosen from five candidates, and it was the most beautiful of them.',
+                'It is painted as ground rather than drawn as a thing — part of the card’s own background, behind every bar and word, unable to cover anything or catch a tap meant for something else. Both themes mix their own version from the app’s green.',
+                'The key behind the **?** explains it, alongside the shapes it already explains.',
+                'No numbers changed and none moved. The wash says *where in the week you are standing*; the bars still say what each day asks; the bar below still says how the hours stand. Three different questions, now each with its own voice.',
+            ]
+        },
         {
             version: '1.38.0',
             date: '2026-08-26',
