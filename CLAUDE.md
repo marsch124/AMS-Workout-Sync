@@ -15,7 +15,7 @@ reset confirm counts the queue, darker light-mode sport palette, 44px tap halos
 as an artifact ("The August Audit"). v1.39.0 added the *wash*: the week card's
 background tints left-to-right with the week's passage (chosen from five
 mocked variants; `weekFraction()` in ui.js, gradient on `.week-card`, guarded
-by `tests/week-wash.js`). Note for tests: `plain.xlsx` starts its week on
+by `tests/week-wash.js`; since 1.39.1 it ends at the grey rule — `.week-total` repaints the surface over it, so the edge follows the rule wherever the card's height puts it). Note for tests: `plain.xlsx` starts its week on
 Wednesday and rests on Friday by design — tests that need *today* loggable use
 `everyday.xlsx`, which has two sessions every day.
 
