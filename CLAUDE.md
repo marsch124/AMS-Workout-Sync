@@ -53,7 +53,7 @@ its row) stays, because the moved-rather-than-lost count needs it too.
 | `js/plan.js` | disciplines, parsing, `buildEdits` — what gets written |
 | `js/extras.js` | the Extras sheet (things the plan did not ask for) |
 | `js/ics.js` | calendar export (RFC 5545) |
-| `js/stats.js` | the Progress tab's four figures. Pure, derives nothing stored |
+| `js/stats.js` | the Progress tab's three figures. Pure, derives nothing stored |
 | `js/dropbox.js` | OAuth 2 PKCE, retries, timeouts |
 | `js/sync.js` | state, the queue, load/sync, the move log |
 | `js/ui.js` | every screen (~3,000 lines) |
