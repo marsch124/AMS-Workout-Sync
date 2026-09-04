@@ -24,6 +24,8 @@ node tests/move-log.js
 node tests/leaving-a-form.js
 node tests/august-audit.js
 node tests/week-wash.js
+node tests/rest-day.js
+node tests/photos.js
 ```
 
 Each script prints what it found and ends with `errors: none`. Nothing is
@@ -127,6 +129,21 @@ workout text in the sheet.
 **`foreign-extras-sheet.js`** — a workbook that already has a sheet called
 `Extras` belonging to somebody else. The app must leave it alone and take
 another name.
+
+**`rest-day.js`** — a session moved onto a rest day. The rest card must go from
+Today and from the Plan list, the rest *row* must stay in the plan untouched
+(nothing is written to the sheet for this), moving the session away again must
+bring the rest day back, and a rest day nobody touched must be left alone.
+Deliberately weekday-independent: the fixture rests on a Friday, which is only
+today one day in seven.
+
+**`photos.js`** — the pictures, which are the only thing the app holds that
+exists nowhere else. A photograph goes in shrunk and comes back out as the
+bytes that went in; it is shown against the session it was taken against and
+never against a row whose sport has changed under it; one that can no longer be
+placed is still counted and still exported; `AmsDb.reset()` does not take them;
+and the zip the app builds reads back entry for entry, byte for byte. The
+pictures are drawn on a canvas rather than shipped as fixtures.
 
 ## Fixtures
 

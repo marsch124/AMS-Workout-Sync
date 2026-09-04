@@ -223,6 +223,87 @@ const AmsZip = (function () {
         }
     }
 
+    /*
+     * A zip built from nothing, for saving photographs out of the app.
+     *
+     * Stored rather than deflated, deliberately: a JPEG is already compressed,
+     * so deflating it spends time to make it a fraction of a percent smaller,
+     * and store-only keeps this to the one thing it has to get right, which is
+     * the offsets. The header fields are the same ones toBlob writes.
+     */
+    async function build(files) {
+        const chunks = [];
+        const central = [];
+        let offset = 0;
+
+        for (const file of files) {
+            const bytes = file.bytes instanceof Uint8Array
+                ? file.bytes
+                : new Uint8Array(await file.blob.arrayBuffer());
+            const nameBytes = utf8Encoder.encode(file.name);
+            const crc = crc32(bytes);
+
+            const local = new Uint8Array(30 + nameBytes.length);
+            const lv = new DataView(local.buffer);
+            lv.setUint32(0, SIG_LOCAL, true);
+            lv.setUint16(4, 20, true);
+            lv.setUint16(6, 0x0800, true);   // UTF-8 names
+            lv.setUint16(8, 0, true);        // stored
+            lv.setUint16(10, 0, true);
+            lv.setUint16(12, 0x21, true);
+            lv.setUint32(14, crc, true);
+            lv.setUint32(18, bytes.length, true);
+            lv.setUint32(22, bytes.length, true);
+            lv.setUint16(26, nameBytes.length, true);
+            lv.setUint16(28, 0, true);
+            local.set(nameBytes, 30);
+
+            chunks.push(local, bytes);
+            central.push({ nameBytes: nameBytes, crc: crc, size: bytes.length, offset: offset });
+            offset += local.length + bytes.length;
+        }
+
+        const centralStart = offset;
+        for (const item of central) {
+            const record = new Uint8Array(46 + item.nameBytes.length);
+            const cv = new DataView(record.buffer);
+            cv.setUint32(0, SIG_CENTRAL, true);
+            cv.setUint16(4, 20, true);
+            cv.setUint16(6, 20, true);
+            cv.setUint16(8, 0x0800, true);
+            cv.setUint16(10, 0, true);
+            cv.setUint16(12, 0, true);
+            cv.setUint16(14, 0x21, true);
+            cv.setUint32(16, item.crc, true);
+            cv.setUint32(20, item.size, true);
+            cv.setUint32(24, item.size, true);
+            cv.setUint16(28, item.nameBytes.length, true);
+            cv.setUint16(30, 0, true);
+            cv.setUint16(32, 0, true);
+            cv.setUint16(34, 0, true);
+            cv.setUint16(36, 0, true);
+            cv.setUint32(38, 0, true);
+            cv.setUint32(42, item.offset, true);
+            record.set(item.nameBytes, 46);
+            chunks.push(record);
+            offset += record.length;
+        }
+
+        const eocd = new Uint8Array(22);
+        const ev = new DataView(eocd.buffer);
+        ev.setUint32(0, SIG_EOCD, true);
+        ev.setUint16(4, 0, true);
+        ev.setUint16(6, 0, true);
+        ev.setUint16(8, central.length, true);
+        ev.setUint16(10, central.length, true);
+        ev.setUint32(12, offset - centralStart, true);
+        ev.setUint32(16, centralStart, true);
+        ev.setUint16(20, 0, true);
+        chunks.push(eocd);
+
+        return new Blob(chunks, { type: 'application/zip' });
+    }
+
     async function read(buffer) {
         const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
         const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -286,5 +367,5 @@ const AmsZip = (function () {
         return new Archive(bytes, entries, order);
     }
 
-    return { read, crc32, canInflate, canDeflate };
+    return { read, build, crc32, canInflate, canDeflate };
 })();

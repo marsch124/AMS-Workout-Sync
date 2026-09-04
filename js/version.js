@@ -8,13 +8,26 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.40.0';
+    const CURRENT = '1.41.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.41.0',
+            date: '2026-09-04',
+            headline: 'Photographs, and the end of the false rest day',
+            items: [
+                '**A session moved onto a rest day ends the rest day.** The rest card used to sit underneath the session you had just moved there, saying there was nothing on today. It was the workbook telling the truth about the plan and the wrong thing about the day. It now comes off Today and off the Plan list as soon as anything lands on that day, and the week strip stops drawing the flat rest line for it.',
+                'Nothing is written to the sheet for this. The rest row is exactly where it was, and moving the session away again brings the rest day straight back on the next redraw.',
+                '**Any session takes photographs.** Open a session, or its log form, and tap Add in the Photos strip: the camera and your library both come up, and several at once is fine. Tap one to see it full size, save a copy out, or delete it. A camera and a number on a session card is how many it has.',
+                'They are not written into your workbook, and they cannot be. That file is the one thing here that matters, and this app changes as little of it as it possibly can — pictures would mean adding drawings, relationships and anchors to your training plan. So a photo lives on this phone beside the plan rather than inside it, and it is not in Dropbox.',
+                'Which makes this the only copy, so there is a way out. **Settings → Photos** says how many there are and what they come to, and *Save them all* puts every one into a single zip file named by day and sport. Resetting the app deliberately leaves photos alone: a reset is what you reach for when syncing misbehaves, and losing a season of pictures to a sync fix would be indefensible. Deleting them is its own button.',
+                'Every photo is shrunk on the way in, to 1600 pixels on the long edge. That takes one off a phone from three or four megabytes to roughly a quarter of one, still sharper than the screen it is looked at on — so a season of them is tens of megabytes rather than gigabytes.',
+            ]
+        },
         {
             version: '1.40.0',
             date: '2026-08-28',

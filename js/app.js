@@ -54,6 +54,15 @@
             }
         } catch (err) { /* an old browser without the API — nothing to ask */ }
 
+        // What photographs this phone holds — the descriptions only, not the
+        // pictures. Read before the first paint so a session can show its
+        // count without the card having to redraw itself a moment later.
+        try {
+            await AmsPhotos.load();
+        } catch (err) {
+            console.warn('The photo list could not be read:', err);
+        }
+
         // The activity list is the user's own, and the extras form reads it as
         // it renders, so it has to be in place before the first paint.
         try {

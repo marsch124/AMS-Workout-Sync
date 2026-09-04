@@ -889,6 +889,20 @@ body.detail-open .tab-bar { display: none; }
 .change-list li { margin-bottom: 0.45rem; }
 .change-list li:last-child { margin-bottom: 0; }
 
+/* The changelog is written with a little markdown in it. The list is set in
+   the secondary colour, so the sentence carrying the change is lifted to the
+   full one rather than made heavier — the same trick the guide uses. */
+.change-list strong { color: var(--color-text); }
+.change-list em { font-style: normal; color: var(--color-text); opacity: 0.9; }
+.change-list code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.82em;
+    background: var(--color-surface-2);
+    padding: 0.1rem 0.3rem;
+    border-radius: 4px;
+    overflow-wrap: anywhere;
+}
+
 /* ---------- the week at a glance ---------- */
 
 /*
@@ -1698,4 +1712,140 @@ body[data-tab="settings"] { --accent: var(--tab-settings); --accent-ink: #16202a
 .stat-row-detail {
     font-size: 0.72rem; font-variant-numeric: tabular-nums;
     color: var(--color-text-secondary); width: 2.8rem; text-align: right; flex: none;
+}
+
+/* ============================ PHOTOGRAPHS ============================ */
+
+/*
+ * A row that scrolls sideways rather than a grid that grows downwards. The
+ * session's own words are the point of the screen; the pictures sit under them
+ * at a fixed height, however many there are, and the next one showing at the
+ * edge is what says to keep going.
+ */
+.photo-card {
+    margin-top: 0.8rem;
+}
+
+.photo-strip {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding: 0.15rem 0 0.35rem;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.photo-strip::-webkit-scrollbar { display: none; }
+
+.photo-thumb {
+    flex: 0 0 auto;
+    width: 5.4rem;
+    height: 5.4rem;
+    padding: 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-2);
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.photo-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/*
+ * The same size as a thumbnail rather than a button below the row, so the
+ * place a photo goes and the place they already are read as one thing.
+ */
+.photo-add {
+    flex: 0 0 auto;
+    width: 5.4rem;
+    height: 5.4rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.1rem;
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+}
+
+.photo-add-mark {
+    font-size: 1.35rem;
+    line-height: 1;
+}
+
+.photo-add-text {
+    font-size: 0.68rem;
+    text-align: center;
+    padding: 0 0.2rem;
+}
+
+/* ---- one photo, full size ---- */
+
+.photo-viewer {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.photo-viewer[hidden] { display: none; }
+
+.photo-viewer-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.82);
+}
+
+.photo-viewer-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    align-items: center;
+    width: 100%;
+    max-width: 34rem;
+    padding: 0.8rem;
+    padding-bottom: calc(0.8rem + var(--safe-bottom));
+}
+
+.photo-viewer-card img {
+    max-width: 100%;
+    /* Room left for the caption and the three buttons under it, so a tall
+       photograph does not push them off the bottom of the phone. */
+    max-height: 68vh;
+    border-radius: var(--radius);
+    display: block;
+}
+
+.photo-viewer-caption {
+    margin: 0;
+    font-size: 0.78rem;
+    color: #cbd8d8;
+    text-align: center;
+}
+
+/* The tab bar sits above everything else and would otherwise show through
+   the backdrop at the foot of the screen. */
+body.is-viewing-photo .tab-bar { display: none; }
+
+/* A camera and a number, sized to sit in a pill without lifting its line. */
+.pill-photo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.22em;
+}
+
+.pill-photo .icon {
+    width: 0.95em;
+    height: 0.95em;
 }

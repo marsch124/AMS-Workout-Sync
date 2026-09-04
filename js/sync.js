@@ -1018,8 +1018,33 @@ const AmsSync = (function () {
         return AmsXlsx.dayKey(new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())));
     }
 
+    /*
+     * A rest row is a claim about the whole day — the workbook saying "nothing
+     * today" — rather than a thing that happens in it. Move a session onto
+     * that day and the claim stops being true, and the rest card sat
+     * underneath the session contradicting it.
+     *
+     * So a rest row is suppressed on any day that also holds training. Only
+     * the reading changes: the row itself is left exactly as it is in the
+     * sheet, nothing is written, and moving the session away again brings the
+     * rest day straight back on the next render.
+     *
+     * `weekDays()` already worked this way — `isRest` has always been
+     * `every(rest)` rather than `some(rest)` — so the week strip and the
+     * calendar export needed nothing. This makes the day lists agree with the
+     * strip they sit under.
+     */
+    function visiblePlan() {
+        const training = new Set();
+        for (const workout of state.plan) {
+            if (workout.discipline.id !== 'rest') training.add(workout.dayKey);
+        }
+        if (!training.size) return state.plan.slice();
+        return state.plan.filter((w) => !(w.discipline.id === 'rest' && training.has(w.dayKey)));
+    }
+
     function forDay(dayKey) {
-        return state.plan.filter((w) => w.dayKey === dayKey);
+        return visiblePlan().filter((w) => w.dayKey === dayKey);
     }
 
     function today() {
@@ -1028,12 +1053,12 @@ const AmsSync = (function () {
 
     function upcoming(limit) {
         const key = todayKey();
-        return state.plan.filter((w) => w.dayKey > key).slice(0, limit || 20);
+        return visiblePlan().filter((w) => w.dayKey > key).slice(0, limit || 20);
     }
 
     function recent(limit) {
         const key = todayKey();
-        return state.plan.filter((w) => w.dayKey < key).slice(-(limit || 20)).reverse();
+        return visiblePlan().filter((w) => w.dayKey < key).slice(-(limit || 20)).reverse();
     }
 
     /* Has this session been dealt with — logged or marked missed, in the sheet
@@ -1228,6 +1253,7 @@ const AmsSync = (function () {
         exportWorkbook,
         stats,
         todayKey,
+        visiblePlan,
         forDay,
         today,
         upcoming,

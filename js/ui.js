@@ -203,6 +203,19 @@ const AmsUi = (function () {
         return 'style="--sport: ' + workout.discipline.color + '"';
     }
 
+    /*
+     * A count on the card, so a session with a picture on it can be found
+     * without opening every one. It is only ever a number and a camera: the
+     * thumbnails themselves belong on the session's own screen, and a strip of
+     * them in a list would turn the plan into a gallery.
+     */
+    function photoPill(workout) {
+        const n = AmsPhotos.countFor(workout);
+        if (!n) return '';
+        return '<span class="pill pill-photo">'
+            + '<svg class="icon"><use href="#icon-camera"></use></svg>' + n + '</span>';
+    }
+
     function workoutCard(workout, options) {
         const opts = options || {};
         const state = AmsSync.getState();
@@ -217,6 +230,7 @@ const AmsUi = (function () {
             pills.push('<span class="pill">' + esc(workout.planned.intensity) + '</span>');
         }
         pills.push(statusPill(workout));
+        pills.push(photoPill(workout));
         if (opts.showDate) {
             pills.unshift('<span class="pill">' + esc(shortDay(workout.date)) + '</span>');
         }
@@ -341,6 +355,7 @@ const AmsUi = (function () {
                 +   (workout.planned && workout.planned.distanceRaw
                         ? '<span class="pill">' + esc(formatDistance(workout.planned.distanceRaw, state2.mapping)) + '</span>' : '')
                 +   statusPill(workout)
+                +   photoPill(workout)
                 + '</div>'
                 + '<div style="margin-top:0.9rem">' + sectionsHtml(workout) + '</div>'
                 + (workout.discipline.id === 'rest'
@@ -1290,7 +1305,10 @@ const AmsUi = (function () {
              * been moved is still outstanding, so it stays.
              */
             const today = AmsSync.todayKey();
-            workouts = state.plan.filter((w) => {
+            // visiblePlan(), not state.plan: a rest day with a session moved
+            // onto it is no longer a rest day, and listing it here under the
+            // session would say the opposite of the card above it.
+            workouts = AmsSync.visiblePlan().filter((w) => {
                 if (w.dayKey < today) return false;
                 const status = statusOf(w);
                 return !(status && (status.kind === 'logged' || status.kind === 'missed'));
@@ -1321,7 +1339,7 @@ const AmsUi = (function () {
                 return status && status.kind === 'missed';
             }).reverse();
         } else {
-            workouts = state.plan.slice();
+            workouts = AmsSync.visiblePlan();
         }
 
         const outstandingHtml = outstandingFirst.length
@@ -1399,6 +1417,9 @@ const AmsUi = (function () {
                     + esc(workout.planned.description) + '</p></div>'
                 : '')
             + logged
+            // A rest day is still a day you might have photographed — the walk
+            // you took instead — so the strip is offered on it as well.
+            + photoBlock(workout)
             + (workout.discipline.id === 'rest' ? ''
                 : '<button class="btn btn-block" data-move="' + esc(workout.key) + '" style="margin-top:0.6rem">'
                     + 'Move to another day</button>')
@@ -1416,6 +1437,7 @@ const AmsUi = (function () {
         const status = statusOf(workout);
         logButton.textContent = (status && status.kind === 'logged') ? 'Log again' : 'Log this session';
         showScreen('workoutScreen');
+        paintPhotos();
     }
 
     function loggedSummary(workout) {
@@ -1457,6 +1479,302 @@ const AmsUi = (function () {
                 + '<div class="settings-row-sub">' + esc(r[0]) + '</div>'
                 + '<div class="settings-row-title">' + esc(r[1]) + '</div></div></div>').join('')
             + '</div>';
+    }
+
+    /* ---------- photographs ---------- */
+
+    /*
+     * A picture belongs to the session, not to the form.
+     *
+     * Everything else on the log screen is held back until Save, because it is
+     * bound for cells in a workbook and a half-filled form must not reach it
+     * (invariant 6). A photograph is bound for nowhere but this phone, so the
+     * same rule would buy nothing and cost two things. It would mean a picture
+     * chosen and then abandoned by pressing back is destroyed, which is not
+     * what anybody means by backing out of a form; and it would mean the only
+     * way to add a photo to a session logged last Tuesday is to log it again.
+     *
+     * So a photo is attached the moment it is chosen, and it can be attached
+     * from the session's own screen as well as while logging. Removing one is
+     * its own deliberate act, with a confirm, because there is no other copy.
+     */
+    const photoUrls = new Map();
+
+    function releasePhotoUrls() {
+        for (const url of photoUrls.values()) URL.revokeObjectURL(url);
+        photoUrls.clear();
+    }
+
+    function formatBytes(bytes) {
+        if (!bytes) return '0 KB';
+        if (bytes < 950 * 1024) return Math.round(bytes / 1024) + ' KB';
+        return (Math.round(bytes / (1024 * 1024) * 10) / 10) + ' MB';
+    }
+
+    /*
+     * Thumbnails are drawn empty and filled in afterwards. Reading a picture
+     * out of the database is asynchronous, and the screens that show photos
+     * build their HTML in one synchronous string; waiting for the pictures
+     * would hold up the whole screen for something that is decoration next to
+     * the session itself.
+     */
+    function photoBlock(workout) {
+        const photos = AmsPhotos.forWorkout(workout);
+
+        const thumbs = photos.map((photo) =>
+            '<button type="button" class="photo-thumb" data-photo-open="' + esc(photo.id) + '"'
+            + ' aria-label="Photo taken ' + esc(shortDay(new Date(photo.addedAt))) + '">'
+            + '<img data-photo-img="' + esc(photo.id) + '" alt="">'
+            + '</button>').join('');
+
+        /*
+         * Add comes first, before the pictures rather than after them. The
+         * strip scrolls sideways, so a button on the end is off the screen the
+         * moment there are four photos — the button you want being hidden by
+         * the success of the thing it does. First, it is always in the same
+         * place and always visible.
+         */
+        return '<div class="card photo-card">'
+            + '<p class="section-label">Photos</p>'
+            + '<div class="photo-strip">'
+            + '<button type="button" class="photo-add" data-photo-add="' + esc(workout.key) + '">'
+            + '<span class="photo-add-mark">+</span>'
+            + '<span class="photo-add-text">' + (photos.length ? 'Add' : 'Add a photo') + '</span>'
+            + '</button>'
+            + thumbs
+            + '</div>'
+            /*
+             * Said once, to the empty strip, and then not again. It is the
+             * answer to "where does this go", which is a question you ask
+             * before the first photo and never after — and this block sits on
+             * every session screen, so three lines of standing explanation
+             * would be three lines of noise above the thing you came to read.
+             * Settings carries the full story, where it is looked for.
+             */
+            + (photos.length
+                ? ''
+                : '<p class="hint-inline">Kept on this phone. The workbook holds numbers, '
+                    + 'not pictures, so a photo is not written to it.</p>')
+            + '</div>';
+    }
+
+    /* Fill in whatever thumbnails are on screen right now. Called after any
+       render that might have drawn some, and cheap when it has not. */
+    async function paintPhotos() {
+        const nodes = document.querySelectorAll('img[data-photo-img]');
+        for (const node of nodes) {
+            const id = node.dataset.photoImg;
+            if (node.getAttribute('src')) continue;
+            let url = photoUrls.get(id);
+            if (!url) {
+                const blob = await AmsPhotos.blob(id);
+                if (!blob) {
+                    // The description survived and the picture did not, which
+                    // should not happen — both go in on one transaction — but
+                    // a broken frame with no explanation is the worst way to
+                    // find out, so the strip drops it instead.
+                    const holder = node.closest('.photo-thumb');
+                    if (holder) holder.remove();
+                    continue;
+                }
+                url = URL.createObjectURL(blob);
+                photoUrls.set(id, url);
+            }
+            node.src = url;
+        }
+    }
+
+    /*
+     * One hidden file input, reused. `accept="image/*"` with no `capture`
+     * attribute is what gives an iPhone the whole sheet — camera, library and
+     * files — rather than opening straight into the camera, which would be
+     * wrong most of the time: the photo of the ride is usually already taken.
+     */
+    let photoTargetKey = null;
+
+    async function addPhotos(files) {
+        const workout = photoTargetKey ? AmsSync.byKey(photoTargetKey) : null;
+        if (!workout || !files || !files.length) return;
+
+        let added = 0;
+        for (const file of files) {
+            if (!/^image\//.test(file.type || '') && !/\.(jpe?g|png|heic|heif|webp)$/i.test(file.name || '')) {
+                continue;
+            }
+            try {
+                await AmsPhotos.add(workout, file);
+                added++;
+            } catch (err) {
+                toast(err.message || 'That picture could not be saved.', 'bad');
+                break;
+            }
+        }
+
+        if (!added) {
+            toast('Nothing there the app could read as a picture.', 'bad');
+            return;
+        }
+
+        toast(added === 1 ? 'Photo added.' : added + ' photos added.', 'good');
+        refreshPhotoViews(workout);
+    }
+
+    /* Every screen that can be showing this session's photos, redrawn. */
+    function refreshPhotoViews(workout) {
+        const active = document.querySelector('.screen.active');
+        const id = active ? active.id : '';
+        if (id === 'logScreen') {
+            const strip = document.querySelector('#logBody .photo-card');
+            if (strip) strip.outerHTML = photoBlock(workout);
+        } else if (id === 'workoutScreen') {
+            openWorkout(workout.key);
+        } else if (id === 'settingsScreen') {
+            renderSettings();
+        }
+        renderToday();
+        renderPlan();
+        paintPhotos();
+    }
+
+    /* ---------- looking at one ---------- */
+
+    let viewingPhoto = null;
+
+    async function openPhoto(id) {
+        const photo = AmsPhotos.all().find((p) => p.id === id);
+        if (!photo) return;
+        viewingPhoto = photo;
+
+        const blob = await AmsPhotos.blob(id);
+        if (!blob) { toast('That picture is no longer on this phone.', 'bad'); return; }
+
+        let url = photoUrls.get(id);
+        if (!url) { url = URL.createObjectURL(blob); photoUrls.set(id, url); }
+
+        $('photoViewerImage').src = url;
+        /*
+         * The day the session is on now, not the day it was on when the photo
+         * was taken. A session moved to Friday shows its photographs under
+         * Friday's heading, and a caption still saying Sunday reads as a bug
+         * in the app rather than as a fact about the picture. The stored day
+         * is the fallback, for a photo whose session is no longer findable.
+         */
+        const owner = AmsSync.byKey(photo.workoutKey);
+        const day = (owner && owner.discipline.id === photo.disciplineId && owner.date)
+            || AmsPlan.parseDayKey(photo.dayKey);
+        $('photoViewerCaption').textContent =
+            (day ? longDay(day) + ' · ' : '') + formatBytes(photo.bytes)
+            + (photo.width ? ' · ' + photo.width + '×' + photo.height : '');
+        $('photoViewer').hidden = false;
+        document.body.classList.add('is-viewing-photo');
+    }
+
+    function closePhoto() {
+        $('photoViewer').hidden = true;
+        $('photoViewerImage').removeAttribute('src');
+        document.body.classList.remove('is-viewing-photo');
+        viewingPhoto = null;
+    }
+
+    async function deleteViewedPhoto() {
+        if (!viewingPhoto) return;
+        // There is no second copy of this anywhere, so it is asked plainly.
+        if (!confirm('Delete this photo? It is only on this phone, so it cannot be got back.')) return;
+
+        const workout = AmsSync.byKey(viewingPhoto.workoutKey);
+        const url = photoUrls.get(viewingPhoto.id);
+        if (url) { URL.revokeObjectURL(url); photoUrls.delete(viewingPhoto.id); }
+
+        await AmsPhotos.remove(viewingPhoto.id);
+        closePhoto();
+        toast('Photo deleted.', 'good');
+        if (workout) refreshPhotoViews(workout);
+        else { renderSettings(); renderToday(); }
+    }
+
+    async function shareViewedPhoto() {
+        if (!viewingPhoto) return;
+        const blob = await AmsPhotos.blob(viewingPhoto.id);
+        if (!blob) { toast('That picture is no longer on this phone.', 'bad'); return; }
+        await shareBlob(blob, AmsPhotos.fileNameFor(viewingPhoto), 'Session photo');
+    }
+
+    /*
+     * Out of the app and into somewhere that keeps things. The share sheet is
+     * the route that matters on a phone, because it is what puts "Save Image"
+     * and "Save to Files" in front of you; the download link is the desktop
+     * fallback and the one that runs when sharing is refused.
+     */
+    async function shareBlob(blob, name, title) {
+        const file = typeof File === 'function' ? new File([blob], name, { type: blob.type }) : null;
+
+        if (file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({ files: [file], title: title });
+                return true;
+            } catch (err) {
+                if (err && err.name === 'AbortError') return false;
+            }
+        }
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+        toast('Saved.', 'good');
+        return true;
+    }
+
+    /*
+     * Every photo at once, as a zip. Stored rather than compressed — see the
+     * note on AmsZip.build — and named by day and sport so the folder makes
+     * sense without the app that wrote it. Orphans are in here too: a photo
+     * whose row has moved out from under it is shown nowhere, and leaving it
+     * out of the one route off the phone would be how it disappeared.
+     */
+    async function savePhotos() {
+        const photos = AmsPhotos.all();
+        if (!photos.length) { toast('There are no photos to save.', 'bad'); return; }
+
+        const button = $('savePhotosButton');
+        if (button) { button.disabled = true; button.textContent = 'Collecting…'; }
+
+        try {
+            const seen = new Set();
+            const files = [];
+            for (const photo of photos) {
+                const blob = await AmsPhotos.blob(photo.id);
+                if (!blob) continue;
+                files.push({ name: AmsPhotos.fileNameFor(photo, seen), blob: blob });
+            }
+            if (!files.length) { toast('None of the pictures could be read back.', 'bad'); return; }
+
+            const zip = await AmsZip.build(files);
+            const stamp = new Date().toISOString().slice(0, 10);
+            await shareBlob(zip, 'workout-photos-' + stamp + '.zip', 'Session photos');
+        } catch (err) {
+            toast(err.message || 'Those could not be saved.', 'bad');
+        } finally {
+            if (button) { button.disabled = false; button.textContent = 'Save them all'; }
+        }
+    }
+
+    async function deleteAllPhotos() {
+        const total = AmsPhotos.count();
+        if (!total) return;
+        if (!confirm('Delete all ' + total + ' photo' + (total === 1 ? '' : 's') + '?\n\n'
+            + 'They are only on this phone. Save them first if you want to keep them.')) return;
+
+        releasePhotoUrls();
+        await AmsPhotos.removeAll();
+        toast('Photos deleted.', 'good');
+        renderSettings();
+        renderToday();
+        renderPlan();
     }
 
     /* ---------- the log form ---------- */
@@ -1556,8 +1874,11 @@ const AmsUi = (function () {
                     + '<p class="hint-inline">' + esc(groups.extra.map((f) => f.label).join(', ')) + '</p>'
                 : '')
             + '<input type="hidden" id="log-distanceUnit" value="' + esc(distanceUnit) + '">'
+            + photoBlock(workout)
             + '<p class="hint-inline">Saved into <strong>' + esc(workout.sheet) + '</strong> row ' + workout.row
             + '. Leave anything blank and that cell is left exactly as it is.</p>';
+
+        paintPhotos();
 
         const showAllButton = $('showAllFieldsButton');
         if (showAllButton) {
@@ -2160,6 +2481,41 @@ const AmsUi = (function () {
         parts.push('</div>');
 
         /*
+         * What the photographs come to, said in the one place a person would
+         * look for it. The count and the size are the answer to "is this going
+         * to fill my phone", and the sentence underneath is the answer to the
+         * question behind it: these are not in the workbook and not in
+         * Dropbox, so this app is the only thing holding them.
+         */
+        const photoCount = AmsPhotos.count();
+        parts.push('<div class="settings-group"><h2>Photos</h2>');
+        if (photoCount) {
+            const lost = AmsPhotos.orphans(state.plan).length;
+            parts.push('<div class="settings-row"><div class="settings-row-main">'
+                + '<div class="settings-row-title">' + photoCount + ' photo'
+                + (photoCount === 1 ? '' : 's') + ' · ' + esc(formatBytes(AmsPhotos.totalBytes()))
+                + '</div>'
+                + '<div class="settings-row-sub">On this phone only</div>'
+                + '</div></div>');
+            parts.push('<div class="button-row" style="margin-top:0.5rem">'
+                + '<button class="btn btn-small" id="savePhotosButton">Save them all</button>'
+                + '<button class="btn btn-small btn-danger" id="deletePhotosButton">Delete all</button></div>');
+            parts.push('<p class="hint-inline">The workbook holds numbers, not pictures, so these are '
+                + 'not written to it and are not in your Dropbox. Saving them puts every photo in one '
+                + 'zip file, named by day and sport, which you can keep wherever you keep things.</p>');
+            if (lost) {
+                parts.push('<p class="hint-inline">' + lost + ' of them no longer match a session in '
+                    + 'this workbook — that happens when rows are inserted or a session changes sport. '
+                    + 'They are still here and still included when you save them all.</p>');
+            }
+        } else {
+            parts.push('<p class="hint-inline">None yet. Open a session and add one — from the camera '
+                + 'or from your library. They stay on this phone: the workbook holds numbers, not '
+                + 'pictures.</p>');
+        }
+        parts.push('</div>');
+
+        /*
          * Everything below is either set once or not to be tapped by accident.
          * Folded shut, and shut again every time Settings is opened.
          */
@@ -2212,7 +2568,7 @@ const AmsUi = (function () {
 
             parts.push('<div class="button-row" style="margin-top:0.6rem">'
                 + '<button class="btn btn-small btn-danger" id="resetButton">Reset the app</button></div>'
-                + '<p class="hint-inline">Resetting clears the Dropbox connection, the cached workbook and the saved layout from this phone. Your workbook in Dropbox is not touched.</p>');
+                + '<p class="hint-inline">Resetting clears the Dropbox connection, the cached workbook and the saved layout from this phone. Your workbook in Dropbox is not touched, and photos you have attached are kept.</p>');
 
             parts.push('</div>');
         }
@@ -2357,6 +2713,12 @@ const AmsUi = (function () {
         const syncNow = $('syncNowButton');
         if (syncNow) syncNow.addEventListener('click', () => runSync(true));
 
+        const savePhotosBtn = $('savePhotosButton');
+        if (savePhotosBtn) savePhotosBtn.addEventListener('click', savePhotos);
+
+        const deletePhotosBtn = $('deletePhotosButton');
+        if (deletePhotosBtn) deletePhotosBtn.addEventListener('click', deleteAllPhotos);
+
         const reset = $('resetButton');
         if (reset) {
             reset.addEventListener('click', async () => {
@@ -2365,11 +2727,23 @@ const AmsUi = (function () {
                 // written to the workbook, and "the cached workbook and the
                 // saved layout" does not cover them.
                 const pending = await AmsDb.queueCount();
+                const photos = AmsPhotos.count();
                 const question = 'Clear the Dropbox connection, the cached workbook and the saved layout from this phone?'
                     + (pending
                         ? ' This includes ' + pending + ' session' + (pending === 1 ? '' : 's')
                           + ' not yet written to the workbook — '
                           + (pending === 1 ? 'it' : 'they') + ' will be lost.'
+                        : '')
+                    /*
+                     * Photos are deliberately not part of this. They are the
+                     * only thing the app holds that exists nowhere else, and
+                     * a reset is what you reach for when syncing is misbehaving
+                     * — losing a season of pictures to a sync fix would be
+                     * indefensible. Deleting them is its own button.
+                     */
+                    + (photos
+                        ? ' Your ' + photos + ' photo' + (photos === 1 ? '' : 's')
+                          + ' are kept.'
                         : '');
                 if (!confirm(question)) return;
                 await AmsDb.reset();
@@ -2673,7 +3047,13 @@ const AmsUi = (function () {
                 + 'it zero.</p>'
                 + '<p><strong>Move</strong> sends a session to another day; <strong>swap</strong> exchanges '
                 + 'two sessions’ days, which is what fits doing one in the other’s place. Only the date and '
-                + 'weekday cells change.</p>')
+                + 'weekday cells change.</p>'
+                + '<p><strong>Moving something onto a rest day</strong> ends the rest day. The rest card is '
+                + 'the workbook saying “nothing today”, and once there is something, that is no longer '
+                + 'true — so it comes off Today and off the Plan list, and the week strip stops drawing '
+                + 'the flat rest line for that day. Nothing is written to the sheet: the rest row is '
+                + 'exactly where it was, and moving the session away again brings the rest day straight '
+                + 'back.</p>')
 
             + section('Changing the plan in Excel',
                 '<p>Shortening sessions, rewriting a workout, reshaping a week — all safe to do in Excel '
@@ -2734,6 +3114,30 @@ const AmsUi = (function () {
                 + 'planned training — twenty minutes of meditation is not twenty minutes of training, and '
                 + 'folding it in would make the one number the plan exists to produce meaningless.</p>')
 
+            + section('Photos',
+                '<p>Any session takes photographs — open it, or open its log form, and tap <strong>Add</strong> '
+                + 'in the Photos strip. The camera and your library both come up; several at once is fine. '
+                + 'Tap a picture to see it full size, save a copy out, or delete it.</p>'
+                + '<p><strong>They are not in your workbook, and cannot be.</strong> An <code>.xlsx</code> is '
+                + 'the one file that matters here, and this app’s whole method is to change as little of it '
+                + 'as possible — pictures would mean adding drawings, relationships and anchors to it. So a '
+                + 'photo lives on this phone, beside the plan rather than inside it. It is not in Dropbox and '
+                + 'it does not sync anywhere.</p>'
+                + '<p><strong>Which means this is the only copy.</strong> Settings → Photos says how many '
+                + 'there are and what they come to, and <em>Save them all</em> puts every one into a single '
+                + 'zip file, named by day and sport, that you can keep wherever you keep things. Resetting '
+                + 'the app deliberately leaves photos alone — a reset is what you reach for when syncing '
+                + 'misbehaves, and losing a season of pictures to a sync fix would be indefensible. Deleting '
+                + 'them is its own button.</p>'
+                + '<p><strong>They are shrunk on the way in</strong> — 1600 pixels on the long edge — which '
+                + 'takes a phone photograph from three or four megabytes to roughly a quarter of one, and is '
+                + 'still sharper than the screen it will be looked at on. A season of them is a few tens of '
+                + 'megabytes rather than a few gigabytes.</p>'
+                + '<p>A camera and a number on a session card is how many pictures it has. If you insert rows '
+                + 'in Excel, or change what sport a row is, a photo can lose track of its session: it is then '
+                + 'shown against nothing rather than against the wrong session, but it is still counted in '
+                + 'Settings and still included when you save them all.</p>')
+
             + section('Offline, and how syncing works',
                 '<p><strong>What this phone holds.</strong> Sessions you log wait here until they are written to Dropbox, alongside the connection itself and a cached copy of the workbook. The app asks the phone to treat that storage as worth keeping, which is the standard protection against the system tidying it away — but the workbook in Dropbox is always the real record, so syncing soon after logging is still the habit that makes everything else unimportant.</p>'
                 + '<p>Logging never waits for a network. An entry is saved on the phone and shown immediately; '
@@ -2764,6 +3168,23 @@ const AmsUi = (function () {
                 + 'itself to work offline, so a new version is picked up on the next launch.</p>');
     }
 
+    /*
+     * The changelog is written with a little markdown in it — bold for the
+     * sentence that carries the change, backticks for a heading or a value —
+     * and until now it was escaped and printed, asterisks and all. So every
+     * entry back to the start has been showing its own punctuation.
+     *
+     * Escaping happens first and the tags are put in afterwards, so nothing
+     * from the text can become markup; the only things that can are the three
+     * shapes matched here, and the text is the app's own constant.
+     */
+    function richText(text) {
+        return esc(text)
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+            .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>')
+            .replace(/`([^`]+)`/g, '<code>$1</code>');
+    }
+
     function renderVersionLog() {
         $('versionEyebrow').textContent = 'Version ' + AmsVersion.CURRENT;
         $('versionBody').innerHTML = AmsVersion.CHANGELOG.map((entry, index) =>
@@ -2773,7 +3194,7 @@ const AmsUi = (function () {
             + '<p class="workout-card-title">' + esc(entry.headline) + '</p>'
             + '<p class="map-row-sub" style="margin-bottom:0.6rem">' + esc(entry.date) + '</p>'
             + '<ul class="change-list">'
-            + entry.items.map((item) => '<li>' + esc(item) + '</li>').join('')
+            + entry.items.map((item) => '<li>' + richText(item) + '</li>').join('')
             + '</ul></div></div>').join('');
     }
 
@@ -3265,6 +3686,22 @@ const AmsUi = (function () {
             tab.addEventListener('click', () => openTab(tab.dataset.tab));
         });
 
+        /*
+         * The photo input sits outside every screen on purpose. The captured
+         * change listener below marks whichever screen it fires in as dirty,
+         * and a photo is saved the moment it is chosen — so counting it as
+         * unsaved typing would make backing out of an untouched log form ask
+         * a question there is no reason to ask.
+         */
+        const photoInput = $('photoInput');
+        if (photoInput) {
+            photoInput.addEventListener('change', async () => {
+                const files = Array.from(photoInput.files || []);
+                photoInput.value = '';
+                await addPhotos(files);
+            });
+        }
+
         document.querySelectorAll('[data-back]').forEach((button) => {
             button.addEventListener('click', () => { if (mayLeaveForm()) goBack(); });
         });
@@ -3287,6 +3724,24 @@ const AmsUi = (function () {
                 openWorkout(card.dataset.workout);
                 return;
             }
+            const photoAdd = event.target.closest('[data-photo-add]');
+            if (photoAdd) {
+                photoTargetKey = photoAdd.dataset.photoAdd;
+                const input = $('photoInput');
+                // Cleared first, or choosing the same picture twice in a row
+                // fires no change event and looks like the app ignored you.
+                input.value = '';
+                input.click();
+                return;
+            }
+
+            const photoOpen = event.target.closest('[data-photo-open]');
+            if (photoOpen) { openPhoto(photoOpen.dataset.photoOpen); return; }
+
+            if (event.target.closest('[data-photo-close]')) { closePhoto(); return; }
+            if (event.target.closest('[data-photo-share]')) { shareViewedPhoto(); return; }
+            if (event.target.closest('[data-photo-delete]')) { deleteViewedPhoto(); return; }
+
             const log = event.target.closest('[data-log]');
             if (log) { openLog(log.dataset.log); return; }
 

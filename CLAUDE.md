@@ -35,6 +35,22 @@ The last run of work came from the input page and from screenshots:
   the day columns (1.36.0), and is now drawn hollow-for-planned, solid-for-done
   like everything else on that card (1.37.0)
 
+**v1.41.0** did two things Martin asked for in one message:
+
+- *A session moved onto a rest day ends the rest day.* The rest card used to
+  sit under the session he had just moved there. `visiblePlan()` in sync.js
+  drops a rest row from any day that also holds training, and `forDay()`,
+  `upcoming()`, `recent()` and the Plan tab all read through it. Nothing is
+  written: the row is untouched and moving the session away brings the rest day
+  back. `weekDays().isRest` was already `every(rest)` rather than `some(rest)`,
+  so the week strip and the calendar export needed no change. Guarded by
+  `tests/rest-day.js`.
+- *Photographs on a session* — `js/photos.js`, two new IndexedDB stores, and a
+  strip on both the session screen and the log form. They do not go in the
+  workbook and cannot; see the note at the top of that file. Guarded by
+  `tests/photos.js`. `AmsZip.build()` was added for the export, and is the
+  only zip writer in the app that does not start from an existing archive.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The
@@ -47,7 +63,8 @@ its row) stays, because the moved-rather-than-lost count needs it too.
 
 | file | what it owns |
 |---|---|
-| `js/db.js` | IndexedDB: `kv` store, `queue` store |
+| `js/db.js` | IndexedDB: `kv`, `queue`, `photos`, `photoBlobs` |
+| `js/photos.js` | pictures attached to a session: shrink, store, attribute |
 | `js/zip.js` / `js/xlsx.js` | reading and writing `.xlsx` by hand |
 | `js/mapping.js` | which column is which; heading signatures; collisions |
 | `js/plan.js` | disciplines, parsing, `buildEdits` — what gets written |
@@ -83,6 +100,15 @@ its row) stays, because the moved-rather-than-lost count needs it too.
    The two row-number boxes in Sheet setup may stay `number`: whole numbers, and
    `inputmode="numeric"` offers no separator to press.
 6. **Nothing reaches the workbook until Save.** The queue is the boundary.
+7. **A photograph is the only copy.** It is not in the workbook, not in
+   Dropbox, and not synced. So `AmsDb.reset()` deliberately leaves the photo
+   stores alone, the export must stay working, and anything that deletes
+   photographs asks first. Two stores rather than one, because the metadata is
+   read whole at every boot and the pictures must not come with it.
+8. **Never show a photo against a session whose sport no longer matches.** Same
+   rule as the move log, same reason: sheet + row is not a stable identity, and
+   a picture filed against the wrong session is worse than one shown nowhere.
+   `AmsPhotos.orphans()` is what stops "shown nowhere" becoming "lost".
 
 ## Releasing
 
@@ -90,7 +116,7 @@ Four things move together, or the app ships stale on a phone:
 
 - `CURRENT` in `js/version.js` + a changelog entry (newest first)
 - `APP_VERSION` in `sw.js`
-- every `?v=` in `index.html` (14 of them)
+- every `?v=` in `index.html` (15 of them)
 - commit, then `git push -u origin main`
 
 The changelog is written for Martin, not as a commit log — say what changed and
@@ -111,7 +137,8 @@ node tests/failure-paths.js          # and the rest
 
 Repo tests: `failure-paths`, `column-collision`, `foreign-extras-sheet`,
 `edited-workbook`, `calendar-export`, `session-share`, `progress`, `logging`,
-`move-log`, `leaving-a-form`. Fixtures are synthetic and gitignored — **no real
+`move-log`, `leaving-a-form`, `week-wash`, `august-audit`, `rest-day`,
+`photos`. Fixtures are synthetic and gitignored — **no real
 training data in this repository**.
 
 Extra scripts live in the session scratchpad and drive Martin's *real*

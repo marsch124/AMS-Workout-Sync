@@ -38,6 +38,19 @@ existing cells.
 - **Move** — a session can be moved to another day, or swapped with another one
   when you did the two the other way round. Only the date and weekday cells are
   rewritten, and the weekday is spelled the way your sheet already spells it.
+  Moving something onto a rest day ends the rest day: the rest card is the
+  workbook saying "nothing today", and once there is something that is no
+  longer true. Nothing is written for it — move the session away again and the
+  rest day comes back.
+- **Photos** — any session takes photographs, from the camera or the library,
+  added on the session itself or while logging it. They are shrunk to 1600
+  pixels on the long edge, so a season of them is tens of megabytes rather than
+  gigabytes. They are **not** written into the workbook and are not in Dropbox:
+  an `.xlsx` is the one file that matters here and pictures would mean adding
+  drawings, relationships and anchors to it. So they live on the phone, which
+  makes the app the only copy — Settings → Photos says how many there are and
+  what they come to, and saves every one into a single zip named by day and
+  sport. Resetting the app deliberately leaves them alone.
 - **Something else** — an unplanned run, a hike, a meditation. The list of
   activities on offer is editable in Settings: add, remove and reorder them to
   match what you actually do. These go on their
@@ -128,6 +141,7 @@ drain is otherwise indistinguishable from one that is working.
 ├── css/style.css
 └── js/
     ├── zip.js          # minimal zip reader/writer (Compression Streams)
+    ├── photos.js       # pictures attached to a session, on this device only
     ├── xlsx.js         # xlsx parsing + surgical cell writes
     ├── mapping.js      # works out which column is which
     ├── plan.js         # workouts, disciplines, units, log fields
@@ -135,7 +149,7 @@ drain is otherwise indistinguishable from one that is working.
     ├── version.js      # version number and changelog
     ├── dropbox.js      # OAuth PKCE + file download/upload
     ├── sync.js         # the offline queue and replay-on-sync
-    ├── db.js           # IndexedDB
+    ├── db.js           # IndexedDB: settings, queue, photos
     ├── ui.js           # screens and rendering
     └── app.js          # start-up
 ```
@@ -157,4 +171,6 @@ exact string to add.
 ## Privacy
 
 Your training data stays in your Dropbox and on your phone. Nothing is sent
-anywhere else — there is no backend, no analytics and no accounts.
+anywhere else — there is no backend, no analytics and no accounts. Photographs
+never leave the device at all: they are not uploaded, not synced and not part
+of the workbook, which is why the app gives you a way to save them out.
