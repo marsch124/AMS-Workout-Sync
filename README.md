@@ -43,7 +43,8 @@ existing cells.
   longer true. Nothing is written for it — move the session away again and the
   rest day comes back.
 - **Photos** — any session takes photographs, from the camera or the library,
-  added on the session itself or while logging it. They are shrunk to 1600
+  added on the session itself or while logging it, and so does anything logged
+  under *something else*. They are shrunk to 1600
   pixels on the long edge, so a season of them is tens of megabytes rather than
   gigabytes. They are **not** written into the workbook and are not in Dropbox:
   an `.xlsx` is the one file that matters here and pictures would mean adding
@@ -56,7 +57,8 @@ existing cells.
   match what you actually do. These go on their
   own `Extras` sheet, created on first use, with a column saying whether each one
   counts as training load. They are never written into the plan, so planned-versus-
-  actual keeps meaning what it says.
+  actual keeps meaning what it says. Everything logged this way is listed newest
+  first, with its photographs, under Settings → Log something else.
 - **Sheet setup** — the app works out which column is which from your headings, in
   English or German, and lets you correct the guess once. If you want to record
   something the sheet has no column for, it appends one — headed and formatted like

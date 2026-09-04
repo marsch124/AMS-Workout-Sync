@@ -8,13 +8,24 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.41.0';
+    const CURRENT = '1.42.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.42.0',
+            date: '2026-09-04',
+            headline: 'Photographs on the things the plan did not ask for',
+            items: [
+                '**A walk, a hike, a meditation takes photographs too.** The strip is on the form while you log it — pick the picture and it goes on when you save — and on the entry itself afterwards, so you can add one later or take one off.',
+                '**Everything you logged outside the plan now has a screen of its own.** Until now an extra was only ever visible on the day it happened, which was fine while it was just a row in a sheet, because the sheet was where you went to look at it. A photograph is not in the sheet, so that had to change: Settings → Log something else → *Everything you logged*, or "See all" on Today, lists them newest first with their pictures.',
+                '**What a picture is pinned to, and why it stays pinned.** An extra has no row until it syncs and no queue entry afterwards, so neither of those could hold a photograph — it would come unpinned halfway through, quietly, days later. A photo points at an extra the way the app already recognises one it has written: the day, the activity and how long it took. That survives the sync, and it survives renaming an activity afterwards.',
+                'Saved photo files fold Swedish letters rather than dropping them, so a walk on the Kolmården ridge comes out of the zip as *Kolmarden-ridge* instead of a row of dashes.',
+            ]
+        },
         {
             version: '1.41.0',
             date: '2026-09-04',

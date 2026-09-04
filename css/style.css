@@ -1849,3 +1849,50 @@ body.is-viewing-photo .tab-bar { display: none; }
     width: 0.95em;
     height: 0.95em;
 }
+
+/* A button that reads as a link, for "see all" beside a heading. */
+.link-button {
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    color: var(--accent);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+/*
+ * A photograph waiting on the new-extra form. It has nothing to be attached to
+ * yet, so tapping it takes it off again rather than opening it — the cross
+ * says which of the two this is.
+ */
+.photo-thumb.is-held {
+    position: relative;
+    border-style: solid;
+}
+
+.photo-thumb-x {
+    position: absolute;
+    top: 0.15rem;
+    right: 0.15rem;
+    width: 1.15rem;
+    height: 1.15rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.62);
+    color: #fff;
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
+/* An extra's card carries its photo strip inside it, so the strip's own card
+   framing would be a box inside a box. */
+.workout-card .photo-card {
+    background: none;
+    border: 0;
+    padding: 0;
+    margin: 0.7rem 0 0;
+    box-shadow: none;
+}

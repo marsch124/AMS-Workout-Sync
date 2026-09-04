@@ -26,6 +26,7 @@ node tests/august-audit.js
 node tests/week-wash.js
 node tests/rest-day.js
 node tests/photos.js
+node tests/extra-photos.js
 ```
 
 Each script prints what it found and ends with `errors: none`. Nothing is
@@ -144,6 +145,16 @@ never against a row whose sport has changed under it; one that can no longer be
 placed is still counted and still exported; `AmsDb.reset()` does not take them;
 and the zip the app builds reads back entry for entry, byte for byte. The
 pictures are drawn on a canvas rather than shipped as fixtures.
+
+**`extra-photos.js`** — photographs on the things the plan did not ask for,
+where the difficulty is identity. An extra is a queue entry while it waits and
+a sheet row afterwards, and neither survives the other, so this drives one all
+the way through: held on the form (and named in the question asked on the way
+out), attached on save, and then the same key before and after a real round
+trip through saved bytes. Renaming the activity underneath it must not detach
+it, and the list of everything logged must be able to show and take one. Step 3
+also asserts the orphan check *still fails* without the extras in the owner
+list, so it cannot pass for the wrong reason.
 
 ## Fixtures
 

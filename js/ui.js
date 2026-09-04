@@ -78,7 +78,8 @@ const AmsUi = (function () {
     /* ---------- navigation ---------- */
 
     const DETAIL_SCREENS = new Set(['workoutScreen', 'logScreen', 'setupScreen', 'rescheduleScreen',
-        'extraScreen', 'guideScreen', 'versionScreen', 'queueScreen', 'activitiesScreen']);
+        'extraScreen', 'extrasScreen', 'guideScreen', 'versionScreen', 'queueScreen',
+        'activitiesScreen']);
     const history_ = [];
 
     function showScreen(id, options) {
@@ -138,8 +139,18 @@ const AmsUi = (function () {
     function mayLeaveForm() {
         const active = document.querySelector('.screen.active');
         if (!active || !dirtyForm || active.id !== dirtyForm) return true;
-        const ok = confirm('Leave without saving? What you have typed here will be lost.');
-        if (ok) dirtyForm = null;
+
+        // A photograph waiting on the extras form is not typing, and it is the
+        // one thing here with no other copy, so the question says so.
+        const held = heldExtraPhotos.length;
+        const ok = confirm(held
+            ? 'Leave without saving? What you have typed will be lost, and so will '
+                + (held === 1 ? 'the photo you added.' : 'the ' + held + ' photos you added.')
+            : 'Leave without saving? What you have typed here will be lost.');
+        if (ok) {
+            dirtyForm = null;
+            releaseHeldExtraPhotos();
+        }
         return ok;
     }
 
@@ -1114,43 +1125,117 @@ const AmsUi = (function () {
      * What was done today outside the plan, and the way to add more. Shown on
      * rest days too — a rest day is exactly when a breathing session happens.
      */
+    /*
+     * One extra as a card. The same shape wherever it appears — on Today under
+     * "Also today", and in the list of everything logged — because it is the
+     * same thing and there is nothing more to say about it on one screen than
+     * on the other. Which is also why an extra has no detail screen of its
+     * own: this card already holds all of it.
+     */
+    function extraCard(extra, options) {
+        const opts = options || {};
+        const owner = extraOwner(extra);
+        const activity = AmsExtras.activity(extra.activity);
+        const pending = !!extra.pending;
+
+        return '<div class="card workout-card" style="--sport: ' + activity.color + '">'
+            + '<div class="workout-card-titles">'
+            + '<p class="workout-card-sport">' + esc(AmsExtras.labelOf(extra)) + '</p>'
+            + (extra.what ? '<p class="workout-card-title">' + esc(extra.what) + '</p>' : '')
+            + '</div>'
+            + '<div class="workout-card-meta">'
+            + (opts.showDate && owner.dayKey
+                ? '<span class="pill">' + esc(shortDay(AmsPlan.parseDayKey(owner.dayKey))) + '</span>' : '')
+            + (extra.minutes ? '<span class="pill strong">' + extra.minutes + 'm</span>' : '')
+            + (pending ? '<span class="pill pending">Waiting to sync</span>'
+                       : '<span class="pill done">Logged</span>')
+            + '</div>'
+            + (extra.notes ? '<p class="section-text" style="margin-top:0.5rem">' + esc(extra.notes) + '</p>' : '')
+            + photoBlock(owner)
+            + '</div>';
+    }
+
     function extrasBlock() {
         const state = AmsSync.getState();
         const today = AmsSync.todayKey();
-        const saved = (state.extras || []).filter((e) => e.dayKey === today);
         const pending = (state.pendingExtras || []).filter((e) => e.date === today);
+        const saved = (state.extras || []).filter((e) => e.dayKey === today);
+        const rows = pending.concat(saved);
+        const everything = (state.pendingExtras || []).length + (state.extras || []).length;
 
-        const rows = pending.map((e) => ({
-            label: AmsExtras.activity(e.activity).label,
-            what: e.what,
-            minutes: e.minutes,
-            pending: true,
-            colour: AmsExtras.activity(e.activity).color
-        })).concat(saved.map((e) => ({
-            label: e.label,
-            what: e.what,
-            minutes: e.minutes,
-            pending: false,
-            colour: AmsExtras.activity(e.activity).color
-        })));
+        setTimeout(paintPhotos, 0);
 
         return (rows.length
-            ? '<div class="day-heading"><h2>Also today</h2></div>'
-                + rows.map((r) =>
-                    '<div class="card workout-card" style="--sport: ' + r.colour + '">'
-                    + '<div class="workout-card-titles">'
-                    + '<p class="workout-card-sport">' + esc(r.label) + '</p>'
-                    + (r.what ? '<p class="workout-card-title">' + esc(r.what) + '</p>' : '')
-                    + '</div>'
-                    + '<div class="workout-card-meta">'
-                    + (r.minutes ? '<span class="pill strong">' + r.minutes + 'm</span>' : '')
-                    + (r.pending ? '<span class="pill pending">Waiting to sync</span>'
-                                 : '<span class="pill done">Logged</span>')
-                    + '</div></div>').join('')
+            ? '<div class="day-heading"><h2>Also today</h2>'
+                + (everything > rows.length
+                    ? '<span><button type="button" class="link-button" data-extras-all>'
+                        + 'See all ' + everything + '</button></span>'
+                    : '')
+                + '</div>'
+                + rows.map((e) => extraCard(e)).join('')
             : '')
             + '<button class="btn btn-block" data-extra="1" style="margin-top:0.6rem">'
             + '＋ Log something else</button>'
-            + '<p class="hint-inline">A walk, a meditation, an unplanned run — anything the plan did not ask for.</p>';
+            + '<p class="hint-inline">A walk, a meditation, an unplanned run — anything the plan did not ask for.'
+            + (everything && !rows.length
+                ? ' <button type="button" class="link-button" data-extras-all>See the '
+                    + everything + ' you have logged</button>.'
+                : '')
+            + '</p>';
+    }
+
+    /*
+     * Everything logged outside the plan, newest first.
+     *
+     * Until now these were only ever shown for today, which was tolerable while
+     * an extra was just a row in a sheet — the sheet was where you went to look
+     * at it. A photograph attached to one changed that: it lives in the app and
+     * nowhere else, so if the only view of an extra expires at midnight then so
+     * does the only view of the picture.
+     */
+    function renderExtrasList() {
+        const state = AmsSync.getState();
+        const body = $('extrasBody');
+        const all = (state.pendingExtras || []).concat(state.extras || []);
+
+        if (!all.length) {
+            body.innerHTML = emptyState('icon-check', 'Nothing yet',
+                'A walk, a meditation, an unplanned run — anything the plan did not ask for goes here.',
+                '<button class="btn btn-primary" data-extra="1">Log something else</button>');
+            return;
+        }
+
+        // Newest first. Queued ones carry `date`, ones read back from the sheet
+        // carry `dayKey`; both are the same ISO day string.
+        const day = (e) => e.date || e.dayKey || '';
+        const sorted = all.slice().sort((a, b) => (day(a) < day(b) ? 1 : day(a) > day(b) ? -1 : 0));
+
+        const groups = [];
+        for (const extra of sorted) {
+            const key = day(extra);
+            if (!groups.length || groups[groups.length - 1].dayKey !== key) {
+                groups.push({ dayKey: key, extras: [] });
+            }
+            groups[groups.length - 1].extras.push(extra);
+        }
+
+        const today = AmsSync.todayKey();
+        body.innerHTML = groups.map((group) => {
+            const date = AmsPlan.parseDayKey(group.dayKey);
+            const relative = relativeDay(group.dayKey);
+            return '<div class="day-heading' + (group.dayKey === today ? ' is-today' : '') + '">'
+                + '<h2>' + esc(date ? longDay(date) : 'Undated') + '</h2>'
+                + (relative ? '<span>' + esc(relative) + '</span>' : '')
+                + '</div>'
+                + group.extras.map((e) => extraCard(e)).join('');
+        }).join('');
+
+        paintPhotos();
+    }
+
+    function openExtrasList() {
+        renderExtrasList();
+        showScreen('extrasScreen');
     }
 
     /*
@@ -1484,6 +1569,40 @@ const AmsUi = (function () {
     /* ---------- photographs ---------- */
 
     /*
+     * What a photograph hangs on, whichever kind of thing it is.
+     *
+     * A planned session is already the right shape — a key and a discipline —
+     * so it is passed through. An extra is given the same shape around
+     * `AmsExtras.keyFor()`, so every screen, the strip, the viewer and the
+     * export all deal in one kind of owner and none of them has to know which
+     * it is holding.
+     */
+    function extraOwner(extra) {
+        const activity = AmsExtras.activity(extra.activity);
+        return {
+            key: AmsExtras.keyFor(extra),
+            discipline: { id: activity.id, label: AmsExtras.labelOf(extra), color: activity.color },
+            title: extra.what || AmsExtras.labelOf(extra),
+            dayKey: extra.date || extra.dayKey || '',
+            sheet: '',
+            isExtra: true
+        };
+    }
+
+    /* Every extra the app knows about — queued and written — as owners. */
+    function extraOwners() {
+        const state = AmsSync.getState();
+        return (state.pendingExtras || []).concat(state.extras || []).map(extraOwner);
+    }
+
+    /* Resolving the key a photo button carries back to the thing it belongs
+       to, which is either a session in the plan or an extra. */
+    function ownerByKey(key) {
+        if (!AmsExtras.isKey(key)) return AmsSync.byKey(key);
+        return extraOwners().find((owner) => owner.key === key) || null;
+    }
+
+    /*
      * A picture belongs to the session, not to the form.
      *
      * Everything else on the log screen is held back until Save, because it is
@@ -1593,7 +1712,11 @@ const AmsUi = (function () {
     let photoTargetKey = null;
 
     async function addPhotos(files) {
-        const workout = photoTargetKey ? AmsSync.byKey(photoTargetKey) : null;
+        // A brand-new extra has no key yet — it does not exist until Save — so
+        // its pictures are held instead of stored. See heldExtraPhotos.
+        if (photoTargetKey === NEW_EXTRA) return holdExtraPhotos(files);
+
+        const workout = photoTargetKey ? ownerByKey(photoTargetKey) : null;
         if (!workout || !files || !files.length) return;
 
         let added = 0;
@@ -1619,21 +1742,101 @@ const AmsUi = (function () {
         refreshPhotoViews(workout);
     }
 
-    /* Every screen that can be showing this session's photos, redrawn. */
-    function refreshPhotoViews(workout) {
+    /* Every screen that can be showing this thing's photos, redrawn. */
+    function refreshPhotoViews(owner) {
         const active = document.querySelector('.screen.active');
         const id = active ? active.id : '';
         if (id === 'logScreen') {
             const strip = document.querySelector('#logBody .photo-card');
-            if (strip) strip.outerHTML = photoBlock(workout);
-        } else if (id === 'workoutScreen') {
-            openWorkout(workout.key);
+            if (strip) strip.outerHTML = photoBlock(owner);
+        } else if (id === 'workoutScreen' && !owner.isExtra) {
+            openWorkout(owner.key);
+        } else if (id === 'extrasScreen') {
+            renderExtrasList();
         } else if (id === 'settingsScreen') {
             renderSettings();
         }
         renderToday();
-        renderPlan();
+        if (!owner.isExtra) renderPlan();
         paintPhotos();
+    }
+
+    /* ---------- photos on an extra that does not exist yet ---------- */
+
+    /*
+     * The one case where a picture cannot be attached when it is chosen: on
+     * the form for a *new* extra there is nothing yet to attach it to. An
+     * extra has no identity until it is saved — no row, and its key is made
+     * out of the day, the activity and the length, none of which is settled
+     * while the form is open.
+     *
+     * So these are held as files and attached the moment the extra is saved.
+     * Holding them makes the form dirty on purpose: backing out of a form with
+     * a photograph in it should ask, because that photograph is about to be
+     * dropped and there is no other copy of it.
+     */
+    const NEW_EXTRA = 'new-extra';
+    let heldExtraPhotos = [];
+
+    function releaseHeldExtraPhotos() {
+        for (const held of heldExtraPhotos) URL.revokeObjectURL(held.url);
+        heldExtraPhotos = [];
+    }
+
+    function holdExtraPhotos(files) {
+        const pictures = (files || []).filter((file) =>
+            /^image\//.test(file.type || '') || /\.(jpe?g|png|heic|heif|webp)$/i.test(file.name || ''));
+        if (!pictures.length) {
+            toast('Nothing there the app could read as a picture.', 'bad');
+            return;
+        }
+        for (const file of pictures) {
+            heldExtraPhotos.push({ file: file, url: URL.createObjectURL(file) });
+        }
+        markFormDirty('extraScreen');
+        renderExtra();
+    }
+
+    function heldPhotoStrip() {
+        return '<div class="card photo-card">'
+            + '<p class="section-label">Photos</p>'
+            + '<div class="photo-strip">'
+            + '<button type="button" class="photo-add" data-photo-add="' + NEW_EXTRA + '">'
+            + '<span class="photo-add-mark">+</span>'
+            + '<span class="photo-add-text">' + (heldExtraPhotos.length ? 'Add' : 'Add a photo') + '</span>'
+            + '</button>'
+            + heldExtraPhotos.map((held, index) =>
+                '<button type="button" class="photo-thumb is-held" data-photo-drop="' + index + '"'
+                + ' aria-label="Remove this photo">'
+                + '<img src="' + esc(held.url) + '" alt="">'
+                + '<span class="photo-thumb-x">\u00d7</span>'
+                + '</button>').join('')
+            + '</div>'
+            + '<p class="hint-inline">'
+            + (heldExtraPhotos.length
+                ? 'Attached when you save it. Tap one to take it off again.'
+                : 'Kept on this phone. The workbook holds numbers, not pictures.')
+            + '</p>'
+            + '</div>';
+    }
+
+    async function attachHeldPhotos(extra) {
+        if (!heldExtraPhotos.length) return 0;
+        const owner = extraOwner(extra);
+        let added = 0;
+        for (const held of heldExtraPhotos) {
+            try {
+                await AmsPhotos.add(owner, held.file);
+                added++;
+            } catch (err) {
+                // The extra itself is already saved, so this is worth saying
+                // rather than throwing away the whole save.
+                toast(err.message || 'A picture could not be saved.', 'bad');
+                break;
+            }
+        }
+        releaseHeldExtraPhotos();
+        return added;
     }
 
     /* ---------- looking at one ---------- */
@@ -1681,7 +1884,9 @@ const AmsUi = (function () {
         // There is no second copy of this anywhere, so it is asked plainly.
         if (!confirm('Delete this photo? It is only on this phone, so it cannot be got back.')) return;
 
-        const workout = AmsSync.byKey(viewingPhoto.workoutKey);
+        // ownerByKey, not byKey: deleting a picture from an extra must redraw
+        // the list it was deleted from, and byKey only knows about sessions.
+        const workout = ownerByKey(viewingPhoto.workoutKey);
         const url = photoUrls.get(viewingPhoto.id);
         if (url) { URL.revokeObjectURL(url); photoUrls.delete(viewingPhoto.id); }
 
@@ -1689,7 +1894,12 @@ const AmsUi = (function () {
         closePhoto();
         toast('Photo deleted.', 'good');
         if (workout) refreshPhotoViews(workout);
-        else { renderSettings(); renderToday(); }
+        else {
+            // Its session or extra is no longer findable — an orphan, deleted
+            // from Settings, where the count has to come down.
+            renderSettings();
+            renderToday();
+        }
     }
 
     async function shareViewedPhoto() {
@@ -2091,6 +2301,9 @@ const AmsUi = (function () {
             toast('Load a workbook first.', 'bad');
             return;
         }
+        // A fresh form starts with no pictures waiting, whatever the last one
+        // was abandoned holding.
+        releaseHeldExtraPhotos();
         extraDraft = Object.assign({
             date: AmsSync.todayKey(),
             activity: 'walk',
@@ -2162,7 +2375,9 @@ const AmsUi = (function () {
 
             + '<div class="field"><label for="extraNotes">Notes <span class="field-unit">(optional)</span></label>'
             + '<textarea id="extraNotes" placeholder="How it felt, anything worth remembering">'
-            + esc(extraDraft.notes) + '</textarea></div>';
+            + esc(extraDraft.notes) + '</textarea></div>'
+
+            + heldPhotoStrip();
 
         $('extraActivity').addEventListener('change', (event) => {
             collectExtra();
@@ -2210,7 +2425,7 @@ const AmsUi = (function () {
         };
 
         try {
-            await AmsSync.logExtra({
+            const entry = {
                 date: extraDraft.date,
                 activity: extraDraft.activity,
                 what: extraDraft.what,
@@ -2220,10 +2435,20 @@ const AmsUi = (function () {
                 effort: toNumber(extraDraft.effort),
                 isTraining: !!extraDraft.isTraining,
                 notes: extraDraft.notes
-            });
+            };
+            await AmsSync.logExtra(entry);
+            /*
+             * Only now does this extra have a key to hang a picture on — it is
+             * made from the day, the activity and the length, which is exactly
+             * what was just settled. Attached after the save rather than
+             * before, so a save that fails cannot leave photographs pointing
+             * at an extra that does not exist.
+             */
+            const attached = await attachHeldPhotos(entry);
             formSaved();
             const connected = await AmsDropbox.isConnected();
-            toast(connected ? 'Saved — writing it to the Extras sheet.' : 'Saved on this phone.', 'good');
+            toast((connected ? 'Saved — writing it to the Extras sheet.' : 'Saved on this phone.')
+                + (attached ? ' ' + attached + ' photo' + (attached === 1 ? '' : 's') + ' attached.' : ''), 'good');
             extraDraft = null;
             goBack();
             renderToday();
@@ -2455,7 +2680,19 @@ const AmsUi = (function () {
             + '<div class="settings-row-sub">'
             + esc(AmsExtras.getActivities().slice(0, 4).map((a) => a.label).join(', '))
             + ' and ' + (AmsExtras.getActivities().length - 4) + ' more</div>'
-            + '</div><button class="btn btn-small" data-go="activities">Edit</button></div></div>');
+            + '</div><button class="btn btn-small" data-go="activities">Edit</button></div>'
+            + (() => {
+                const state2 = AmsSync.getState();
+                const n = (state2.pendingExtras || []).length + (state2.extras || []).length;
+                return n
+                    ? '<div class="settings-row"><div class="settings-row-main">'
+                        + '<div class="settings-row-title">Everything you logged</div>'
+                        + '<div class="settings-row-sub">' + n + ' entr' + (n === 1 ? 'y' : 'ies')
+                        + ', newest first</div>'
+                        + '</div><button class="btn btn-small" data-extras-all>Open</button></div>'
+                    : '';
+            })()
+            + '</div>');
 
         /* --- which workbook this is --- */
         parts.push('<div class="settings-group"><h2>Workbook</h2>');
@@ -2490,7 +2727,7 @@ const AmsUi = (function () {
         const photoCount = AmsPhotos.count();
         parts.push('<div class="settings-group"><h2>Photos</h2>');
         if (photoCount) {
-            const lost = AmsPhotos.orphans(state.plan).length;
+            const lost = AmsPhotos.orphans((state.plan || []).concat(extraOwners())).length;
             parts.push('<div class="settings-row"><div class="settings-row-main">'
                 + '<div class="settings-row-title">' + photoCount + ' photo'
                 + (photoCount === 1 ? '' : 's') + ' · ' + esc(formatBytes(AmsPhotos.totalBytes()))
@@ -3112,7 +3349,16 @@ const AmsUi = (function () {
                 + 'load.</p>'
                 + '<p>They are kept out of the plan on purpose. Compliance means actual training divided by '
                 + 'planned training — twenty minutes of meditation is not twenty minutes of training, and '
-                + 'folding it in would make the one number the plan exists to produce meaningless.</p>')
+                + 'folding it in would make the one number the plan exists to produce meaningless.</p>'
+                + '<p><strong>Everything you have logged this way</strong> is listed newest first under '
+                + 'Settings → Log something else → <em>Everything you logged</em>, and behind "See all" on '
+                + 'Today. Before there were photographs these were only shown on the day they happened, '
+                + 'which was fine while an extra was just a row in a sheet — the sheet was where you went '
+                + 'to look at one. A picture is not in the sheet, so there had to be somewhere else.</p>'
+                + '<p><strong>Photographs</strong> go on an extra as they go on a session: on the form '
+                + 'while you log it, and on the entry itself afterwards. On the form they wait rather than '
+                + 'save, because an extra does not exist until you press Save — which is why leaving that '
+                + 'form asks about them, and why the strip says so.</p>')
 
             + section('Photos',
                 '<p>Any session takes photographs — open it, or open its log form, and tap <strong>Add</strong> '
@@ -3136,7 +3382,13 @@ const AmsUi = (function () {
                 + '<p>A camera and a number on a session card is how many pictures it has. If you insert rows '
                 + 'in Excel, or change what sport a row is, a photo can lose track of its session: it is then '
                 + 'shown against nothing rather than against the wrong session, but it is still counted in '
-                + 'Settings and still included when you save them all.</p>')
+                + 'Settings and still included when you save them all.</p>'
+                + '<p><strong>An extra is remembered differently</strong>, and has to be. It has no row until '
+                + 'it syncs and no queued entry afterwards, so a photograph pinned to either would come '
+                + 'unpinned halfway through. It is remembered instead by its day, its activity and how long '
+                + 'it took — which is how the app already recognises an extra it has written, so nothing new '
+                + 'is being trusted. Two identical extras on one day share their pictures; the app cannot '
+                + 'tell those apart anyway, and refuses to write the second.</p>')
 
             + section('Offline, and how syncing works',
                 '<p><strong>What this phone holds.</strong> Sessions you log wait here until they are written to Dropbox, alongside the connection itself and a cached copy of the workbook. The app asks the phone to treat that storage as worth keeping, which is the standard protection against the system tidying it away — but the workbook in Dropbox is always the real record, so syncing soon after logging is still the habit that makes everything else unimportant.</p>'
@@ -3735,6 +3987,18 @@ const AmsUi = (function () {
                 return;
             }
 
+            const photoDrop = event.target.closest('[data-photo-drop]');
+            if (photoDrop) {
+                const index = parseInt(photoDrop.dataset.photoDrop, 10);
+                const held = heldExtraPhotos[index];
+                if (held) {
+                    URL.revokeObjectURL(held.url);
+                    heldExtraPhotos.splice(index, 1);
+                    renderExtra();
+                }
+                return;
+            }
+
             const photoOpen = event.target.closest('[data-photo-open]');
             if (photoOpen) { openPhoto(photoOpen.dataset.photoOpen); return; }
 
@@ -3782,6 +4046,8 @@ const AmsUi = (function () {
                 renderToday();
                 return;
             }
+
+            if (event.target.closest('[data-extras-all]')) { openExtrasList(); return; }
 
             if (event.target.closest('[data-extra]')) { openExtra(); return; }
 
@@ -3844,6 +4110,12 @@ const AmsUi = (function () {
                 renderToday();
                 renderPlan();
                 renderProgress();
+                // A sync turns queued extras into rows read back from the
+                // sheet. Their key is unchanged — it was never made of the
+                // row — but the list is rebuilt from the new objects, so it
+                // has to be redrawn if it is what is on screen.
+                const active = document.querySelector('.screen.active');
+                if (active && active.id === 'extrasScreen') renderExtrasList();
             }
             if (event === 'sync') renderSyncState();
 

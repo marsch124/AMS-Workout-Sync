@@ -201,6 +201,42 @@ const AmsExtras = (function () {
         return false;
     }
 
+    /*
+     * What identifies one extra, for anything that has to point at it.
+     *
+     * An extra changes shape halfway through its life. Logged, it is a queue
+     * entry with an id of its own; synced, it is a row on the Extras sheet and
+     * the queue entry is gone. Neither of those survives the handover, so
+     * neither can be what a photograph hangs on.
+     *
+     * What does survive is the day, the activity and the length — because
+     * `alreadyRecorded()` above already treats those three as an extra's
+     * identity, and has to: appending is not idempotent, so the writer
+     * recognises what it has already written by exactly this. Anything that
+     * points at an extra should point at it the same way the writer does.
+     *
+     * The label rather than the activity id, for the same reason: the label is
+     * what goes into the sheet and comes back out of it, so it does not change
+     * under a row that was written months ago. Two identical extras on one day
+     * share a key — but the writer cannot tell those apart either, and refuses
+     * to write the second, so this invents no ambiguity that was not already
+     * the app's own position.
+     */
+    function labelOf(extra) {
+        return (extra && extra.label) || activity(extra && extra.activity).label;
+    }
+
+    function keyFor(extra) {
+        if (!extra) return '';
+        const day = extra.date || extra.dayKey || '';
+        const minutes = (extra.minutes === null || extra.minutes === undefined) ? '' : extra.minutes;
+        return 'extra:' + day + ':' + AmsMapping.normalise(labelOf(extra)) + ':' + minutes;
+    }
+
+    function isKey(key) {
+        return typeof key === 'string' && key.indexOf('extra:') === 0;
+    }
+
     /* The cells for one extra, on the first free row. */
     function buildEdits(sheet, entry, weekdayNames) {
         const row = nextRow(sheet);
@@ -291,6 +327,9 @@ const AmsExtras = (function () {
         resetActivities: resetActivities,
         idFor: idFor,
         activity: activity,
+        labelOf: labelOf,
+        keyFor: keyFor,
+        isKey: isKey,
         wantsMetrics: wantsMetrics,
         ensureSheet: ensureSheet,
         nextRow: nextRow,

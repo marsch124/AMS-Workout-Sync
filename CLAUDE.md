@@ -51,6 +51,31 @@ The last run of work came from the input page and from screenshots:
   `tests/photos.js`. `AmsZip.build()` was added for the export, and is the
   only zip writer in the app that does not start from an existing archive.
 
+**v1.42.0** put photographs on extras too, which he asked for as soon as he saw
+1.41.0. The hard part was identity, and the answer is worth keeping:
+
+- An extra is a queue entry while it waits and a row on the Extras sheet after
+  it syncs, and **neither survives the other** — so neither can be what a
+  photograph hangs on. `AmsExtras.keyFor()` names one by day + activity label +
+  minutes, which is exactly the triple `alreadyRecorded()` already uses to
+  recognise an extra it has written. The label rather than the id, because the
+  label is what goes into the sheet and comes back out of it, so renaming an
+  activity does not detach pictures from rows written months ago.
+- `AmsPhotos.belongsTo()` skips the sport guard for an extra key. The guard
+  exists for sheet+row identity, which extras do not have; applying it anyway
+  meant double jeopardy every time the activity list was edited.
+- Photos on the **new**-extra form are held, not stored — there is no owner
+  until Save. `heldExtraPhotos` in ui.js, attached in `saveExtra()` *after* the
+  log succeeds. They make the form dirty on purpose, and `mayLeaveForm()` names
+  them.
+- **Extras got a screen** (`extrasScreen`, `renderExtrasList()`). They used to
+  be visible only on the day they happened, which was fine while an extra was
+  just a row in a sheet. A photograph is not in the sheet, so a view that
+  expires at midnight was no longer good enough.
+- Guarded by `tests/extra-photos.js`. Note its step 3 asserts the orphan check
+  *still fails* without extras in the owner list — otherwise the test would
+  pass for the wrong reason.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The
@@ -64,7 +89,7 @@ its row) stays, because the moved-rather-than-lost count needs it too.
 | file | what it owns |
 |---|---|
 | `js/db.js` | IndexedDB: `kv`, `queue`, `photos`, `photoBlobs` |
-| `js/photos.js` | pictures attached to a session: shrink, store, attribute |
+| `js/photos.js` | pictures on a session or an extra: shrink, store, attribute |
 | `js/zip.js` / `js/xlsx.js` | reading and writing `.xlsx` by hand |
 | `js/mapping.js` | which column is which; heading signatures; collisions |
 | `js/plan.js` | disciplines, parsing, `buildEdits` — what gets written |
@@ -108,7 +133,12 @@ its row) stays, because the moved-rather-than-lost count needs it too.
 8. **Never show a photo against a session whose sport no longer matches.** Same
    rule as the move log, same reason: sheet + row is not a stable identity, and
    a picture filed against the wrong session is worse than one shown nowhere.
-   `AmsPhotos.orphans()` is what stops "shown nowhere" becoming "lost".
+   `AmsPhotos.orphans()` is what stops "shown nowhere" becoming "lost". It takes
+   *owners* — the plan plus every extra — so a picture on a walk is not counted
+   as adrift.
+9. **Anything that points at an extra points at it the way the writer does.**
+   `AmsExtras.keyFor()`, which mirrors `alreadyRecorded()`. If those two ever
+   disagree, photographs come off their extras silently at the next sync.
 
 ## Releasing
 
@@ -138,7 +168,7 @@ node tests/failure-paths.js          # and the rest
 Repo tests: `failure-paths`, `column-collision`, `foreign-extras-sheet`,
 `edited-workbook`, `calendar-export`, `session-share`, `progress`, `logging`,
 `move-log`, `leaving-a-form`, `week-wash`, `august-audit`, `rest-day`,
-`photos`. Fixtures are synthetic and gitignored — **no real
+`photos`, `extra-photos`. Fixtures are synthetic and gitignored — **no real
 training data in this repository**.
 
 Extra scripts live in the session scratchpad and drive Martin's *real*

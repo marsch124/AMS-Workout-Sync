@@ -1,5 +1,5 @@
 /*
- * Photographs attached to a session.
+ * Photographs attached to a session, or to something the plan did not ask for.
  *
  * These do not go into the workbook and cannot. Every other thing this app
  * records is a number or a word that belongs in a cell, and the file it writes
@@ -26,6 +26,12 @@
  * against that session at all. It is not lost: it is counted in Settings and
  * included when photos are saved out. But a picture shown against the wrong
  * session is worse than one you have to go and look for.
+ *
+ * An extra is identified differently, and has to be. It has no row until it
+ * syncs and no queue entry afterwards, so neither survives its own life;
+ * `AmsExtras.keyFor()` names it by the day, the activity and the length
+ * instead, which is what the writer already uses to recognise one. See
+ * `belongsTo()` for what that changes here.
  */
 const AmsPhotos = (function () {
     'use strict';
@@ -61,29 +67,41 @@ const AmsPhotos = (function () {
     }
 
     /*
-     * The photos that belong to a session: the same key, and the same sport it
-     * was taken against. See the note at the top for why the sport is checked
-     * rather than trusted.
+     * Does this photograph belong to that thing?
+     *
+     * For a planned session, the key is sheet + row and the sport is the
+     * guard: see the note at the top. For an extra it is the key alone,
+     * because `AmsExtras.keyFor()` already carries the day, the activity and
+     * the length — the same three things the writer uses to recognise an extra
+     * it has already written. There is nothing left for a second check to
+     * catch, and applying one anyway would hide a photograph every time the
+     * activity list was edited underneath it.
      */
-    function forWorkout(workout) {
-        if (!workout) return [];
-        return all().filter((photo) => photo.workoutKey === workout.key
-            && photo.disciplineId === workout.discipline.id);
+    function belongsTo(photo, owner) {
+        if (!photo || !owner || photo.workoutKey !== owner.key) return false;
+        if (AmsExtras.isKey(owner.key)) return true;
+        return photo.disciplineId === owner.discipline.id;
     }
 
-    function countFor(workout) {
-        return forWorkout(workout).length;
+    /* Everything attached to one session or one extra. */
+    function forWorkout(owner) {
+        if (!owner) return [];
+        return all().filter((photo) => belongsTo(photo, owner));
     }
 
-    /* Photos whose session cannot be found again. They are shown nowhere, and
-       must not be quietly dropped from a count or from an export either. */
-    function orphans(plan) {
-        const live = new Set();
-        for (const workout of (plan || [])) {
-            live.add(workout.key + ' ' + workout.discipline.id);
-        }
-        return all().filter((photo) =>
-            !live.has(photo.workoutKey + ' ' + photo.disciplineId));
+    function countFor(owner) {
+        return forWorkout(owner).length;
+    }
+
+    /*
+     * Photos whose session or extra cannot be found again. They are shown
+     * nowhere, and must not be quietly dropped from a count or from an export
+     * either. `owners` is every session in the plan plus every extra the app
+     * knows about, so an extra that has not synced yet does not read as lost.
+     */
+    function orphans(owners) {
+        const list = owners || [];
+        return all().filter((photo) => !list.some((owner) => belongsTo(photo, owner)));
     }
 
     function blob(id) {
@@ -192,6 +210,9 @@ const AmsPhotos = (function () {
             dayKey: workout.dayKey,
             title: workout.title || '',
             sheet: workout.sheet || '',
+            /* Only set for an extra, and only so a saved file can be named
+               after the walk rather than after the word "extra". */
+            kind: AmsExtras.isKey(workout.key) ? 'extra' : 'session',
             addedAt: Date.now(),
             bytes: shrunk.blob.size,
             type: shrunk.blob.type || file.type || 'image/jpeg',
@@ -222,6 +243,14 @@ const AmsPhotos = (function () {
      */
     function fileNameFor(photo, seen) {
         const safe = String(photo.title || '')
+            /*
+             * Folded to plain letters before anything is thrown away, or a
+             * Swedish name comes out full of dashes: "Kolmården ridge" became
+             * "Kolm-rden-ridge" until this was here. NFD splits an accented
+             * letter into the letter and its mark, and the mark is what goes.
+             */
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
             .replace(/[^A-Za-z0-9 +-]+/g, ' ')
             .replace(/\s+/g, ' ')
             .trim()
@@ -248,6 +277,7 @@ const AmsPhotos = (function () {
     return {
         load: load,
         all: all,
+        belongsTo: belongsTo,
         forWorkout: forWorkout,
         countFor: countFor,
         orphans: orphans,
