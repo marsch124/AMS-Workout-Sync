@@ -691,12 +691,18 @@ const AmsUi = (function () {
      * The share sheet where there is one, the clipboard where there is not.
      * Cancelling a share is not a failure and says nothing.
      */
-    async function shareText(text) {
-        if (!text) { toast('There is nothing in that week to share.', 'bad'); return; }
+    async function shareText(text, options) {
+        const opts = options || {};
+        if (!text) { toast(opts.empty || 'There is nothing in that week to share.', 'bad'); return; }
 
         if (navigator.share) {
             try {
-                await navigator.share({ title: 'Training week', text: text });
+                const payload = { title: opts.title || 'Training week', text: text };
+                // A url of its own rather than one buried in the sentence: the
+                // share sheet then offers to send it as a link, which is what
+                // makes it tappable at the other end.
+                if (opts.url) payload.url = opts.url;
+                await navigator.share(payload);
                 return;
             } catch (err) {
                 // A refusal is not the same as a cancellation: fall through to
@@ -706,11 +712,114 @@ const AmsUi = (function () {
         }
 
         try {
-            await navigator.clipboard.writeText(text);
-            toast('The week is on the clipboard — paste it wherever you like.', 'good');
+            await navigator.clipboard.writeText(opts.url ? text + '\n\n' + opts.url : text);
+            toast(opts.copied || 'The week is on the clipboard — paste it wherever you like.', 'good');
         } catch (err) {
             toast('This browser will not let the app share or copy.', 'bad');
         }
+    }
+
+    /* ---------- passing the app on ---------- */
+
+    /*
+     * Where this app lives, for somebody else to open.
+     *
+     * Taken from where it is actually running, so a rename or a move needs
+     * nothing changed here — except when it is running somewhere nobody else
+     * can reach. A link to localhost is not a link, and sending one is worse
+     * than sending nothing, because it looks like it worked.
+     */
+    const APP_HOME = 'https://marsch124.github.io/AMS-Workout-Sync/';
+
+    function appUrl(from) {
+        try {
+            const here = new URL('./', from || location.href);
+            const host = here.hostname;
+            const reachable = here.protocol === 'https:'
+                && host !== 'localhost' && host !== '127.0.0.1' && host !== '[::1]';
+            return reachable ? here.href : APP_HOME;
+        } catch (err) {
+            return APP_HOME;
+        }
+    }
+
+    /*
+     * What to say about it.
+     *
+     * A bare link is not a good thing to receive here. This app is a lid for a
+     * workbook somebody else does not have: open it with nothing and it says
+     * "No workbook yet", which reads as broken rather than as waiting. So the
+     * message says what it does, what they need before it is any use, and the
+     * one step everybody misses on an iPhone, which is that a page becomes an
+     * app through the Share menu.
+     *
+     * The link goes last, so it reads the same whether it is inside the text
+     * or appended by the share sheet as a link of its own.
+     */
+    function appShareText() {
+        return 'AMS Workout Sync: it reads your training plan out of the Excel file in your '
+            + 'Dropbox, and writes what you actually did back into the cells your own totals '
+            + 'and charts already point at. It works offline and there is no account.\n\n'
+            + 'You need your own plan as an .xlsx in Dropbox. On an iPhone, open the link in '
+            + 'Safari and then Share \u2192 Add to Home Screen.';
+    }
+
+    /*
+     * Straight into Messages, which is what he asked for.
+     *
+     * The two platforms disagree about the punctuation: iOS wants `sms:&body=`
+     * and everything else `sms:?body=`, and each ignores the other's, so the
+     * body arrives empty rather than the link failing — a quiet wrong answer,
+     * which is why this is worth getting right rather than picking one.
+     *
+     * Clicked as a link rather than assigned to location, because a PWA
+     * launched from the home screen is a standalone window and assigning a
+     * scheme it cannot handle there has been known to do nothing at all.
+     */
+    function messageApp() {
+        const body = appShareText() + '\n\n' + appUrl();
+        /*
+         * An iPad says "Macintosh" and has touch points; a Mac says the same
+         * and has none. That second clause has to be read together with the
+         * first rather than beside it — `platform === 'MacIntel'` on its own
+         * claimed an Android phone was an iPad the first time this was tried,
+         * because a device pretending to be a phone keeps the host's platform.
+         */
+        const ua = navigator.userAgent || '';
+        const ios = /iP(hone|od|ad)/.test(ua)
+            || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+        const href = 'sms:' + (ios ? '&' : '?') + 'body=' + encodeURIComponent(body);
+
+        const link = document.createElement('a');
+        link.href = href;
+        link.rel = 'noopener';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    async function copyAppLink() {
+        try {
+            await navigator.clipboard.writeText(appUrl());
+            toast('Link copied.', 'good');
+        } catch (err) {
+            toast('This browser will not let the app copy.', 'bad');
+        }
+    }
+
+    function shareApp() {
+        openChoice('Send it to somebody', [
+            { label: 'Message', sub: 'opens Messages with it written out',
+              act: () => messageApp() },
+            { label: 'Share\u2026', sub: 'mail, WhatsApp, AirDrop, anything else',
+              act: () => shareText(appShareText(), {
+                  title: 'AMS Workout Sync',
+                  url: appUrl(),
+                  copied: 'Copied — paste it wherever you like.'
+              }) },
+            { label: 'Copy the link', sub: appUrl().replace(/^https:\/\//, ''),
+              act: () => copyAppLink() }
+        ]);
     }
 
     /*
@@ -2671,7 +2780,11 @@ const AmsUi = (function () {
             + '<div class="settings-row"><div class="settings-row-main">'
             + '<div class="settings-row-title">Version ' + esc(AmsVersion.CURRENT) + '</div>'
             + '<div class="settings-row-sub">' + esc(AmsVersion.CHANGELOG[0].headline) + '</div>'
-            + '</div><button class="btn btn-small" data-go="version">What’s new</button></div></div>');
+            + '</div><button class="btn btn-small" data-go="version">What’s new</button></div>'
+            + '<div class="settings-row"><div class="settings-row-main">'
+            + '<div class="settings-row-title">Send it to somebody</div>'
+            + '<div class="settings-row-sub">The link, and what they need before it is any use</div>'
+            + '</div><button class="btn btn-small" data-share-app>Share</button></div></div>');
 
         /* --- what can be logged outside the plan --- */
         parts.push('<div class="settings-group"><h2>Log something else</h2>'
@@ -3222,8 +3335,13 @@ const AmsUi = (function () {
                 + 'session you never answered either way counts against you rather than vanishing. Until '
                 + 'there is enough history to mean anything, it says so instead of drawing confident '
                 + 'shapes over three data points.</p>'
-                + '<p><strong>Settings</strong> — the Dropbox connection, which workbook to use, and how its '
-                + 'columns are read.</p>')
+                + '<p><strong>Settings</strong> — the Dropbox connection, which workbook to use, how its '
+                + 'columns are read, your photographs, and <strong>Send it to somebody</strong>, which '
+                + 'passes the app on: straight into Messages, out through the share sheet, or as a link on '
+                + 'the clipboard. It sends more than the address, because a bare link opens on "No workbook '
+                + 'yet" and reads as broken — the message says what the app does, that they need a plan of '
+                + 'their own as an .xlsx in Dropbox first, and that on an iPhone a page becomes an app '
+                + 'through Share → Add to Home Screen.</p>')
 
             + section('How it reads your plan',
                 '<p>On first use the app looks at your headings and works out which column holds the date, '
@@ -4047,6 +4165,8 @@ const AmsUi = (function () {
                 return;
             }
 
+            if (event.target.closest('[data-share-app]')) { shareApp(); return; }
+
             if (event.target.closest('[data-extras-all]')) { openExtrasList(); return; }
 
             if (event.target.closest('[data-extra]')) { openExtra(); return; }
@@ -4136,6 +4256,8 @@ const AmsUi = (function () {
         toast,
         weekFigures,
         __weekCalendar: weekCalendar,   // pure, and exposed so its wording can be tested directly
+        __appUrl: appUrl,               // takes an href, so both branches can be asked for
+        __appShareText: appShareText,
         renderToday,
         renderPlan,
         renderSettings,

@@ -8,13 +8,23 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.42.0';
+    const CURRENT = '1.43.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.43.0',
+            date: '2026-09-04',
+            headline: 'Send it to somebody',
+            items: [
+                '**Settings → Send it to somebody** passes the app on three ways: straight into **Messages** with it already written out, out through the **share sheet** for mail or WhatsApp or AirDrop, or just the **link on the clipboard**.',
+                'It sends more than the address. Opened with nothing behind it this app says "No workbook yet", which reads as broken rather than as waiting — so the message says what it does, that they need their own plan as an .xlsx in Dropbox before it is any use, and the step everybody misses on an iPhone, which is that a page becomes an app through Share → Add to Home Screen.',
+                'The link is worked out from where the app is actually running, so it follows a move without anything being changed by hand — except when it is running somewhere nobody else can reach, on a laptop or from a file. A link to localhost is not a link, and sending one looks exactly like sending a good one, so in that case it falls back to the published address.',
+            ]
+        },
         {
             version: '1.42.0',
             date: '2026-09-04',

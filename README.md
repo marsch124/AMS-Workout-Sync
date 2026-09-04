@@ -59,6 +59,11 @@ existing cells.
   counts as training load. They are never written into the plan, so planned-versus-
   actual keeps meaning what it says. Everything logged this way is listed newest
   first, with its photographs, under Settings → Log something else.
+- **Send it to somebody** — Settings passes the app on: straight into Messages,
+  out through the share sheet, or as a link on the clipboard. It sends more than
+  the address, because opened with nothing behind it the app says "No workbook
+  yet" — so the message says what it does, that they need their own plan as an
+  `.xlsx` in Dropbox first, and how a page becomes an app on an iPhone.
 - **Sheet setup** — the app works out which column is which from your headings, in
   English or German, and lets you correct the guess once. If you want to record
   something the sheet has no column for, it appends one — headed and formatted like

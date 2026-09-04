@@ -27,6 +27,7 @@ node tests/week-wash.js
 node tests/rest-day.js
 node tests/photos.js
 node tests/extra-photos.js
+node tests/share-app.js
 ```
 
 Each script prints what it found and ends with `errors: none`. Nothing is
@@ -155,6 +156,15 @@ trip through saved bytes. Renaming the activity underneath it must not detach
 it, and the list of everything logged must be able to show and take one. Step 3
 also asserts the orphan check *still fails* without the extras in the owner
 list, so it cannot pass for the wrong reason.
+
+**`share-app.js`** — passing the app on, where every possible failure is a
+quiet one. A share that sends a localhost link looks exactly like one that
+worked, and an `sms:` with the other platform's punctuation opens Messages
+empty rather than failing. So: the link follows a move but never leaves the
+machine when it cannot be reached from outside it; iOS gets `&body=` and
+everyone else `?body=`; the message names the app, says a plan of their own is
+needed first, and carries the Add to Home Screen step; and all three routes out
+of the sheet do what they say. Needs no workbook.
 
 ## Fixtures
 

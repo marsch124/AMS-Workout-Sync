@@ -76,6 +76,23 @@ The last run of work came from the input page and from screenshots:
   *still fails* without extras in the owner list — otherwise the test would
   pass for the wrong reason.
 
+**v1.43.0** added *Settings → Send it to somebody*: Messages, the share sheet,
+or the link on the clipboard. Two things in it are load-bearing:
+
+- `appUrl()` derives the link from where the app is running, **except** on
+  localhost, a loopback address, `file:`, or plain http, where it falls back to
+  the published address. Sending a localhost link looks exactly like sending a
+  good one, which is the whole reason for the guard.
+- The `sms:` body form differs by platform — iOS `sms:&body=`, everyone else
+  `sms:?body=` — and each ignores the other's, so the wrong one opens Messages
+  **empty** rather than failing. The iPad case (UA says "Macintosh") must be
+  read together with the UA, not beside it: `platform === 'MacIntel'` alone
+  called an emulated Android phone an iPad.
+
+The message deliberately carries more than the link: opened with nothing behind
+it the app says "No workbook yet", which reads as broken. Guarded by
+`tests/share-app.js`, whose failures would otherwise all be silent ones.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The
@@ -168,7 +185,7 @@ node tests/failure-paths.js          # and the rest
 Repo tests: `failure-paths`, `column-collision`, `foreign-extras-sheet`,
 `edited-workbook`, `calendar-export`, `session-share`, `progress`, `logging`,
 `move-log`, `leaving-a-form`, `week-wash`, `august-audit`, `rest-day`,
-`photos`, `extra-photos`. Fixtures are synthetic and gitignored — **no real
+`photos`, `extra-photos`, `share-app`. Fixtures are synthetic and gitignored — **no real
 training data in this repository**.
 
 Extra scripts live in the session scratchpad and drive Martin's *real*
