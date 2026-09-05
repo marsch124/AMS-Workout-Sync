@@ -29,6 +29,7 @@ node tests/photos.js
 node tests/extra-photos.js
 node tests/share-app.js
 node tests/screen-wording.js
+node tests/plan-overview.js
 ```
 
 Each script prints what it found and ends with `errors: none`. Nothing is
@@ -175,6 +176,16 @@ caption for the buttons under it, an explanation hidden in a placeholder that
 disappears the moment it is answered. Runs at a **phone-sized viewport** on
 purpose — on a desktop one, five photographs and a button sit on one line and
 the wrapping it checks would pass without ever being exercised.
+
+**`plan-overview.js`** — the eight-week card at the top of the Plan tab. Mostly
+one assertion, made several ways: **the weeks share one height scale**. A
+recovery week is only legible as one if its bars are visibly shorter than its
+neighbours', and scaling each row to its own tallest session would flatten the
+shape the drawing exists to show — the kind of mistake that leaves a chart
+looking perfectly reasonable and saying nothing. Uses `block.xlsx`, eight weeks
+with two recovery weeks at roughly half volume. Also checks it sits above the
+list, appears on all four segments, and is not drawn as an empty frame when
+there is no plan.
 
 ## Fixtures
 

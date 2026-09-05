@@ -11,6 +11,10 @@ existing cells.
 - **Today** — the session planned for today, broken into warm-up, intervals,
   technique and cool-down, colour-coded by discipline: swim, bike, run, strength,
   mobility (stretching is read as mobility — the same session by another name).
+- **The block at a glance** — the Plan tab opens with eight weeks drawn as eight
+  rows: a column per day, a bar per session, taller for longer, coloured by
+  sport, hollow for still to come. One height scale across all of them, so a
+  recovery week reads as one.
 - **Plan** — the whole schedule grouped by day, showing what is still to come and
   what has already been logged.
 - **Perceived effort** — a short box with the scale spelled out beside it, in

@@ -141,6 +141,23 @@ five different places, and it was not the wording:
   body listener — `openNote()` replaces the note's *contents*, not the element,
   so a listener attached there stacks up one per open.
 
+**v1.46.0** — the Plan tab opens with `blockCard()`: eight weeks as eight rows,
+same alphabet as the week strip on Today.
+
+- 🚨 **One height scale across every week, never per row.** A recovery week is
+  only legible as one if its bars are short beside its neighbours; scaling each
+  row to its own tallest session flattens exactly the shape the drawing exists
+  to show, and leaves a chart that looks fine and says nothing.
+  `tests/plan-overview.js` asserts it against `block.xlsx`, an eight-week
+  fixture with two recovery weeks in it.
+- It sits at the **top** of the tab, on every segment, rather than filling the
+  space under a short list — a panel that only appears when a list happens to
+  be short is one you cannot rely on.
+- Also: no rules between settings rows (he asked); **Save a copy removed** from
+  the UI — but `AmsSync.exportWorkbook()` **stays**, because it is how
+  `logging.js` and `foreign-extras-sheet.js` get the written workbook back to
+  check it, which is the guard on his real file; and Settings has no eyebrow.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The
@@ -233,7 +250,7 @@ node tests/failure-paths.js          # and the rest
 Repo tests: `failure-paths`, `column-collision`, `foreign-extras-sheet`,
 `edited-workbook`, `calendar-export`, `session-share`, `progress`, `logging`,
 `move-log`, `leaving-a-form`, `week-wash`, `august-audit`, `rest-day`,
-`photos`, `extra-photos`, `share-app`, `screen-wording`. Fixtures are synthetic and gitignored — **no real
+`photos`, `extra-photos`, `share-app`, `screen-wording`, `plan-overview`. Fixtures are synthetic and gitignored — **no real
 training data in this repository**.
 
 Extra scripts live in the session scratchpad and drive Martin's *real*

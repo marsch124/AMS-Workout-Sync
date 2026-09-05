@@ -28,6 +28,45 @@ HEADERS = ['Week', 'Date', 'Day', 'Sport', 'Workout', 'Duration (min)',
 DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 
+def block(path):
+    """Eight weeks of a build block, so the shape of a month can be drawn.
+
+    Two of them are recovery weeks at roughly half the volume. That is the
+    point of the fixture: the Plan tab's overview scales every week against one
+    height, and a recovery week only reads as one if it is visibly shorter than
+    the weeks either side of it.
+    """
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Weekly Schedules'
+    ws.append(HEADERS)
+
+    monday = monday_of_this_week() - datetime.timedelta(days=7)
+    shape = [
+        [('Swim', 40), ('Bike', 60), ('Run', 35), ('Mobility', 20), None, ('Bike', 90), ('Run', 45)],
+        [('Swim', 45), ('Bike', 70), ('Run', 40), ('Strength', 30), None, ('Bike', 105), ('Run', 55)],
+        [('Swim', 50), ('Bike', 80), ('Run', 45), ('Mobility', 20), None, ('Bike', 120), ('Run', 65)],
+        [('Swim', 30), ('Bike', 45), ('Run', 25), None, None, ('Bike', 60), ('Run', 30)],
+        [('Swim', 50), ('Bike', 85), ('Run', 50), ('Strength', 30), None, ('Bike', 130), ('Run', 70)],
+        [('Swim', 55), ('Bike', 95), ('Run', 55), ('Mobility', 20), None, ('Bike', 150), ('Run', 80)],
+        [('Swim', 35), ('Bike', 50), ('Run', 30), None, None, ('Bike', 70), ('Run', 35)],
+        [('Swim', 55), ('Bike', 100), ('Run', 60), ('Strength', 30), None, ('Bike', 160), ('Run', 85)],
+    ]
+
+    for week_index, week in enumerate(shape):
+        for day_index, session in enumerate(week):
+            day = monday + datetime.timedelta(days=week_index * 7 + day_index)
+            if session is None:
+                ws.append([week_index + 1, day, DAYS[day.weekday()], 'Rest',
+                           'REST DAY - full day off', None, '-', 'Adaptation'])
+                continue
+            sport, minutes = session
+            ws.append([week_index + 1, day, DAYS[day.weekday()], sport,
+                       sport + ' session', minutes, 'Z2', 'Build'])
+
+    wb.save(path)
+
+
 def monday_of_this_week():
     today = datetime.date.today()
     return today - datetime.timedelta(days=today.weekday())
@@ -252,6 +291,7 @@ def broken(path_rubbish, path_truncated, source):
 if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)
     plain(os.path.join(OUT, 'plain.xlsx'))
+    block(os.path.join(OUT, 'block.xlsx'))
     hostile_text(os.path.join(OUT, 'nasty.xlsx'))
     column_inserted(os.path.join(OUT, 'column-inserted.xlsx'))
     foreign_extras(os.path.join(OUT, 'foreign-extras.xlsx'))

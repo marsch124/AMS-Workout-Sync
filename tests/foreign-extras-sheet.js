@@ -35,11 +35,17 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(34) + v);
   await page.waitForTimeout(1300);
   while (await page.$('body.detail-open')) { await page.click('.screen.active [data-back]'); await page.waitForTimeout(250); }
 
-  await page.click('.tab[data-tab="settings"]');
-  await page.waitForTimeout(600);
-  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#exportButton')]);
-  await dl.saveAs(SP + '/foreign-out.xlsx');
-  line('saved a copy:', 'yes');
+  /*
+   * Straight to exportWorkbook rather than through a button. "Save a copy"
+   * came off the screen in v1.46.0, but the routine behind it is how this test
+   * gets the written workbook back to look at, which is the point of the test.
+   */
+  const bytes = await page.evaluate(async () => {
+    const out = await AmsSync.exportWorkbook();
+    return Array.from(new Uint8Array(await out.blob.arrayBuffer()));
+  });
+  require('fs').writeFileSync(SP + '/foreign-out.xlsx', Buffer.from(bytes));
+  line('wrote the workbook out:', bytes.length + ' bytes');
   console.log('\nerrors:', errors.length ? errors : 'none');
   await browser.close();
 })().catch(e => { console.error('FAILED:', e); process.exit(1); });

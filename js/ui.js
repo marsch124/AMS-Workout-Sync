@@ -660,22 +660,18 @@ const AmsUi = (function () {
      * else about those buttons.
      */
     const HELP_NOTES = {
-        workbookButtons: {
-            title: 'Open a file · Save a copy',
+        workbook: {
+            title: 'Your workbook',
             where: true,
-            html: '<p><strong>Save a copy</strong> hands you the workbook as it stands right now, '
-                + 'with everything you have logged already written into it. It is the same '
-                + '<code>.xlsx</code> you would open on a laptop — the app does not keep a private '
-                + 'format of its own.</p>'
-                + '<p>It is a copy, not a move. Your workbook stays exactly where it is, and this '
-                + 'changes nothing about it. Two reasons to reach for it: you want the file somewhere '
-                + 'of your own — mail it to yourself, drop it in Files, keep it as a snapshot before '
-                + 'you go reorganising in Excel — or you are working without Dropbox, in which case '
-                + 'this is how the results get off the phone at all.</p>'
-                + '<p><strong>Open a file</strong> is the other direction: it reads a workbook from '
-                + 'this device rather than from Dropbox. Nothing is written back to where it came '
-                + 'from, so with no Dropbox behind it the round trip is yours to close — open the '
-                + 'file, log into it, save a copy back out.</p>'
+            html: '<p>This is the Excel file the whole app is a lid for. It reads today\u2019s session '
+                + 'out of it and writes what you did back into the cells your own totals and charts '
+                + 'already point at. It keeps no copy of your training in any other form.</p>'
+                + '<p><strong>Open a file</strong> reads a workbook from this device instead of from '
+                + 'Dropbox. It is the way in when there is no Dropbox connection, and a rarity once '
+                + 'there is one — which is why the button only appears while you are not connected.</p>'
+                + '<p><strong>Setup and connection</strong>, just below, is where the rest of it '
+                + 'lives: which columns of your sheet mean what, which file to read, and the Dropbox '
+                + 'account it sits in.</p>'
         },
         photoButtons: {
             title: 'Save them all · Delete all',
@@ -701,8 +697,9 @@ const AmsUi = (function () {
         if (!name && !path) return '';
         if (state.source === 'file' || (state.meta && state.meta.local)) {
             return '<p>You are reading <strong>' + esc(name || 'a workbook') + '</strong>, opened from '
-                + 'this device rather than from Dropbox. Nothing is written back to where it came from, '
-                + 'so <em>Save a copy</em> is how the results get out.</p>';
+                + 'this device rather than from Dropbox. What you log is kept on the phone and shown '
+                + 'here, but with nothing behind it to write to, it stays on the phone: connect '
+                + 'Dropbox and the queue goes up on the next sync.</p>';
         }
         return '<p>You are reading <strong>' + esc(name || 'a workbook') + '</strong>'
             + (path ? ', in your Dropbox at <code>' + esc(path) + '</code>' : '')
@@ -1638,6 +1635,140 @@ const AmsUi = (function () {
 
     /* ---------- plan ---------- */
 
+    /* ---------- the block, at a glance ---------- */
+
+    /*
+     * The Plan tab is a list, and a list answers "what is next" perfectly and
+     * "what does the next month look like" not at all. On a 48-week build that
+     * second question is the one the plan is *for* — where the volume rises,
+     * where the recovery weeks fall, how far off the race is — and nothing in
+     * the app was showing it. Meanwhile the tab had a screenful of empty grey
+     * under a short list.
+     *
+     * So: eight weeks as eight rows, in the same visual language as the week
+     * card on Today. A column per day, a bar per session, height by planned
+     * duration, colour by sport, and solid-for-recorded against
+     * hollow-for-still-to-do — which is exactly what the strip on Today
+     * already teaches, so there is no second thing to learn.
+     *
+     * It goes at the top of the tab rather than into the leftover space at the
+     * bottom, because a panel that only appears when a list happens to be
+     * short is a panel you cannot rely on being there.
+     */
+    const BLOCK_WEEKS_BACK = 1;
+    const BLOCK_WEEKS_AHEAD = 6;
+
+    function blockWeeks() {
+        const thisWeek = AmsSync.weekStart(AmsSync.todayKey());
+        if (!thisWeek) return [];
+
+        const out = [];
+        for (let i = -BLOCK_WEEKS_BACK; i <= BLOCK_WEEKS_AHEAD; i++) {
+            const start = shiftDayKey(thisWeek, i * 7);
+            const days = AmsSync.weekDays(start);
+            const summary = AmsSync.weekSummary(start);
+            const sessions = days.reduce((n, day) => n + day.training.length, 0);
+            if (!sessions && !summary) continue;
+            out.push({
+                start: start,
+                offset: i,
+                days: days,
+                sessions: sessions,
+                plannedSeconds: summary ? summary.plannedSeconds : 0,
+                performed: summary ? summary.performed : 0
+            });
+        }
+        return out;
+    }
+
+    /*
+     * One height scale across the whole card, not one per week. A recovery
+     * week has to *look* like a recovery week, and it only does if its bars
+     * are short beside the week either side of it — scaling each row to its
+     * own tallest session would flatten exactly the shape this is drawn for.
+     */
+    function blockCard() {
+        const weeks = blockWeeks();
+        if (weeks.length < 2) return '';
+
+        const mapping = AmsSync.getState().mapping || {};
+        let tallest = 0;
+        weeks.forEach((week) => week.days.forEach((day) => day.training.forEach((workout) => {
+            const planned = AmsPlan.plannedDurationSeconds(workout, mapping) || 0;
+            if (planned > tallest) tallest = planned;
+        })));
+        if (!tallest) return '';
+
+        const today = AmsSync.todayKey();
+        const phase = (weeks[0].days.concat(weeks[weeks.length - 1].days)
+            .reduce((all, day) => all.concat(day.sessions), [])
+            .map((w) => w.phase).find(Boolean)) || '';
+
+        const rows = weeks.map((week) => {
+            const label = weekLabel(week.start);
+            const hours = AmsPlan.formatDuration(week.plannedSeconds) || '';
+
+            const columns = week.days.map((day) => {
+                const bars = day.training.map((workout) => {
+                    const planned = AmsPlan.plannedDurationSeconds(workout, mapping) || 0;
+                    const height = Math.max(14, Math.round(planned / tallest * 100));
+                    const status = statusOf(workout);
+                    const kind = status ? status.kind : 'todo';
+                    return '<span class="block-bar is-' + esc(kind) + '"'
+                        + ' style="height:' + height + '%; --sport: ' + workout.discipline.color + '"'
+                        + '></span>';
+                }).join('');
+
+                return '<span class="block-day' + (day.dayKey === today ? ' is-today' : '')
+                    + (day.isRest ? ' is-rest' : '') + '">'
+                    + (day.isRest && !bars ? '<span class="block-rest"></span>' : bars)
+                    + '</span>';
+            }).join('');
+
+            return '<div class="block-week' + (week.offset === 0 ? ' is-now' : '')
+                + (week.offset < 0 ? ' is-past' : '') + '">'
+                + '<span class="block-week-label">' + esc(label) + '</span>'
+                + '<span class="block-week-days">' + columns + '</span>'
+                + '<span class="block-week-hours">' + esc(hours) + '</span>'
+                + '</div>';
+        }).join('');
+
+        const total = weeks.reduce((n, w) => n + w.plannedSeconds, 0);
+        const sessions = weeks.reduce((n, w) => n + w.sessions, 0);
+
+        // A header of weekday letters, so a column can be read without
+        // counting across from the left.
+        const letters = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+            .map((letter) => '<span>' + letter + '</span>').join('');
+
+        return '<div class="card block-card">'
+            + '<div class="block-head">'
+            + '<span class="block-title">' + esc(phase || 'The weeks around now') + '</span>'
+            + '<span class="block-sub">' + sessions + ' session' + (sessions === 1 ? '' : 's')
+            + (total ? ' · ' + esc(AmsPlan.formatDuration(total)) : '') + '</span>'
+            + '</div>'
+            + '<div class="block-week block-letters">'
+            + '<span class="block-week-label"></span>'
+            + '<span class="block-week-days">' + letters + '</span>'
+            + '<span class="block-week-hours"></span>'
+            + '</div>'
+            + '<div class="block-weeks">' + rows + '</div>'
+            + '<p class="block-foot">Each row is a week, each column a day. '
+            + 'Taller is longer; solid is done.</p>'
+            + '</div>';
+    }
+
+    /* "This week", "Next week", or the Monday's date. */
+    function weekLabel(start) {
+        const thisWeek = AmsSync.weekStart(AmsSync.todayKey());
+        if (start === thisWeek) return 'This week';
+        if (start === shiftDayKey(thisWeek, 7)) return 'Next week';
+        if (start === shiftDayKey(thisWeek, -7)) return 'Last week';
+        const date = AmsPlan.parseDayKey(start);
+        if (!date) return '';
+        return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+    }
+
     function renderPlan() {
         const body = $('planBody');
         const state = AmsSync.getState();
@@ -1697,6 +1828,8 @@ const AmsUi = (function () {
             workouts = AmsSync.visiblePlan();
         }
 
+        const overview = blockCard();
+
         const outstandingHtml = outstandingFirst.length
             ? '<div class="day-heading is-outstanding"><h2>Not recorded</h2>'
                 + '<span>' + outstandingFirst.length + ' from before today</span></div>'
@@ -1704,7 +1837,7 @@ const AmsUi = (function () {
             : '';
 
         if (!workouts.length && !outstandingFirst.length) {
-            body.innerHTML = emptyState('icon-today', 'Nothing here',
+            body.innerHTML = overview + emptyState('icon-today', 'Nothing here',
                 currentRange === 'upcoming'
                     ? 'Nothing left to do from today onwards — everything scheduled has been recorded.'
                     : currentRange === 'past'
@@ -1726,7 +1859,7 @@ const AmsUi = (function () {
         }
 
         const today = AmsSync.todayKey();
-        body.innerHTML = outstandingHtml + groups.map((group) => {
+        body.innerHTML = overview + outstandingHtml + groups.map((group) => {
             const relative = relativeDay(group.dayKey);
             return '<div class="day-heading' + (group.dayKey === today ? ' is-today' : '') + '">'
                 + '<h2>' + esc(longDay(group.date)) + '</h2>'
@@ -3145,12 +3278,20 @@ const AmsUi = (function () {
         } else {
             parts.push('<p class="hint-inline">Nothing loaded yet.</p>');
         }
+        /*
+         * Save a copy is gone, asked for directly. It handed you the workbook
+         * as a file to keep, which is a thing Dropbox already does for him —
+         * and with Dropbox connected it was a button whose job was already
+         * done. `AmsSync.exportWorkbook()` stays: it is how the tests get the
+         * written workbook back to check it against the original, which is the
+         * guard on the one file that matters.
+         *
+         * Open a file therefore stands alone, and only when there is no
+         * Dropbox behind the app — with one, it is the whole way in.
+         */
         parts.push('<div class="button-row" style="margin-top:0.5rem">'
-            // Opening a local file is the whole path in without Dropbox, and a
-            // rarity with it — so it sits here until connecting makes it rare.
             + (connected ? '' : '<button class="btn btn-small" id="openLocalButton">Open a file</button>')
-            + '<button class="btn btn-small" id="exportButton">Save a copy</button>'
-            + helpButton('workbookButtons', 'What these buttons do') + '</div>');
+            + helpButton('workbook', 'About your workbook') + '</div>');
         // Always in the page, whether or not its button is: it is invisible,
         // and the button that opens it moves about.
         parts.push('<input type="file" id="localFileInput" accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>');
@@ -3351,28 +3492,6 @@ const AmsUi = (function () {
                     toast(err.message, 'bad');
                 }
                 input.value = '';
-            });
-        }
-
-        const exportButton = $('exportButton');
-        if (exportButton) {
-            exportButton.addEventListener('click', async () => {
-                try {
-                    const result = await AmsSync.exportWorkbook();
-                    const url = URL.createObjectURL(result.blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = result.name;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    setTimeout(() => URL.revokeObjectURL(url), 30000);
-                    toast(result.applied
-                        ? result.applied + ' logged session' + (result.applied === 1 ? '' : 's') + ' written into the copy.'
-                        : 'Copy saved.', 'good');
-                } catch (err) {
-                    toast(err.message, 'bad');
-                }
             });
         }
 
@@ -3639,7 +3758,12 @@ const AmsUi = (function () {
                 + 'week and next to pick from. A session sent as a message takes its photographs with '
                 + 'it. Whether a phone will attach them is its decision rather than the app\u2019s, so '
                 + 'the line under the button says which it is going to be before you tap it.</p>'
-                + '<p><strong>Plan</strong> — the whole schedule, in four lists. <em>Upcoming</em> is what is '
+                + '<p><strong>Plan</strong> — opens with <em>the block at a glance</em>: eight weeks as '
+                + 'eight rows, a column per day and a bar per session, drawn exactly as the week strip '
+                + 'on Today is. It is there to answer what a list cannot — where the volume rises, where '
+                + 'the recovery weeks fall, which week is the big one. Every week is measured against '
+                + 'one height rather than against itself, which is what makes an easy week look like an '
+                + 'easy week. Below it, the whole schedule in four lists. <em>Upcoming</em> is what is '
                 + 'still to do, and leads with anything from before today that was never recorded. '
                 + '<em>Done</em> is what you performed. <em>Missed</em> is what you marked as not done, kept '
                 + 'apart from the sessions you did and still open to log if it turns out you did it. '

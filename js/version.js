@@ -8,13 +8,26 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.45.0';
+    const CURRENT = '1.46.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.46.0',
+            date: '2026-09-05',
+            headline: 'The month ahead, drawn',
+            items: [
+                '**The Plan tab opens with the block at a glance.** Eight weeks as eight rows — a column per day, a bar per session, taller for longer, coloured by sport, hollow for still to come and solid for done. The same drawing as the week strip on Today, only more of it at once.',
+                'It answers the question a list cannot: *what does the next month look like.* Where the volume rises, where the recovery weeks fall, which week is the big one. Every week is measured against one height rather than against itself, which is the only way a recovery week actually looks like a recovery week.',
+                '**No lines between the rows in Settings.** Asked for, and right: a heading, a gap and a title already say a new thing has started. The rule was a fourth signal nobody needed.',
+                '**Save a copy is gone.** With Dropbox behind the app it was a button whose job was already being done for you.',
+                'The question mark in the Workbook section now covers the whole section rather than two buttons, and still tells you which file is open and where it lives.',
+                '**Nothing above the word Settings any more.** Every line put there said something "Settings" had already said.',
+            ]
+        },
         {
             version: '1.45.0',
             date: '2026-09-05',

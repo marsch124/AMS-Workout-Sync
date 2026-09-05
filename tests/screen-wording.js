@@ -253,7 +253,7 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(44) + v);
       }).filter(Boolean);
 
     return {
-      eyebrow: document.querySelector('#settingsScreen .app-eyebrow').textContent,
+      eyebrow: (document.querySelector('#settingsScreen .app-eyebrow') || {}).textContent || null,
       extrasRow: extras ? extras.innerText.replace(/\n/g, ' | ') : null,
       photosSubs: photos ? photos.querySelectorAll('.settings-row-sub').length : null,
       // The group's own row, not the ones inside the fold — those are
@@ -280,7 +280,7 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(44) + v);
 
   const misaligned = settings.rowAlignment.filter(r => !r.nearerTitle);
 
-  line('the line at the top', settings.eyebrow);
+  line('the line above "Settings"', settings.eyebrow === null ? '(none)' : settings.eyebrow);
   line('the extras group', (settings.extrasRow || '').slice(0, 80));
   line('the sheet-layout row is called', settings.sheetRow);
   line('the last group on the page', settings.sharingLast + ' — ' + settings.sharingRow);
@@ -288,7 +288,7 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(44) + v);
     + ' of ' + settings.rowAlignment.length);
   line('Setup and connection is inside Workbook', settings.foldInsideWorkbook);
 
-  if (/AMS Workout Sync/.test(settings.eyebrow)) errors.push('Settings still announces the name of the app you are in');
+  if (settings.eyebrow !== null) errors.push('Settings has an eyebrow again, and there was nothing relevant to put in it');
   if (!/Everything extra you logged/.test(settings.extrasRow || '')) {
     errors.push('the extras row does not say these are the extra ones');
   }
@@ -303,6 +303,15 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(44) + v);
   }
   if (settings.sharingLast !== 'Sharing') errors.push('sharing is not the last thing on the page');
   if (!/this app/.test(settings.sharingRow || '')) errors.push('the share row still says "it" rather than what it sends');
+
+  const anyRule = await page.evaluate(() =>
+    [...document.querySelectorAll('#settingsBody .settings-row, #settingsBody .settings-fold-body')]
+      .filter((n) => {
+        const st = getComputedStyle(n);
+        return parseFloat(st.borderBottomWidth) > 0 || parseFloat(st.borderTopWidth) > 0;
+      }).length);
+  line('rules drawn between rows', anyRule);
+  if (anyRule) errors.push('the settings page still draws lines between its rows');
 
   if (misaligned.length) {
     errors.push('a button is level with the description rather than the title on: '
@@ -384,7 +393,7 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(44) + v);
 
   const help = await page.evaluate(async () => {
     const out = [];
-    for (const topic of ['workbookButtons', 'photoButtons']) {
+    for (const topic of ['workbook', 'photoButtons']) {
       document.querySelector('[data-help="' + topic + '"]').click();
       await new Promise(r => setTimeout(r, 300));
       out.push({
@@ -411,10 +420,11 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(44) + v);
 
   help.notes.forEach(n => line(n.title, n.words + ' characters, Close button: ' + n.closeSays));
 
-  const workbookNote = help.notes.find(n => n.topic === 'workbookButtons');
+  const workbookNote = help.notes.find(n => n.topic === 'workbook');
   const photoNote = help.notes.find(n => n.topic === 'photoButtons');
-  if (!/Save a copy/.test(workbookNote.title)) errors.push('the workbook question mark does not name Save a copy');
-  if (!/copy, not a move/.test(workbookNote.text)) errors.push('the explanation does not say the workbook is left alone');
+  if (!/workbook/i.test(workbookNote.title)) errors.push('the workbook question mark does not say what it is about');
+  if (!/You are reading/.test(workbookNote.text)) errors.push('the explanation no longer says which file is open');
+  if (/Save a copy/.test(workbookNote.text)) errors.push('the explanation still offers a button that was removed');
   if (!/no undoing it/.test(photoNote.text)) errors.push('Delete all is explained without saying it cannot be undone');
   if (help.notes.some(n => !n.noButtons)) errors.push('an explanation came with choices to make');
   if (help.notes.some(n => n.closeSays !== 'Close')) errors.push('an explanation offers Cancel, which is not what it does');
