@@ -28,6 +28,7 @@ node tests/rest-day.js
 node tests/photos.js
 node tests/extra-photos.js
 node tests/share-app.js
+node tests/screen-wording.js
 ```
 
 Each script prints what it found and ends with `errors: none`. Nothing is
@@ -165,6 +166,15 @@ machine when it cannot be reached from outside it; iOS gets `&body=` and
 everyone else `?body=`; the message names the app, says a plan of their own is
 needed first, and carries the Add to Home Screen step; and all three routes out
 of the sheet do what they say. Needs no workbook.
+
+**`screen-wording.js`** — the parts that are only words, and the layout
+decisions that exist because of them. Every one of these was reported by the
+person using the app rather than found here, which is the argument for writing
+them down: a label that stops matching what it opens, a line that reads as a
+caption for the buttons under it, an explanation hidden in a placeholder that
+disappears the moment it is answered. Runs at a **phone-sized viewport** on
+purpose — on a desktop one, five photographs and a button sit on one line and
+the wrapping it checks would pass without ever being exercised.
 
 ## Fixtures
 

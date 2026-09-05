@@ -93,6 +93,28 @@ The message deliberately carries more than the link: opened with nothing behind
 it the app says "No workbook yet", which reads as broken. Guarded by
 `tests/share-app.js`, whose failures would otherwise all be silent ones.
 
+**v1.44.0** is nine things he asked for in one message, mostly wording and
+layout. The ones with a reason behind them:
+
+- **Add moved back after the photographs** — it had been put first in 1.41.0
+  because the strip scrolled sideways and the button fell off the end. The
+  strip now *wraps* instead, which is what makes his placement possible. Those
+  two changes only work together; `tests/screen-wording.js` asserts both, at a
+  phone-sized viewport, or the wrap test passes without wrapping.
+- **Perceived effort** is a narrow box with a live description beside it
+  (`RPE_SCALE`, `rpeNote()`, `wireRpe()`). Half-steps read *down*, and the
+  number is not repeated in the words — it is an inch to the left.
+- **`openNote()`** reuses the action sheet to explain rather than to ask: no
+  actions, a note body, and Cancel becomes Close. `closeChoice()` and
+  `openChoice()` both reset it, or the next question inherits the explanation.
+  Topics live in `HELP_NOTES`, reached by `helpButton(topic)`.
+- **Two sub-lines were reworded** because they sat directly above a row of
+  buttons and read as captions for them ("On this phone only", "Opened from
+  this device"). Anything placed there has to name what it describes.
+- **The Setup and connection fold moved inside the Workbook group**, which
+  meant reordering Photos to come *before* Workbook — the fold now closes the
+  group, so anything emitted between them would nest inside it.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The
@@ -185,7 +207,7 @@ node tests/failure-paths.js          # and the rest
 Repo tests: `failure-paths`, `column-collision`, `foreign-extras-sheet`,
 `edited-workbook`, `calendar-export`, `session-share`, `progress`, `logging`,
 `move-log`, `leaving-a-form`, `week-wash`, `august-audit`, `rest-day`,
-`photos`, `extra-photos`, `share-app`. Fixtures are synthetic and gitignored — **no real
+`photos`, `extra-photos`, `share-app`, `screen-wording`. Fixtures are synthetic and gitignored — **no real
 training data in this repository**.
 
 Extra scripts live in the session scratchpad and drive Martin's *real*

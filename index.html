@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" sizes="64x64" href="icons/favicon-64.png">
     <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="css/style.css?v=1.43.0">
+    <link rel="stylesheet" href="css/style.css?v=1.44.0">
 </head>
 <body data-tab="today">
 
@@ -321,7 +321,10 @@
     <div id="settingsScreen" class="screen">
         <header class="app-header">
             <div class="app-header-main">
-                <p class="app-eyebrow">AMS Workout Sync</p>
+                <!-- The eyebrow on every other tab says what the screen is for.
+                     This one said the name of the app you are already inside,
+                     which is the one thing nobody opens Settings to find out. -->
+                <p class="app-eyebrow">Everything you can change</p>
                 <h1 class="app-title">Settings</h1>
             </div>
         </header>
@@ -365,8 +368,11 @@
         <div class="action-sheet-backdrop" data-sheet-close></div>
         <div class="action-sheet-card" role="dialog" aria-modal="true" aria-labelledby="actionSheetTitle">
             <p class="action-sheet-title" id="actionSheetTitle"></p>
+            <!-- Only filled in when the sheet is being used to explain
+                 something rather than to ask something. -->
+            <div class="action-sheet-note" id="actionSheetNote" hidden></div>
             <div class="action-sheet-actions" id="actionSheetActions"></div>
-            <button type="button" class="btn btn-block action-sheet-cancel" data-sheet-close>Cancel</button>
+            <button type="button" class="btn btn-block action-sheet-cancel" id="actionSheetCancel" data-sheet-close>Cancel</button>
         </div>
     </div>
 
@@ -391,19 +397,19 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script src="js/version.js?v=1.43.0"></script>
-    <script src="js/db.js?v=1.43.0"></script>
-    <script src="js/zip.js?v=1.43.0"></script>
-    <script src="js/xlsx.js?v=1.43.0"></script>
-    <script src="js/mapping.js?v=1.43.0"></script>
-    <script src="js/plan.js?v=1.43.0"></script>
-    <script src="js/extras.js?v=1.43.0"></script>
-    <script src="js/photos.js?v=1.43.0"></script>
-    <script src="js/ics.js?v=1.43.0"></script>
-    <script src="js/stats.js?v=1.43.0"></script>
-    <script src="js/dropbox.js?v=1.43.0"></script>
-    <script src="js/sync.js?v=1.43.0"></script>
-    <script src="js/ui.js?v=1.43.0"></script>
-    <script src="js/app.js?v=1.43.0"></script>
+    <script src="js/version.js?v=1.44.0"></script>
+    <script src="js/db.js?v=1.44.0"></script>
+    <script src="js/zip.js?v=1.44.0"></script>
+    <script src="js/xlsx.js?v=1.44.0"></script>
+    <script src="js/mapping.js?v=1.44.0"></script>
+    <script src="js/plan.js?v=1.44.0"></script>
+    <script src="js/extras.js?v=1.44.0"></script>
+    <script src="js/photos.js?v=1.44.0"></script>
+    <script src="js/ics.js?v=1.44.0"></script>
+    <script src="js/stats.js?v=1.44.0"></script>
+    <script src="js/dropbox.js?v=1.44.0"></script>
+    <script src="js/sync.js?v=1.44.0"></script>
+    <script src="js/ui.js?v=1.44.0"></script>
+    <script src="js/app.js?v=1.44.0"></script>
 </body>
 </html>

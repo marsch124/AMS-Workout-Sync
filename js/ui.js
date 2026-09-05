@@ -592,6 +592,9 @@ const AmsUi = (function () {
     function openChoice(title, options) {
         const sheet = $('actionSheet');
         $('actionSheetTitle').textContent = title;
+        $('actionSheetNote').hidden = true;
+        $('actionSheetNote').innerHTML = '';
+        $('actionSheetCancel').textContent = 'Cancel';
 
         const actions = $('actionSheetActions');
         actions.innerHTML = '';
@@ -614,10 +617,80 @@ const AmsUi = (function () {
         if (first) first.focus();
     }
 
+    /*
+     * The same sheet, used to answer a question rather than ask one.
+     *
+     * Several of the buttons in Settings are honest about what they do only if
+     * you already know — "Save a copy" is the plain example, and he asked for
+     * exactly this. A question mark beside the row it belongs to is a thing
+     * you can ignore completely until the day you cannot, which is the whole
+     * point of it: the answer costs no room on the screen until it is wanted.
+     *
+     * The HTML here is the app's own, never anything typed or read from a
+     * file, which is why it is set rather than escaped.
+     */
+    function openNote(title, html) {
+        const sheet = $('actionSheet');
+        $('actionSheetTitle').textContent = title;
+
+        const note = $('actionSheetNote');
+        note.innerHTML = html;
+        note.hidden = false;
+
+        $('actionSheetActions').innerHTML = '';
+        $('actionSheetCancel').textContent = 'Close';
+
+        sheet.hidden = false;
+        sheet.style.display = '';
+        $('actionSheetCancel').focus();
+    }
+
+    /* The little round question mark that opens one. */
+    function helpButton(topic, label) {
+        return '<button type="button" class="help-dot" data-help="' + esc(topic) + '"'
+            + ' aria-label="' + esc(label) + '">?</button>';
+    }
+
+    const HELP_NOTES = {
+        workbookButtons: {
+            title: 'Open a file · Save a copy',
+            html: '<p><strong>Save a copy</strong> hands you the workbook as it stands right now, '
+                + 'with everything you have logged already written into it. It is the same '
+                + '<code>.xlsx</code> you would open on a laptop — the app does not keep a private '
+                + 'format of its own.</p>'
+                + '<p>It is a copy, not a move. Your workbook stays exactly where it is, and this '
+                + 'changes nothing about it. Two reasons to reach for it: you want the file somewhere '
+                + 'of your own — mail it to yourself, drop it in Files, keep it as a snapshot before '
+                + 'you go reorganising in Excel — or you are working without Dropbox, in which case '
+                + 'this is how the results get off the phone at all.</p>'
+                + '<p><strong>Open a file</strong> is the other direction: it reads a workbook from '
+                + 'this device rather than from Dropbox. Nothing is written back to where it came '
+                + 'from, so with no Dropbox behind it the round trip is yours to close — open the '
+                + 'file, log into it, save a copy back out.</p>'
+        },
+        photoButtons: {
+            title: 'Save them all · Delete all',
+            html: '<p><strong>Save them all</strong> puts every photograph into a single zip file, '
+                + 'each one named by its day and its sport, and hands it to the share sheet. Keep it '
+                + 'wherever you keep things.</p>'
+                + '<p>It is worth doing, because this app is the only place these exist. They are not '
+                + 'in your workbook and they are not in Dropbox — pictures cannot go into an '
+                + '<code>.xlsx</code> without rebuilding it, and rebuilding it is the one thing this '
+                + 'app will not do to your training plan.</p>'
+                + '<p><strong>Delete all</strong> removes every one from this phone, and there is no '
+                + 'undoing it. Resetting the app does not do this: a reset is what you reach for when '
+                + 'syncing misbehaves, and it would be indefensible for that to take a season of '
+                + 'photographs with it.</p>'
+        }
+    };
+
     function closeChoice() {
         const sheet = $('actionSheet');
         sheet.hidden = true;
         sheet.style.display = 'none';
+        $('actionSheetNote').hidden = true;
+        $('actionSheetNote').innerHTML = '';
+        $('actionSheetCancel').textContent = 'Cancel';
     }
 
     /*
@@ -1056,16 +1129,79 @@ const AmsUi = (function () {
      * Both forms are built before the question is asked, for the same reason
      * the week's are: the tap that answers has to be the tap that shares.
      */
-    function shareSession(workout) {
-        if (!workout) return;
+    /*
+     * The session as a message, with its photographs attached.
+     *
+     * Whether the pictures can go at all is the platform's decision, not ours,
+     * and it is worth knowing *before* the share sheet opens rather than
+     * afterwards: a message that quietly arrives without the photo you meant
+     * to send is the failure nobody notices. So `canShare` is asked while the
+     * options are still being written, and the line under the button says what
+     * is actually about to happen.
+     *
+     * The files are built up front for the same reason. Reading them out of
+     * the database is asynchronous, and on iOS a share sheet only opens if it
+     * is opened during the tap that asked for it — so the awaiting is done
+     * here, before the sheet is drawn, rather than inside the button.
+     */
+    async function sessionPhotoFiles(workout) {
+        const photos = AmsPhotos.forWorkout(workout);
+        if (!photos.length || typeof File !== 'function') return [];
+
+        const files = [];
+        const seen = new Set();
+        for (const photo of photos) {
+            const blob = await AmsPhotos.blob(photo.id);
+            if (!blob) continue;
+            files.push(new File([blob], AmsPhotos.fileNameFor(photo, seen), { type: blob.type }));
+        }
+        return files;
+    }
+
+    function canSendFiles(files) {
+        return !!(files.length && navigator.share && navigator.canShare
+            && navigator.canShare({ files: files }));
+    }
+
+    async function shareSessionMessage(workout, files) {
         const text = sessionShareText(workout);
+
+        if (canSendFiles(files)) {
+            try {
+                await navigator.share({ files: files, text: text, title: 'Training session' });
+                return;
+            } catch (err) {
+                if (err && err.name === 'AbortError') return;
+                // Sharing the files was refused after all. The words are still
+                // worth sending, and saying so is better than half a message
+                // going out with no explanation.
+                toast('The photos would not attach, so the session went as text.', 'bad');
+            }
+        }
+        await shareText(text, { title: 'Training session' });
+    }
+
+    async function shareSession(workout) {
+        if (!workout) return;
         const calendar = sessionCalendar(workout);
         const planned = AmsPlan.formatDuration(
             AmsPlan.plannedDurationSeconds(workout, AmsSync.getState().mapping || {}) || 0);
 
+        const files = await sessionPhotoFiles(workout);
+        const withPhotos = canSendFiles(files);
+        const messageSub = [
+            planned || null,
+            'the whole session',
+            files.length
+                ? (withPhotos
+                    ? files.length + ' photo' + (files.length === 1 ? '' : 's')
+                    : 'photos cannot be attached here')
+                : null
+        ].filter(Boolean).join(' · ');
+
         openChoice(workout.discipline.label + ' on ' + shortDay(workout.date), [
-            { label: 'Send as a message', sub: planned ? planned + ' · the whole session' : 'the whole session',
-              act: () => shareText(text) },
+            { label: 'Send as a message', sub: messageSub,
+              act: () => shareSessionMessage(workout, files) },
             { label: 'Add to the calendar',
               sub: planned
                   ? String(CALENDAR_START_HOUR).padStart(2, '0') + ':00, ' + planned
@@ -1756,20 +1892,22 @@ const AmsUi = (function () {
             + '</button>').join('');
 
         /*
-         * Add comes first, before the pictures rather than after them. The
-         * strip scrolls sideways, so a button on the end is off the screen the
-         * moment there are four photos — the button you want being hidden by
-         * the success of the thing it does. First, it is always in the same
-         * place and always visible.
+         * Add sits after the pictures, where the next one would go.
+         *
+         * It was moved to the front once, because the strip scrolled sideways
+         * and a button on the end disappeared as soon as there were four
+         * photos. The row wraps now instead of scrolling, which solves that
+         * without moving the button: everything stays on screen, and Add is
+         * where the eye ends up.
          */
         return '<div class="card photo-card">'
             + '<p class="section-label">Photos</p>'
             + '<div class="photo-strip">'
+            + thumbs
             + '<button type="button" class="photo-add" data-photo-add="' + esc(workout.key) + '">'
             + '<span class="photo-add-mark">+</span>'
             + '<span class="photo-add-text">' + (photos.length ? 'Add' : 'Add a photo') + '</span>'
             + '</button>'
-            + thumbs
             + '</div>'
             /*
              * Said once, to the empty strip, and then not again. It is the
@@ -1910,16 +2048,16 @@ const AmsUi = (function () {
         return '<div class="card photo-card">'
             + '<p class="section-label">Photos</p>'
             + '<div class="photo-strip">'
-            + '<button type="button" class="photo-add" data-photo-add="' + NEW_EXTRA + '">'
-            + '<span class="photo-add-mark">+</span>'
-            + '<span class="photo-add-text">' + (heldExtraPhotos.length ? 'Add' : 'Add a photo') + '</span>'
-            + '</button>'
             + heldExtraPhotos.map((held, index) =>
                 '<button type="button" class="photo-thumb is-held" data-photo-drop="' + index + '"'
                 + ' aria-label="Remove this photo">'
                 + '<img src="' + esc(held.url) + '" alt="">'
                 + '<span class="photo-thumb-x">\u00d7</span>'
                 + '</button>').join('')
+            + '<button type="button" class="photo-add" data-photo-add="' + NEW_EXTRA + '">'
+            + '<span class="photo-add-mark">+</span>'
+            + '<span class="photo-add-text">' + (heldExtraPhotos.length ? 'Add' : 'Add a photo') + '</span>'
+            + '</button>'
             + '</div>'
             + '<p class="hint-inline">'
             + (heldExtraPhotos.length
@@ -2168,11 +2306,21 @@ const AmsUi = (function () {
             const hints = [];
             if (config.hint) hints.push(config.hint);
             if (destinations[field.id]) hints.push('→ ' + destinations[field.id]);
-            return '<div class="field">' + label
-                + '<input id="log-' + field.id + '" data-field="' + field.id + '"'
+
+            const input = '<input id="log-' + field.id + '" data-field="' + field.id + '"'
                 + ' type="' + config.type + '"' + (config.mode ? ' inputmode="' + config.mode + '"' : '')
                 + (config.step ? ' step="' + config.step + '"' : '')
-                + ' placeholder="' + esc(config.placeholder) + '" value="' + esc(value) + '">'
+                + ' placeholder="' + esc(config.placeholder) + '" value="' + esc(value) + '">';
+
+            // Effort is one character wide and the rest of the line is spare,
+            // so the scale is spelled out there instead of in a placeholder
+            // that vanishes the moment it is answered.
+            const body = field.id === 'rpe'
+                ? '<div class="field-split">' + input
+                    + '<p class="field-aside" id="log-rpe-note"></p></div>'
+                : input;
+
+            return '<div class="field">' + label + body
                 + (hints.length ? '<p class="field-hint">' + esc(hints.join('  ')) + '</p>' : '')
                 + '</div>';
         }).join('');
@@ -2236,6 +2384,8 @@ const AmsUi = (function () {
             update();
         }
 
+        wireRpe('log-rpe', 'log-rpe-note');
+
         watchForm('logScreen');
         showScreen('logScreen');
     }
@@ -2277,6 +2427,60 @@ const AmsUi = (function () {
     function paceFieldFor(workout) {
         return (workout && workout.discipline && PACE_BY_SPORT[workout.discipline.id])
             || PACE_DEFAULT;
+    }
+
+    /*
+     * Perceived effort, in words, beside the box.
+     *
+     * The field holds one or two characters and was given the full width of
+     * the screen, which is a lot of nothing next to a number between 1 and 10 —
+     * and the only explanation of the scale was the placeholder, which is the
+     * one piece of text that disappears the moment you answer. So the box is
+     * cut to the size of what goes in it and the space to its right is used to
+     * say what the number you just typed actually means.
+     *
+     * The wording is about breathing rather than about percentages of
+     * anything, because that is the thing you can check while you are doing
+     * it. Half-steps are read down: 6.5 is described as a 6, since the scale
+     * is a feeling and not a measurement.
+     */
+    const RPE_SCALE = [
+        null,
+        'Barely moving. You could keep this up all day.',
+        'Very easy. Warming up, or coming back down.',
+        'Easy. Talking takes no effort at all.',
+        'Steady. Still talking in whole sentences.',
+        'Moderate. The sentences are getting shorter.',
+        'Firm. A few words at a time.',
+        'Hard. Single words, and you are watching the clock.',
+        'Very hard. Talking is out.',
+        'Nearly everything. You are counting down to the end.',
+        'Everything. You could not hold this for long.'
+    ];
+
+    function rpeNote(raw) {
+        const text = String(raw === null || raw === undefined ? '' : raw).replace(',', '.').trim();
+        if (!text) {
+            return '<strong>1</strong> easy · <strong>5</strong> steady · '
+                + '<strong>7</strong> hard · <strong>10</strong> all out';
+        }
+        const n = Math.floor(parseFloat(text));
+        if (isNaN(n) || n < 1 || n > 10) {
+            return 'A number from <strong>1</strong> to <strong>10</strong>.';
+        }
+        // Not "7 — Hard": the 7 is in the box an inch to the left, and saying
+        // it again is the sort of thing that makes a screen feel crowded.
+        return esc(RPE_SCALE[n]);
+    }
+
+    /* Keeps the words beside the box in step with what is in it. */
+    function wireRpe(inputId, noteId) {
+        const input = $(inputId);
+        const note = $(noteId);
+        if (!input || !note) return;
+        const update = () => { note.innerHTML = rpeNote(input.value); };
+        input.addEventListener('input', update);
+        update();
     }
 
     function inputConfig(field, workout) {
@@ -2462,16 +2666,20 @@ const AmsUi = (function () {
                keypad offers the separator your phone was set up with, and a
                number input silently refuses to accept it: the key does
                nothing, which is a maddening thing for a form to do. */
+            /* Two short numbers share a line; effort takes its own, because the
+               words beside it need the width more than the box does. */
             + (metrics
-                ? '<div class="field"><label for="extraDistance">Distance <span class="field-unit">(km)</span></label>'
+                ? '<div class="field-row">'
+                    + '<div class="field"><label for="extraDistance">Distance <span class="field-unit">(km)</span></label>'
                     + '<input id="extraDistance" type="text" inputmode="decimal" value="'
                     + esc(extraDraft.distance) + '"></div>'
-                    + '<div class="field-row">'
                     + '<div class="field"><label for="extraAvgHr">Avg HR <span class="field-unit">(bpm)</span></label>'
                     + '<input id="extraAvgHr" type="text" inputmode="numeric" value="' + esc(extraDraft.avgHr) + '"></div>'
-                    + '<div class="field"><label for="extraEffort">Effort <span class="field-unit">(1-10)</span></label>'
-                    + '<input id="extraEffort" type="text" inputmode="numeric" value="' + esc(extraDraft.effort) + '"></div>'
                     + '</div>'
+                    + '<div class="field"><label for="extraEffort">Perceived effort <span class="field-unit">(1-10)</span></label>'
+                    + '<div class="field-split">'
+                    + '<input id="extraEffort" type="text" inputmode="numeric" value="' + esc(extraDraft.effort) + '">'
+                    + '<p class="field-aside" id="extraEffort-note"></p></div></div>'
                 : '')
 
             + '<div class="field"><label for="extraIsTraining">Counts as training load</label>'
@@ -2487,6 +2695,8 @@ const AmsUi = (function () {
             + esc(extraDraft.notes) + '</textarea></div>'
 
             + heldPhotoStrip();
+
+        wireRpe('extraEffort', 'extraEffort-note');
 
         $('extraActivity').addEventListener('change', (event) => {
             collectExtra();
@@ -2799,37 +3009,15 @@ const AmsUi = (function () {
                 const n = (state2.pendingExtras || []).length + (state2.extras || []).length;
                 return n
                     ? '<div class="settings-row"><div class="settings-row-main">'
-                        + '<div class="settings-row-title">Everything you logged</div>'
+                        + '<div class="settings-row-title">Everything else you logged</div>'
                         + '<div class="settings-row-sub">' + n + ' entr' + (n === 1 ? 'y' : 'ies')
-                        + ', newest first</div>'
+                        + ' outside the plan, newest first</div>'
                         + '</div><button class="btn btn-small" data-extras-all>Open</button></div>'
                     : '';
             })()
             + '</div>');
 
         /* --- which workbook this is --- */
-        parts.push('<div class="settings-group"><h2>Workbook</h2>');
-        if (path || name) {
-            parts.push('<div class="settings-row"><div class="settings-row-main">'
-                + '<div class="settings-row-title">' + esc(name || 'Workbook') + '</div>'
-                + '<div class="settings-row-sub">' + esc(path || 'Opened from this device') + '</div>'
-                + '</div></div>');
-        } else {
-            parts.push('<p class="hint-inline">Nothing loaded yet.</p>');
-        }
-        parts.push('<div class="button-row" style="margin-top:0.5rem">'
-            // Opening a local file is the whole path in without Dropbox, and a
-            // rarity with it — so it sits here until connecting makes it rare.
-            + (connected ? '' : '<button class="btn btn-small" id="openLocalButton">Open a file</button>')
-            + '<button class="btn btn-small" id="exportButton">Save a copy</button></div>');
-        if (!connected) {
-            parts.push('<p class="hint-inline">No Dropbox? You can still open a copy from this device — you will just have to save the updated file back yourself.</p>');
-        }
-        // Always in the page, whether or not its button is: it is invisible,
-        // and the button that opens it moves about.
-        parts.push('<input type="file" id="localFileInput" accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>');
-        parts.push('</div>');
-
         /*
          * What the photographs come to, said in the one place a person would
          * look for it. The count and the size are the answer to "is this going
@@ -2845,14 +3033,18 @@ const AmsUi = (function () {
                 + '<div class="settings-row-title">' + photoCount + ' photo'
                 + (photoCount === 1 ? '' : 's') + ' · ' + esc(formatBytes(AmsPhotos.totalBytes()))
                 + '</div>'
-                + '<div class="settings-row-sub">On this phone only</div>'
+                /*
+                 * "On this phone only" sat directly above the two buttons and
+                 * read as a caveat about them rather than as a fact about the
+                 * photographs. It says what it means now, and what the buttons
+                 * do has moved to the question mark beside them.
+                 */
+                + '<div class="settings-row-sub">Not in your workbook, and not in Dropbox</div>'
                 + '</div></div>');
             parts.push('<div class="button-row" style="margin-top:0.5rem">'
                 + '<button class="btn btn-small" id="savePhotosButton">Save them all</button>'
-                + '<button class="btn btn-small btn-danger" id="deletePhotosButton">Delete all</button></div>');
-            parts.push('<p class="hint-inline">The workbook holds numbers, not pictures, so these are '
-                + 'not written to it and are not in your Dropbox. Saving them puts every photo in one '
-                + 'zip file, named by day and sport, which you can keep wherever you keep things.</p>');
+                + '<button class="btn btn-small btn-danger" id="deletePhotosButton">Delete all</button>'
+                + helpButton('photoButtons', 'What these buttons do') + '</div>');
             if (lost) {
                 parts.push('<p class="hint-inline">' + lost + ' of them no longer match a session in '
                     + 'this workbook — that happens when rows are inserted or a session changes sport. '
@@ -2865,11 +3057,45 @@ const AmsUi = (function () {
         }
         parts.push('</div>');
 
+        parts.push('<div class="settings-group"><h2>Workbook</h2>');
+        if (path || name) {
+            /*
+             * This line says where the workbook is, and it used to say it in a
+             * way that read as a caption for the two buttons underneath —
+             * "Opened from this device" sitting directly above Open a file and
+             * Save a copy looks like an instruction about them. It now names
+             * what it is describing, so it cannot be read as anything else.
+             */
+            parts.push('<div class="settings-row"><div class="settings-row-main">'
+                + '<div class="settings-row-title">' + esc(name || 'Workbook') + '</div>'
+                + '<div class="settings-row-sub">'
+                + (path
+                    ? 'In your Dropbox at ' + esc(path)
+                    : 'This file is open from this device, not from Dropbox')
+                + '</div></div></div>');
+        } else {
+            parts.push('<p class="hint-inline">Nothing loaded yet.</p>');
+        }
+        parts.push('<div class="button-row" style="margin-top:0.5rem">'
+            // Opening a local file is the whole path in without Dropbox, and a
+            // rarity with it — so it sits here until connecting makes it rare.
+            + (connected ? '' : '<button class="btn btn-small" id="openLocalButton">Open a file</button>')
+            + '<button class="btn btn-small" id="exportButton">Save a copy</button>'
+            + helpButton('workbookButtons', 'What these buttons do') + '</div>');
+        // Always in the page, whether or not its button is: it is invisible,
+        // and the button that opens it moves about.
+        parts.push('<input type="file" id="localFileInput" accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>');
+
+
         /*
-         * Everything below is either set once or not to be tapped by accident.
-         * Folded shut, and shut again every time Settings is opened.
+         * Set once and then not touched, so it stays folded — but folded
+         * *inside* Workbook rather than beside it. Everything in here is about
+         * this workbook: which columns it has, which file to read, and the
+         * Dropbox account the file lives in. Standing on its own at the bottom
+         * of the screen it looked like a fifth subject of its own, which it
+         * never was.
          */
-        parts.push('<div class="settings-group settings-fold' + (settingsFoldOpen ? ' is-open' : '') + '">'
+        parts.push('<div class="settings-fold' + (settingsFoldOpen ? ' is-open' : '') + '">'
             + '<button type="button" class="settings-fold-head" data-settings-fold'
             + ' aria-expanded="' + (settingsFoldOpen ? 'true' : 'false') + '">'
             + '<span class="settings-fold-text">'
@@ -2922,7 +3148,8 @@ const AmsUi = (function () {
 
             parts.push('</div>');
         }
-        parts.push('</div>');
+        parts.push('</div>');   // the fold
+        parts.push('</div>');   // and the Workbook group it now sits inside
 
         body.innerHTML = parts.join('');
         wireSettings();
@@ -3320,7 +3547,9 @@ const AmsUi = (function () {
                 + '— when you are free is as much use to somebody as when you are training.</p>'
                 + '<p>A single session can go on its own too, in either form: the share button at the top '
                 + 'of a session sends that one, and the week sheet offers a list of everything in this '
-                + 'week and next to pick from.</p>'
+                + 'week and next to pick from. A session sent as a message takes its photographs with '
+                + 'it. Whether a phone will attach them is its decision rather than the app\u2019s, so '
+                + 'the line under the button says which it is going to be before you tap it.</p>'
                 + '<p><strong>Plan</strong> — the whole schedule, in four lists. <em>Upcoming</em> is what is '
                 + 'still to do, and leads with anything from before today that was never recorded. '
                 + '<em>Done</em> is what you performed. <em>Missed</em> is what you marked as not done, kept '
@@ -3381,6 +3610,12 @@ const AmsUi = (function () {
                 '<p><strong>Log</strong> asks first for the numbers that suit the sport; every other column '
                 + 'your sheet has is one tap away, and once you ask for the full set it keeps showing it. '
                 + 'Anything left blank leaves that cell exactly as it was.</p>'
+
+                + '<p><strong>Perceived effort</strong> is a number from 1 to 10 and the app says what '
+                + 'each one means as you type it, in the space beside the box: 1 is barely moving, 4 is '
+                + 'steady and still talking in whole sentences, 7 is hard and down to single words, 10 is '
+                + 'everything you have. It is a feeling rather than a measurement, so a half is read '
+                + 'down — 6.5 is a 6.</p>'
 
                 + '<p><strong>How long it took.</strong> Type a plain number and it means minutes — '
                 + '<code>45</code> is forty-five minutes, <code>90</code> is an hour and a half. That is '
@@ -4165,6 +4400,13 @@ const AmsUi = (function () {
                 return;
             }
 
+            const help = event.target.closest('[data-help]');
+            if (help) {
+                const note = HELP_NOTES[help.dataset.help];
+                if (note) openNote(note.title, note.html);
+                return;
+            }
+
             if (event.target.closest('[data-share-app]')) { shareApp(); return; }
 
             if (event.target.closest('[data-extras-all]')) { openExtrasList(); return; }
@@ -4258,6 +4500,7 @@ const AmsUi = (function () {
         __weekCalendar: weekCalendar,   // pure, and exposed so its wording can be tested directly
         __appUrl: appUrl,               // takes an href, so both branches can be asked for
         __appShareText: appShareText,
+        __openChoice: openChoice,       // so a test can check the sheet goes back to asking
         renderToday,
         renderPlan,
         renderSettings,

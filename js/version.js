@@ -8,13 +8,28 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.43.0';
+    const CURRENT = '1.44.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.44.0',
+            date: '2026-09-04',
+            headline: 'Nine things you asked for',
+            items: [
+                '**Add sits after the photographs again**, where the next one would go. The strip wraps onto a second row now instead of scrolling sideways, which is what had pushed the button off the screen and made it move to the front in the first place.',
+                '**Perceived effort says what the number means.** The box is one character wide and was taking the whole width of the screen; it is now the size of what goes in it, and the room beside it explains the number you just typed — *7: Hard. Single words, and you are watching the clock.* The scale used to be a placeholder, which is the one piece of text that disappears the moment you answer.',
+                '**A session shares its photographs with it.** Send one as a message and the pictures go too. Whether they can is the phone\u2019s decision, not the app\u2019s, so the line under the button says which it will be before you tap it rather than after.',
+                '**"Everything you logged" is now "Everything else you logged"**, because that is what it is: the things outside the plan.',
+                '**Two lines that read as captions for the buttons under them** have been rewritten. "On this phone only" and "Opened from this device" were describing your photographs and your workbook, but sitting directly above a row of buttons they looked like instructions about the buttons.',
+                '**A question mark beside those buttons instead**, which is where the explanation belongs. Tap it and it says what *Save a copy* does — it hands you the workbook as it stands, everything logged already in it, as a copy that changes nothing — and the same for the photo buttons.',
+                '**Setup and connection has moved inside Workbook.** Everything folded away in there is about the workbook: its columns, which file to read, and the Dropbox account it lives in. Standing on its own at the foot of the screen it looked like a subject of its own.',
+                'The top of Settings said **AMS Workout Sync**, which is the one thing nobody opens Settings to find out. Every other tab uses that line to say what the screen is for, and now this one does too.',
+            ]
+        },
         {
             version: '1.43.0',
             date: '2026-09-04',

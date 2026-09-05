@@ -1726,16 +1726,18 @@ body[data-tab="settings"] { --accent: var(--tab-settings); --accent-ink: #16202a
     margin-top: 0.8rem;
 }
 
+/*
+ * Wraps rather than scrolls. A sideways strip hides whatever does not fit,
+ * and what does not fit first is the button on the end — so the row that grew
+ * would have taken Add off the screen with it. Three to a row on a phone,
+ * nothing hidden, and Add stays where the next picture would go.
+ */
 .photo-strip {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.5rem;
-    overflow-x: auto;
     padding: 0.15rem 0 0.35rem;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
 }
-
-.photo-strip::-webkit-scrollbar { display: none; }
 
 .photo-thumb {
     flex: 0 0 auto;
@@ -1895,4 +1897,87 @@ body.is-viewing-photo .tab-bar { display: none; }
     padding: 0;
     margin: 0.7rem 0 0;
     box-shadow: none;
+}
+
+/*
+ * A short answer and the room beside it.
+ *
+ * A field that takes one or two characters does not need the width of the
+ * screen, and giving it that width leaves a stripe of nothing next to every
+ * number. The box is cut to what goes in it and the rest of the line explains
+ * what the number means — which the placeholder used to do, badly, since a
+ * placeholder disappears exactly when the answer arrives.
+ */
+.field-split {
+    display: flex;
+    gap: 0.65rem;
+    align-items: stretch;
+}
+
+.field-split input {
+    flex: 0 0 5.6rem;
+    min-width: 0;
+    text-align: center;
+}
+
+.field-aside {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    font-size: 0.8rem;
+    line-height: 1.35;
+    color: var(--color-text-secondary);
+}
+
+.field-aside strong { color: var(--color-text); font-weight: 700; }
+
+/*
+ * A question mark that costs nothing until it is wanted. Round, quiet, and
+ * sized like the buttons beside it so the row still reads as one row.
+ */
+.help-dot {
+    flex: 0 0 auto;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-secondary);
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.help-dot:active { border-color: var(--accent); color: var(--accent); }
+
+/* The sheet explaining itself rather than asking something. */
+.action-sheet-note {
+    margin: 0 0 0.9rem;
+    font-size: 0.86rem;
+    line-height: 1.5;
+    color: var(--color-text-secondary);
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.action-sheet-note p { margin: 0 0 0.6rem; }
+.action-sheet-note p:last-child { margin-bottom: 0; }
+.action-sheet-note strong { color: var(--color-text); }
+.action-sheet-note code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.85em;
+    background: var(--color-surface-2);
+    padding: 0.1rem 0.3rem;
+    border-radius: 4px;
+}
+
+/* Inside the Workbook group now, so it should not look like a card of its own. */
+.settings-group .settings-fold {
+    margin: 0.9rem -0.2rem 0;
+    background: none;
+    border: 0;
+    padding: 0;
 }
