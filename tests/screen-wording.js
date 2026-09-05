@@ -218,39 +218,165 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(44) + v);
     document.querySelector('.tab[data-tab="settings"]').click();
     await new Promise(r => setTimeout(r, 600));
 
+    // The sheet-layout row lives in the fold, which opens shut every time.
+    document.querySelector('[data-settings-fold]').click();
+    await new Promise(r => setTimeout(r, 400));
+
     const groups = [...document.querySelectorAll('#settingsBody .settings-group')];
     const find = (h) => groups.find(g => g.querySelector('h2') && g.querySelector('h2').textContent === h);
     const workbook = find('Workbook');
     const photos = find('Photos');
-    const extras = find('Log something else');
+    const extras = find('Extra activities');
+
+    /*
+     * Where the button sits is the point. Five descriptions in Settings were
+     * reported as misleading and every one of them was level with a button
+     * because the row centred its contents — so the grey line under a title
+     * was drawn shoulder to shoulder with the button, and read as its label.
+     */
+    const rowAlignment = [...document.querySelectorAll('#settingsBody .settings-row')]
+      .map((row) => {
+        const title = row.querySelector('.settings-row-title');
+        const sub = row.querySelector('.settings-row-sub');
+        const button = row.querySelector('.btn');
+        if (!title || !sub || !button) return null;
+        const t = title.getBoundingClientRect();
+        const b = button.getBoundingClientRect();
+        const u = sub.getBoundingClientRect();
+        return {
+          text: title.textContent,
+          // Positive when the button's middle is nearer the title's middle
+          // than the description's, which is the whole fix.
+          nearerTitle: Math.abs(b.top + b.height / 2 - (t.top + t.height / 2))
+                     < Math.abs(b.top + b.height / 2 - (u.top + u.height / 2))
+        };
+      }).filter(Boolean);
 
     return {
       eyebrow: document.querySelector('#settingsScreen .app-eyebrow').textContent,
       extrasRow: extras ? extras.innerText.replace(/\n/g, ' | ') : null,
-      photosSub: photos ? photos.querySelector('.settings-row-sub').textContent : null,
-      workbookSub: workbook ? workbook.querySelector('.settings-row-sub').textContent : null,
+      photosSubs: photos ? photos.querySelectorAll('.settings-row-sub').length : null,
+      // The group's own row, not the ones inside the fold — those are
+      // supposed to have descriptions.
+      workbookSubs: workbook
+        ? !![...workbook.querySelectorAll('.settings-row')]
+            .filter(r => !r.closest('.settings-fold'))
+            .find(r => r.querySelector('.settings-row-sub'))
+        : null,
+      sharingLast: (() => {
+        const last = [...document.querySelectorAll('#settingsBody .settings-group h2')].pop();
+        return last ? last.textContent : null;
+      })(),
+      sharingRow: [...document.querySelectorAll('#settingsBody .settings-row-title')]
+        .map(n => n.textContent).filter(t => /Send/.test(t))[0] || null,
+      sheetRow: [...document.querySelectorAll('#settingsBody .settings-row-title')]
+        .map(n => n.textContent).find(t => /sheet is read/.test(t)) || null,
+      rowAlignment: rowAlignment,
       foldInsideWorkbook: !!(workbook && workbook.querySelector('.settings-fold')),
       foldElsewhere: !!document.querySelector('#settingsBody > .settings-fold'),
       helpDots: document.querySelectorAll('#settingsBody .help-dot').length
     };
   });
 
+  const misaligned = settings.rowAlignment.filter(r => !r.nearerTitle);
+
   line('the line at the top', settings.eyebrow);
-  line('the extras row', settings.extrasRow);
-  line('under the photo count', settings.photosSub);
-  line('under the workbook name', settings.workbookSub);
+  line('the extras group', (settings.extrasRow || '').slice(0, 80));
+  line('the sheet-layout row is called', settings.sheetRow);
+  line('the last group on the page', settings.sharingLast + ' — ' + settings.sharingRow);
+  line('rows whose button is level with its title', (settings.rowAlignment.length - misaligned.length)
+    + ' of ' + settings.rowAlignment.length);
   line('Setup and connection is inside Workbook', settings.foldInsideWorkbook);
 
   if (/AMS Workout Sync/.test(settings.eyebrow)) errors.push('Settings still announces the name of the app you are in');
-  if (!/Everything else you logged/.test(settings.extrasRow || '')) {
-    errors.push('the extras row does not say these are the things outside the plan');
+  if (!/Everything extra you logged/.test(settings.extrasRow || '')) {
+    errors.push('the extras row does not say these are the extra ones');
   }
-  if (!/outside the plan/.test(settings.extrasRow || '')) errors.push('the extras row does not say what "else" means');
-  if (/^On this phone only$/.test(settings.photosSub || '')) errors.push('the misleading photo line is back');
-  if (/^Opened from this device$/.test(settings.workbookSub || '')) errors.push('the misleading workbook line is back');
+  if (/Log something else/.test(settings.extrasRow || '')) errors.push('"something else" is back as a heading');
+
+  // He asked for these two to go, not to be reworded again.
+  if (settings.photosSubs !== 0) errors.push('the photo count has a description under it again');
+  if (settings.workbookSubs) errors.push('the workbook name has a description under it again');
+
+  if (!/sheet is read/.test(settings.sheetRow || '')) {
+    errors.push('the sheet-layout row is still titled with the name of the sheet');
+  }
+  if (settings.sharingLast !== 'Sharing') errors.push('sharing is not the last thing on the page');
+  if (!/this app/.test(settings.sharingRow || '')) errors.push('the share row still says "it" rather than what it sends');
+
+  if (misaligned.length) {
+    errors.push('a button is level with the description rather than the title on: '
+      + misaligned.map(r => r.text).join(', '));
+  }
   if (!settings.foldInsideWorkbook) errors.push('Setup and connection is not inside Workbook');
   if (settings.foldElsewhere) errors.push('Setup and connection is still standing on its own as well');
   if (settings.helpDots !== 2) errors.push('the question marks are not beside both button rows');
+
+  // ---------------------------------------------------------------- 4b
+  console.log('');
+  console.log('THE WHOLE EFFORT SCALE');
+
+  const scale = await page.evaluate(async () => {
+    const workout = AmsSync.getState().plan.find(w => w.discipline.id !== 'rest');
+    AmsUi.renderPlan();
+    await new Promise(r => setTimeout(r, 200));
+    [...document.querySelectorAll('#planBody [data-workout]')]
+      .find(n => n.dataset.workout === workout.key).click();
+    await new Promise(r => setTimeout(r, 400));
+    document.getElementById('openLogButton').click();
+    await new Promise(r => setTimeout(r, 700));
+
+    const opener = document.querySelector('[data-rpe-scale]');
+    if (!opener) return { error: 'no way to see the whole scale from the effort field' };
+
+    // Opened and closed several times before picking. A listener added to the
+    // note each time would fire once per open, which is the bug this catches.
+    let events = 0;
+    document.getElementById('log-rpe').addEventListener('input', () => { events++; });
+    for (let i = 0; i < 4; i++) {
+      opener.click();
+      await new Promise(r => setTimeout(r, 120));
+      document.querySelector('[data-sheet-close]').click();
+      await new Promise(r => setTimeout(r, 100));
+    }
+
+    opener.click();
+    await new Promise(r => setTimeout(r, 300));
+    const rows = [...document.querySelectorAll('.rpe-row')];
+    const numbers = rows.map(r => r.querySelector('.rpe-row-n').textContent);
+    const described = rows.every(r => r.querySelector('.rpe-row-text').textContent.trim().length > 12);
+    const unique = new Set(rows.map(r => r.querySelector('.rpe-row-text').textContent)).size;
+
+    rows.find(r => r.dataset.rpePick === '8').click();
+    await new Promise(r => setTimeout(r, 300));
+
+    return {
+      rows: rows.length,
+      numbers: numbers.join(''),
+      described: described,
+      unique: unique,
+      chosen: document.getElementById('log-rpe').value,
+      besideTheBox: document.getElementById('log-rpe-note').textContent,
+      closed: document.getElementById('actionSheet').hidden,
+      inputEvents: events
+    };
+  });
+
+  if (scale.error) errors.push(scale.error);
+  else {
+    line('rungs on the scale', scale.rows + ' (' + scale.numbers + ')');
+    line('all described, and all differently', scale.described + ', ' + scale.unique + ' distinct');
+    line('tapping 8 sets the field to', scale.chosen + ' — ' + scale.besideTheBox);
+    line('input events after five opens, one pick', scale.inputEvents);
+
+    if (scale.rows !== 10) errors.push('the scale does not show all ten');
+    if (scale.numbers !== '12345678910') errors.push('the scale is not 1 to 10 in order');
+    if (!scale.described) errors.push('a rung on the scale has no explanation');
+    if (scale.unique !== 10) errors.push('two rungs are described the same way');
+    if (scale.chosen !== '8') errors.push('tapping a rung did not choose it');
+    if (!scale.closed) errors.push('choosing from the scale left it open');
+    if (scale.inputEvents !== 1) errors.push('the scale stacks a listener every time it is opened');
+  }
 
   // ---------------------------------------------------------------- 5
   console.log('');

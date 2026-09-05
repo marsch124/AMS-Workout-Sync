@@ -15,7 +15,9 @@ existing cells.
   what has already been logged.
 - **Perceived effort** — a short box with the scale spelled out beside it, in
   words that change as you type: 4 is steady and still talking in sentences, 7
-  is hard and down to single words.
+  is hard and down to single words. A question mark opens all ten at once, each
+  one tappable, since choosing well means seeing what the numbers either side
+  of your guess claim.
 - **Log** — a form that asks first for the numbers that suit the sport (pace for a
   run, power and cadence for a ride, per-100m pace for a swim, duration and effort
   for mobility), with every other column your sheet has one tap away and the choice
@@ -55,7 +57,7 @@ existing cells.
   makes the app the only copy — Settings → Photos says how many there are and
   what they come to, and saves every one into a single zip named by day and
   sport. Resetting the app deliberately leaves them alone.
-- **Something else** — an unplanned run, a hike, a meditation. The list of
+- **Extra activities** — an unplanned run, a hike, a meditation. The list of
   activities on offer is editable in Settings: add, remove and reorder them to
   match what you actually do. These go on their
   own `Extras` sheet, created on first use, with a column saying whether each one

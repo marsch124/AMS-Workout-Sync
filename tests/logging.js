@@ -317,7 +317,7 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
   if (numeric.length) errs.push('type=number fields remain: ' + numeric.join(', '));
 
   // ----------------------------------------------------------------
-  // "Log something else" is a separate form with its own inputs, and it had
+  // The extra-activity form is a separate form with its own inputs, and it had
   // the same fault. On a phone the keypad shows the comma; a number input
   // then refuses the key, so pressing it does nothing at all.
   console.log('');

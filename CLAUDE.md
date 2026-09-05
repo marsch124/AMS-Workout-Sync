@@ -115,6 +115,32 @@ layout. The ones with a reason behind them:
   meant reordering Photos to come *before* Workbook — the fold now closes the
   group, so anything emitted between them would nest inside it.
 
+**v1.45.0** found the cause of a complaint he had made five separate times, in
+five different places, and it was not the wording:
+
+- 🚨 **`.settings-row` centred its contents.** On any row whose description ran
+  to two lines, that put the button level with the *description* instead of the
+  title — so the grey line under a title was drawn shoulder to shoulder with a
+  button and read as that button's label. Every "that line is misleading" he
+  reported was a row in that state. `align-items: flex-start` fixes the class of
+  bug; `tests/screen-wording.js` now measures it, row by row.
+- Every settings description was rewritten to say **what its button does**, and
+  the two he asked to have *deleted* (under the photo count, under the workbook
+  name) are gone — nothing that could go there survived being read as a caption.
+  The one useful thing the workbook line carried, where the file is, moved into
+  the question mark (`whereTheWorkbookIs()`, and `HELP_NOTES` entries may set
+  `where: true` to have it prepended).
+- Mobility joined strength at `#eab308` / `#854d0e`. The light variant is
+  chosen for the 4.5:1 the august audit enforces — do not "brighten" it.
+- "Log something else" is **Extra activities** throughout. The activity *called*
+  "Something else" in `DEFAULT_ACTIVITIES` was deliberately left alone: its
+  label goes into the Extras sheet and into `AmsExtras.keyFor()`, so renaming it
+  would detach photographs from rows already written.
+- The effort scale opens all ten from a `?` beside the field, each tappable.
+  The picker's target is held in `rpeScaleTarget` and handled by the delegated
+  body listener — `openNote()` replaces the note's *contents*, not the element,
+  so a listener attached there stacks up one per open.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The

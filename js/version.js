@@ -8,13 +8,29 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.44.0';
+    const CURRENT = '1.45.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.45.0',
+            date: '2026-09-05',
+            headline: 'Settings says what it means',
+            items: [
+                '**Mobility and strength are both yellow now**, in the week strip and everywhere else. They are the same kind of work and they are read together; telling two gym sessions apart by colour was never the question anybody asks of that drawing.',
+                '**The reason so many lines in Settings read wrongly has been found and fixed.** The button in each row was centred against the whole row, so on any row whose description ran to two lines the button ended up level with the *description* rather than with the title above it — and a grey line drawn shoulder to shoulder with a button reads as that button\u2019s label. Every one of the lines you flagged was in that position. Buttons now line up with the title they belong to.',
+                '**And every description has been rewritten to say what its button does.** "Read the guide to what this app does to your workbook." "See what changed, in this version and every one before it." "Write them into your workbook now." No more fragments.',
+                '**The two lines you asked to have deleted are gone** — under the photo count and under the workbook name. Nothing that could be written there survived being read as a caption for the buttons underneath, and the count and the file name already say what those rows are.',
+                '**The question mark now says where your workbook is** as well as what the buttons do, since that was the one useful thing the deleted line had been carrying.',
+                '**"Log something else" is now "Extra activities"**, which is what they are. The button says *Log an extra activity*, the list is *Extra activities*, and Settings offers *Everything extra you logged*.',
+                '**"Send it to somebody" says what it sends** — *Send this app to somebody* — and has moved to the foot of Settings, which is where the rarest thing on the page belongs.',
+                '**The sheet-layout row was titled "Weekly Schedules"**, which is the name of a tab in your Excel file and a heading only if you already knew why it was there. It now says *How your Excel sheet is read*, with the sheet\u2019s name in the line below.',
+                '**The whole effort scale, on a question mark beside the box.** All ten, each one explained, and each one tappable — because the line beside the field can only describe the number you already guessed, and choosing well means seeing what 6 and 8 claim before you settle on 7.',
+            ]
+        },
         {
             version: '1.44.0',
             date: '2026-09-04',

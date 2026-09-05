@@ -651,9 +651,18 @@ const AmsUi = (function () {
             + ' aria-label="' + esc(label) + '">?</button>';
     }
 
+    /*
+     * `html` may be a function where the answer depends on the state of
+     * things. The workbook one has to be: the row above it used to say where
+     * the file had come from, and that line was read as an instruction about
+     * the buttons under it twice over, so it was taken out. The fact is still
+     * worth having — it just belongs behind the question mark with everything
+     * else about those buttons.
+     */
     const HELP_NOTES = {
         workbookButtons: {
             title: 'Open a file · Save a copy',
+            where: true,
             html: '<p><strong>Save a copy</strong> hands you the workbook as it stands right now, '
                 + 'with everything you have logged already written into it. It is the same '
                 + '<code>.xlsx</code> you would open on a laptop — the app does not keep a private '
@@ -683,6 +692,22 @@ const AmsUi = (function () {
                 + 'photographs with it.</p>'
         }
     };
+
+    /* Where the file being read actually lives, in a sentence. */
+    function whereTheWorkbookIs() {
+        const state = AmsSync.getState();
+        const name = (state.meta && state.meta.name) || '';
+        const path = (state.meta && state.meta.path) || '';
+        if (!name && !path) return '';
+        if (state.source === 'file' || (state.meta && state.meta.local)) {
+            return '<p>You are reading <strong>' + esc(name || 'a workbook') + '</strong>, opened from '
+                + 'this device rather than from Dropbox. Nothing is written back to where it came from, '
+                + 'so <em>Save a copy</em> is how the results get out.</p>';
+        }
+        return '<p>You are reading <strong>' + esc(name || 'a workbook') + '</strong>'
+            + (path ? ', in your Dropbox at <code>' + esc(path) + '</code>' : '')
+            + '. Everything you log is written back there when the app syncs.</p>';
+    }
 
     function closeChoice() {
         const sheet = $('actionSheet');
@@ -1420,7 +1445,7 @@ const AmsUi = (function () {
                 + rows.map((e) => extraCard(e)).join('')
             : '')
             + '<button class="btn btn-block" data-extra="1" style="margin-top:0.6rem">'
-            + '＋ Log something else</button>'
+            + '＋ Log an extra activity</button>'
             + '<p class="hint-inline">A walk, a meditation, an unplanned run — anything the plan did not ask for.'
             + (everything && !rows.length
                 ? ' <button type="button" class="link-button" data-extras-all>See the '
@@ -1446,7 +1471,7 @@ const AmsUi = (function () {
         if (!all.length) {
             body.innerHTML = emptyState('icon-check', 'Nothing yet',
                 'A walk, a meditation, an unplanned run — anything the plan did not ask for goes here.',
-                '<button class="btn btn-primary" data-extra="1">Log something else</button>');
+                '<button class="btn btn-primary" data-extra="1">Log an extra activity</button>');
             return;
         }
 
@@ -2317,7 +2342,9 @@ const AmsUi = (function () {
             // that vanishes the moment it is answered.
             const body = field.id === 'rpe'
                 ? '<div class="field-split">' + input
-                    + '<p class="field-aside" id="log-rpe-note"></p></div>'
+                    + '<p class="field-aside" id="log-rpe-note"></p>'
+                    + '<button type="button" class="help-dot" data-rpe-scale="log-rpe|log-rpe-note"'
+                    + ' aria-label="What each number means">?</button></div>'
                 : input;
 
             return '<div class="field">' + label + body
@@ -2481,6 +2508,53 @@ const AmsUi = (function () {
         const update = () => { note.innerHTML = rpeNote(input.value); };
         input.addEventListener('input', update);
         update();
+    }
+
+    /*
+     * The whole scale, all ten of them, and each one is the answer.
+     *
+     * The line beside the box can only describe the number you have already
+     * guessed, which is the wrong way round: choosing well means seeing what
+     * the neighbouring numbers claim. So the question mark opens the lot, and
+     * because reading them is how you decide, reading them is also how you
+     * pick — every row sets the number and closes.
+     */
+    function openRpeScale(inputId, noteId) {
+        const input = $(inputId);
+        const current = input ? Math.floor(parseFloat(String(input.value).replace(',', '.'))) : NaN;
+
+        const rows = RPE_SCALE.map((text, n) => n === 0 ? '' :
+            '<button type="button" class="rpe-row' + (n === current ? ' is-current' : '') + '"'
+            + ' data-rpe-pick="' + n + '">'
+            + '<span class="rpe-row-n">' + n + '</span>'
+            + '<span class="rpe-row-text">' + esc(text) + '</span>'
+            + '</button>').join('');
+
+        openNote('Perceived effort, 1 to 10',
+            '<p>How hard it felt, not how fast it was. The test is your breathing: '
+            + 'what you could say to somebody running beside you.</p>'
+            + '<div class="rpe-scale">' + rows + '</div>'
+            + '<p>Tap one to use it.</p>');
+
+        // Which field a tap in there is answering. Held rather than closed
+        // over: openNote replaces the note's contents but not the element, so
+        // a listener added here would still be on it the next time round, and
+        // the one after that.
+        rpeScaleTarget = { inputId: inputId, noteId: noteId };
+    }
+
+    let rpeScaleTarget = null;
+
+    function pickRpe(value) {
+        if (!rpeScaleTarget) return;
+        const input = $(rpeScaleTarget.inputId);
+        const note = $(rpeScaleTarget.noteId);
+        if (input) {
+            input.value = value;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        if (note) note.innerHTML = rpeNote(value);
+        closeChoice();
     }
 
     function inputConfig(field, workout) {
@@ -2679,7 +2753,9 @@ const AmsUi = (function () {
                     + '<div class="field"><label for="extraEffort">Perceived effort <span class="field-unit">(1-10)</span></label>'
                     + '<div class="field-split">'
                     + '<input id="extraEffort" type="text" inputmode="numeric" value="' + esc(extraDraft.effort) + '">'
-                    + '<p class="field-aside" id="extraEffort-note"></p></div></div>'
+                    + '<p class="field-aside" id="extraEffort-note"></p>'
+                    + '<button type="button" class="help-dot" data-rpe-scale="extraEffort|extraEffort-note"'
+                    + ' aria-label="What each number means">?</button></div></div>'
                 : '')
 
             + '<div class="field"><label for="extraIsTraining">Counts as training load</label>'
@@ -2957,20 +3033,23 @@ const AmsUi = (function () {
             parts.push('<div class="settings-row"><div class="settings-row-main">'
                 + '<div class="settings-row-title">' + (pending ? pending + ' waiting' : 'Nothing waiting') + '</div>'
                 + '<div class="settings-row-sub">'
+                /* Every description in here says what the button beside it
+                   does, or — where there is no button — what the number above
+                   means. Anything else gets read as the button's label. */
                 + (pending
-                    ? 'Logged on this phone but not yet written into the workbook.'
-                    : 'Every logged session has reached the workbook.')
+                    ? 'Write them into your workbook now.'
+                    : 'Nothing to write. Check for changes made in Excel.')
                 + '</div></div>'
                 + '<button class="btn btn-small" id="syncNowButton">Sync now</button></div>');
             if (pending) {
                 parts.push('<div class="settings-row"><div class="settings-row-main">'
                     + '<div class="settings-row-title">See what is waiting</div>'
-                    + '<div class="settings-row-sub">Inspect each entry, and discard one that will not go through</div>'
+                    + '<div class="settings-row-sub">Look at each one, and throw away any that will not go through.</div>'
                     + '</div><button class="btn btn-small" data-go="queue">Review</button></div>');
             }
             if (state.meta && state.meta.modified) {
                 parts.push('<div class="settings-row"><div class="settings-row-main">'
-                    + '<div class="settings-row-title">Last read from Dropbox</div>'
+                    + '<div class="settings-row-title">Your workbook was last read</div>'
                     + '<div class="settings-row-sub">' + esc(new Date(state.meta.modified).toLocaleString()) + '</div>'
                     + '</div></div>');
             }
@@ -2985,33 +3064,29 @@ const AmsUi = (function () {
         parts.push('<div class="settings-group"><h2>Help and updates</h2>'
             + '<div class="settings-row"><div class="settings-row-main">'
             + '<div class="settings-row-title">How this works</div>'
-            + '<div class="settings-row-sub">What the app reads, what it writes, and what it will never touch</div>'
+            + '<div class="settings-row-sub">Read the guide to what this app does to your workbook.</div>'
             + '</div><button class="btn btn-small" data-go="guide">Read</button></div>'
             + '<div class="settings-row"><div class="settings-row-main">'
             + '<div class="settings-row-title">Version ' + esc(AmsVersion.CURRENT) + '</div>'
-            + '<div class="settings-row-sub">' + esc(AmsVersion.CHANGELOG[0].headline) + '</div>'
-            + '</div><button class="btn btn-small" data-go="version">What’s new</button></div>'
-            + '<div class="settings-row"><div class="settings-row-main">'
-            + '<div class="settings-row-title">Send it to somebody</div>'
-            + '<div class="settings-row-sub">The link, and what they need before it is any use</div>'
-            + '</div><button class="btn btn-small" data-share-app>Share</button></div></div>');
+            + '<div class="settings-row-sub">See what changed, in this version and every one before it.</div>'
+            + '</div><button class="btn btn-small" data-go="version">What’s new</button></div></div>');
 
         /* --- what can be logged outside the plan --- */
-        parts.push('<div class="settings-group"><h2>Log something else</h2>'
+        parts.push('<div class="settings-group"><h2>Extra activities</h2>'
             + '<div class="settings-row"><div class="settings-row-main">'
             + '<div class="settings-row-title">Activities</div>'
-            + '<div class="settings-row-sub">'
-            + esc(AmsExtras.getActivities().slice(0, 4).map((a) => a.label).join(', '))
-            + ' and ' + (AmsExtras.getActivities().length - 4) + ' more</div>'
+            + '<div class="settings-row-sub">Change the list you can pick from: '
+            + esc(AmsExtras.getActivities().slice(0, 3).map((a) => a.label).join(', '))
+            + ' and ' + (AmsExtras.getActivities().length - 3) + ' more.</div>'
             + '</div><button class="btn btn-small" data-go="activities">Edit</button></div>'
             + (() => {
                 const state2 = AmsSync.getState();
                 const n = (state2.pendingExtras || []).length + (state2.extras || []).length;
                 return n
                     ? '<div class="settings-row"><div class="settings-row-main">'
-                        + '<div class="settings-row-title">Everything else you logged</div>'
-                        + '<div class="settings-row-sub">' + n + ' entr' + (n === 1 ? 'y' : 'ies')
-                        + ' outside the plan, newest first</div>'
+                        + '<div class="settings-row-title">Everything extra you logged</div>'
+                        + '<div class="settings-row-sub">Open all ' + n + ' of them, newest first, '
+                        + 'with their photographs.</div>'
                         + '</div><button class="btn btn-small" data-extras-all>Open</button></div>'
                     : '';
             })()
@@ -3034,12 +3109,11 @@ const AmsUi = (function () {
                 + (photoCount === 1 ? '' : 's') + ' · ' + esc(formatBytes(AmsPhotos.totalBytes()))
                 + '</div>'
                 /*
-                 * "On this phone only" sat directly above the two buttons and
-                 * read as a caveat about them rather than as a fact about the
-                 * photographs. It says what it means now, and what the buttons
-                 * do has moved to the question mark beside them.
+                 * No description under this one. Whatever was put here got
+                 * read as a caption for the two buttons below it, twice, and
+                 * the count above says all this row needs to say. What the
+                 * buttons do is behind the question mark beside them.
                  */
-                + '<div class="settings-row-sub">Not in your workbook, and not in Dropbox</div>'
                 + '</div></div>');
             parts.push('<div class="button-row" style="margin-top:0.5rem">'
                 + '<button class="btn btn-small" id="savePhotosButton">Save them all</button>'
@@ -3060,19 +3134,14 @@ const AmsUi = (function () {
         parts.push('<div class="settings-group"><h2>Workbook</h2>');
         if (path || name) {
             /*
-             * This line says where the workbook is, and it used to say it in a
-             * way that read as a caption for the two buttons underneath —
-             * "Opened from this device" sitting directly above Open a file and
-             * Save a copy looks like an instruction about them. It now names
-             * what it is describing, so it cannot be read as anything else.
+             * The file name and nothing else. Where it came from used to be
+             * spelled out underneath, and every wording of that was read as an
+             * instruction about the buttons below it. It is in the question
+             * mark now, which is where a person goes when they want it.
              */
             parts.push('<div class="settings-row"><div class="settings-row-main">'
                 + '<div class="settings-row-title">' + esc(name || 'Workbook') + '</div>'
-                + '<div class="settings-row-sub">'
-                + (path
-                    ? 'In your Dropbox at ' + esc(path)
-                    : 'This file is open from this device, not from Dropbox')
-                + '</div></div></div>');
+                + '</div></div>');
         } else {
             parts.push('<p class="hint-inline">Nothing loaded yet.</p>');
         }
@@ -3112,14 +3181,21 @@ const AmsUi = (function () {
             if (hasWorkbook) {
                 const mapping = state.mapping;
                 const mapped = mapping ? AmsMapping.writableFields(mapping).length : 0;
+                /*
+                 * This row was titled with the name of the sheet — "Weekly
+                 * Schedules" — which is a heading only if you already know
+                 * what it is doing there. The title now says what the row is
+                 * about and the sheet's name moves below it, where it belongs
+                 * with the rest of the detail.
+                 */
                 parts.push('<div class="settings-row"><div class="settings-row-main">'
-                    + '<div class="settings-row-title">'
-                    + (AmsMapping.isComplete(mapping) ? esc(mapping.sheets.join(', ')) : 'Not worked out yet')
-                    + '</div><div class="settings-row-sub">'
+                    + '<div class="settings-row-title">How your Excel sheet is read</div>'
+                    + '<div class="settings-row-sub">'
                     + (AmsMapping.isComplete(mapping)
-                        ? 'Header on row ' + mapping.headerRow + ' · ' + state.plan.length + ' sessions · '
-                            + mapped + ' result column' + (mapped === 1 ? '' : 's')
-                        : 'Tell the app which column is which')
+                        ? 'Reading <strong>' + esc(mapping.sheets.join(', ')) + '</strong>, headings on row '
+                            + mapping.headerRow + '. ' + state.plan.length + ' sessions and '
+                            + mapped + ' column' + (mapped === 1 ? '' : 's') + ' to write results into.'
+                        : 'Tell the app which column holds the date, the sport and the rest.')
                     + '</div></div>'
                     + '<button class="btn btn-small" data-go="setup">Set up</button></div>');
             } else {
@@ -3150,6 +3226,19 @@ const AmsUi = (function () {
         }
         parts.push('</div>');   // the fold
         parts.push('</div>');   // and the Workbook group it now sits inside
+
+        /*
+         * Last on the page, which is where it belongs: it is the rarest thing
+         * in Settings and the only one aimed at somebody who is not holding
+         * the phone. It also no longer says "it" — a row has to name what it
+         * is about to send.
+         */
+        parts.push('<div class="settings-group"><h2>Sharing</h2>'
+            + '<div class="settings-row"><div class="settings-row-main">'
+            + '<div class="settings-row-title">Send this app to somebody</div>'
+            + '<div class="settings-row-sub">Sends a link to the app, with a note saying what it does '
+            + 'and that they need a training plan of their own in Dropbox first.</div>'
+            + '</div><button class="btn btn-small" data-share-app>Share</button></div></div>');
 
         body.innerHTML = parts.join('');
         wireSettings();
@@ -3343,7 +3432,7 @@ const AmsUi = (function () {
         const list = AmsExtras.getActivities();
 
         $('activitiesBody').innerHTML =
-            '<div class="prose"><p>These are the choices offered by <strong>Log something else</strong>. '
+            '<div class="prose"><p>These are the choices offered when you log an <strong>extra activity</strong>. '
             + 'The kind decides whether distance and heart rate are asked for, and whether it starts out '
             + 'counting as training load — both still changeable on the form itself.</p></div>'
 
@@ -3565,9 +3654,9 @@ const AmsUi = (function () {
                 + 'there is enough history to mean anything, it says so instead of drawing confident '
                 + 'shapes over three data points.</p>'
                 + '<p><strong>Settings</strong> — the Dropbox connection, which workbook to use, how its '
-                + 'columns are read, your photographs, and <strong>Send it to somebody</strong>, which '
-                + 'passes the app on: straight into Messages, out through the share sheet, or as a link on '
-                + 'the clipboard. It sends more than the address, because a bare link opens on "No workbook '
+                + 'columns are read, your photographs, and at the foot of it <strong>Send this app to '
+                + 'somebody</strong>, which passes the app on: straight into Messages, out through the '
+                + 'share sheet, or as a link on the clipboard. It sends more than the address, because a bare link opens on "No workbook '
                 + 'yet" and reads as broken — the message says what the app does, that they need a plan of '
                 + 'their own as an .xlsx in Dropbox first, and that on an iPhone a page becomes an app '
                 + 'through Share → Add to Home Screen.</p>')
@@ -3616,6 +3705,12 @@ const AmsUi = (function () {
                 + 'steady and still talking in whole sentences, 7 is hard and down to single words, 10 is '
                 + 'everything you have. It is a feeling rather than a measurement, so a half is read '
                 + 'down — 6.5 is a 6.</p>'
+                + '<p>The <strong>?</strong> beside the box opens all ten at once, which is the useful way '
+                + 'round: the line beside the field can only describe the number you have already guessed, '
+                + 'and choosing well means seeing what the ones either side of it claim. Tap the one that '
+                + 'fits and it goes in the box. The whole scale is about breathing — what you could say to '
+                + 'somebody running beside you — because that is the thing you can check while you are '
+                + 'doing it.</p>'
 
                 + '<p><strong>How long it took.</strong> Type a plain number and it means minutes — '
                 + '<code>45</code> is forty-five minutes, <code>90</code> is an hour and a half. That is '
@@ -3696,7 +3791,7 @@ const AmsUi = (function () {
                 + 'selects the typed minutes and skips both the total formulas and the blank rest days; then '
                 + '<strong>Paste Special → Multiply</strong>. Reopen the app and it reads the new plan.</p>')
 
-            + section('Things the plan did not ask for',
+            + section('Extra activities — things the plan did not ask for',
                 '<p>An unplanned run, a hike, a meditation goes on a separate <strong>Extras</strong> sheet, '
                 + 'created the first time you use it, with a column saying whether it counts as training '
                 + 'load.</p>'
@@ -3704,7 +3799,7 @@ const AmsUi = (function () {
                 + 'planned training — twenty minutes of meditation is not twenty minutes of training, and '
                 + 'folding it in would make the one number the plan exists to produce meaningless.</p>'
                 + '<p><strong>Everything you have logged this way</strong> is listed newest first under '
-                + 'Settings → Log something else → <em>Everything you logged</em>, and behind "See all" on '
+                + 'Settings → Extra activities → <em>Everything extra you logged</em>, and behind "See all" on '
                 + 'Today. Before there were photographs these were only shown on the day they happened, '
                 + 'which was fine while an extra was just a row in a sheet — the sheet was where you went '
                 + 'to look at one. A picture is not in the sheet, so there had to be somewhere else.</p>'
@@ -4400,10 +4495,20 @@ const AmsUi = (function () {
                 return;
             }
 
+            const rpePick = event.target.closest('[data-rpe-pick]');
+            if (rpePick) { pickRpe(rpePick.dataset.rpePick); return; }
+
+            const scale = event.target.closest('[data-rpe-scale]');
+            if (scale) {
+                const ids = scale.dataset.rpeScale.split('|');
+                openRpeScale(ids[0], ids[1]);
+                return;
+            }
+
             const help = event.target.closest('[data-help]');
             if (help) {
                 const note = HELP_NOTES[help.dataset.help];
-                if (note) openNote(note.title, note.html);
+                if (note) openNote(note.title, note.where ? whereTheWorkbookIs() + note.html : note.html);
                 return;
             }
 
