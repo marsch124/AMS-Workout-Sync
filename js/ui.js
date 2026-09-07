@@ -2423,6 +2423,179 @@ const AmsUi = (function () {
         renderPlan();
     }
 
+    /* ---------- saying it ---------- */
+
+    /*
+     * Two ways in, and the reliable one is deliberately the one on show.
+     *
+     * The box is the feature. Tap it, press the microphone on the iPhone's own
+     * keyboard, say the session, tap Read it in. That works on every phone
+     * there is, because it is a text field and nothing more.
+     *
+     * The microphone button beside it uses the browser's own recogniser, which
+     * saves opening the keyboard — where it exists. It is not everywhere, and a
+     * PWA launched from the home screen is exactly where it is least
+     * dependable, so it is an extra rather than the thing being relied on. If
+     * it is missing the button simply is not drawn, and nothing is lost.
+     *
+     * Nothing here saves. It fills the form, says what it understood, and
+     * leaves the Save button where it was.
+     */
+    function sayBlock(workout) {
+        const examples = {
+            swim: '2400 metres, 45 minutes, 1:52 per hundred, heart rate 138',
+            bike: '42 km, 1 hour 20, 32 km/h, heart rate 132',
+            run: '8.2 km, 45 minutes, 5:30 per km, 138 bpm',
+            strength: '40 minutes, felt like a 7'
+        };
+        const example = examples[workout.discipline.id] || '45 minutes, heart rate 130';
+
+        return '<div class="card say-card">'
+            + '<p class="section-label">Say it</p>'
+            + '<div class="say-row">'
+            + '<input id="sayInput" type="text" autocomplete="off" autocapitalize="off"'
+            + ' placeholder="' + esc(example) + '">'
+            + (AmsVoice.supported()
+                ? '<button type="button" class="say-mic" id="sayMic" aria-label="Listen">'
+                    + '<svg class="icon"><use href="#icon-mic"></use></svg></button>'
+                : '')
+            + '</div>'
+            + '<button type="button" class="btn btn-small btn-block" id="sayFill">Read it into the form</button>'
+            + '<p class="hint-inline" id="sayHeard">Tap the box and use the microphone on your keyboard. '
+            + 'Any order — the words are what count, not the sequence.</p>'
+            + '</div>';
+    }
+
+    const FIELD_WORDS = {
+        actualDuration: 'time', actualDistance: 'distance', avgHr: 'heart rate',
+        maxHr: 'max heart rate', avgPace: 'pace', avgSpeed: 'speed', avgPower: 'power',
+        cadence: 'cadence', calories: 'calories', elevation: 'elevation', rpe: 'effort',
+        notes: 'notes'
+    };
+
+    /*
+     * What was understood, said back. This is the whole safety net: the parser
+     * is allowed to guess precisely because every guess is shown here, in the
+     * fields, before anything is saved.
+     */
+    function readIntoForm(text) {
+        const workout = currentWorkout;
+        const note = $('sayHeard');
+        if (!workout || !note) return;
+
+        const said = String(text || '').trim();
+        if (!said) {
+            note.textContent = 'Nothing to read yet — say it into the box first.';
+            return;
+        }
+
+        const writable = AmsMapping.writableFields(AmsSync.getState().mapping || {})
+            .map((field) => field.id);
+        const result = AmsVoice.parse(said, { sport: workout.discipline.id, fields: writable.concat(['avgSpeed']) });
+
+        /*
+         * His sheet has one shared "Avg Pace/Pwr" column, and what it means
+         * depends on the sport — km/h on a bike, min/km on a run, per 100m in
+         * the pool. So a speed said on a bike belongs in the pace column, and
+         * refusing it because there is no column literally called "speed"
+         * would be the app being right about its own field names and wrong
+         * about the workbook.
+         */
+        if (result.values.avgSpeed !== undefined) {
+            const asks = paceFieldFor(workout);
+            if (writable.indexOf('avgSpeed') === -1
+                && writable.indexOf('avgPace') !== -1
+                && /km\/h/.test(asks.unit)
+                && result.values.avgPace === undefined) {
+                result.values.avgPace = result.values.avgSpeed;
+                result.heard.forEach((h) => { if (h.field === 'avgSpeed') h.field = 'avgPace'; });
+            }
+            if (writable.indexOf('avgSpeed') === -1 && result.values.avgSpeed !== undefined) {
+                delete result.values.avgSpeed;
+                if (result.values.avgPace === undefined) result.unwritable.push('avgSpeed');
+            }
+        }
+
+        let filled = 0;
+        Object.keys(result.values).forEach((field) => {
+            const node = $('log-' + field);
+            if (!node) return;
+            node.value = result.values[field];
+            node.dispatchEvent(new Event('input', { bubbles: true }));
+            filled++;
+        });
+
+        if (filled) markFormDirty('logScreen');
+
+        // The shared column is called different things on different sports, so
+        // the read-back calls it what the form beside it calls it.
+        const wordFor = (field) => field === 'avgPace'
+            ? paceFieldFor(workout).label.toLowerCase()
+            : (FIELD_WORDS[field] || field);
+
+        const put = Object.keys(result.values)
+            .filter((field) => $('log-' + field))
+            .map((field) => result.values[field] + ' ' + wordFor(field));
+        const missing = Object.keys(result.values).filter((field) => !$('log-' + field));
+        const unplaced = result.heard.filter((h) => h.field === null).map((h) => h.said);
+
+        const parts = [];
+        parts.push(put.length ? 'Read in: ' + put.join(' · ') + '.' : 'Nothing in that could be read as a number.');
+        if (result.unwritable.length) {
+            parts.push('Your sheet has no column for '
+                + result.unwritable.map(wordFor).join(' or ') + '.');
+        }
+        if (missing.length) {
+            parts.push('Tap "show more fields" to see ' + missing.map(wordFor).join(' and ') + '.');
+        }
+        if (unplaced.length) {
+            parts.push('Could not tell what ' + unplaced.join(' or ') + ' was — say what it is, '
+                + 'like "138 bpm".');
+        }
+        note.textContent = parts.join(' ');
+    }
+
+    let listening = null;
+
+    function toggleListening() {
+        const mic = $('sayMic');
+        const box = $('sayInput');
+        const note = $('sayHeard');
+        if (!mic || !box) return;
+
+        if (listening) {
+            try { listening.stop(); } catch (err) { /* already stopping */ }
+            return;
+        }
+
+        mic.classList.add('is-listening');
+        note.textContent = 'Listening…';
+
+        listening = AmsVoice.listen({
+            onText: (text, final) => {
+                box.value = text;
+                if (final) readIntoForm(text);
+            },
+            onError: (err) => {
+                note.textContent = err === 'not-allowed' || err === 'service-not-allowed'
+                    ? 'This phone will not let the app listen. Use the microphone on the keyboard instead.'
+                    : 'That did not come through. Use the microphone on the keyboard instead.';
+            },
+            onEnd: () => {
+                listening = null;
+                mic.classList.remove('is-listening');
+                // A recogniser that heard nothing ends without ever firing a
+                // result, so the box is the only thing that knows.
+                if (box.value.trim() && note.textContent === 'Listening…') readIntoForm(box.value);
+            }
+        });
+
+        if (!listening) {
+            mic.classList.remove('is-listening');
+            note.textContent = 'Listening is not available here. Use the microphone on the keyboard instead.';
+        }
+    }
+
     /* ---------- the log form ---------- */
 
     async function openLog(key) {
@@ -2519,7 +2692,8 @@ const AmsUi = (function () {
         const hidden = showAll ? 0 : groups.extra.length;
 
         $('logBody').innerHTML =
-            '<div class="card" ' + sportStyle(workout) + '>'
+            sayBlock(workout)
+            + '<div class="card" ' + sportStyle(workout) + '>'
             + '<p class="workout-card-sport">' + esc(workout.discipline.label) + '</p>'
             + '<p class="workout-card-title">' + esc(workout.title) + '</p>'
             /*
@@ -2584,6 +2758,16 @@ const AmsUi = (function () {
         }
 
         wireRpe('log-rpe', 'log-rpe-note');
+
+        const sayFill = $('sayFill');
+        if (sayFill) sayFill.addEventListener('click', () => readIntoForm($('sayInput').value));
+        const sayInput = $('sayInput');
+        // Return on the keyboard means "that is what I said".
+        if (sayInput) sayInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') { event.preventDefault(); readIntoForm(sayInput.value); }
+        });
+        const sayMic = $('sayMic');
+        if (sayMic) sayMic.addEventListener('click', toggleListening);
 
         watchForm('logScreen');
         showScreen('logScreen');
@@ -3909,6 +4093,22 @@ const AmsUi = (function () {
                 + 'written. The button says the number before you press it, there is no question in front of '
                 + 'it, and logging again overwrites, so nothing about it is hard to undo. It is offered on '
                 + 'anything with a planned length not yet recorded, a session marked missed included.</p>'
+
+                + '<p><strong>Say it</strong> sits at the top of the log form. Tap the box, press the '
+                + 'microphone on your keyboard, say the session, and press <em>Read it into the form</em>. '
+                + '"8.2 km, 45 minutes, 5:30 per km, 138 bpm, felt like a 7" fills five fields.</p>'
+                + '<p><strong>Order does not matter</strong> — every number is identified by the words '
+                + 'around it rather than by where it sits, so "138 bpm" is a heart rate wherever you say '
+                + 'it. Spoken numbers work as well as digits: <em>forty five minutes</em>, <em>heart rate '
+                + 'one thirty eight</em>, <em>eight point two kilometres</em>. If you say nothing but bare '
+                + 'numbers it falls back to the order Garmin lists them in for that sport, skipping any '
+                + 'field the number could not plausibly be.</p>'
+                + '<p><strong>It fills the form and never saves.</strong> That is deliberate: a mishearing '
+                + 'that wrote itself into your workbook would be the worst thing this app could do. It '
+                + 'tells you what it understood, what your sheet has no column for, and what it could not '
+                + 'place — and then leaves Save to you.</p>'
+                + '<p>The box is the feature; the microphone button beside it only appears where the '
+                + 'browser has a recogniser of its own, and only saves opening the keyboard.</p>'
 
                 + '<p><strong>Log</strong> asks first for the numbers that suit the sport; every other column '
                 + 'your sheet has is one tap away, and once you ask for the full set it keeps showing it. '

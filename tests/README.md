@@ -31,6 +31,9 @@ node tests/share-app.js
 node tests/screen-wording.js
 node tests/plan-overview.js
 node tests/as-planned.js
+node tests/say-it.js
+
+node tests/voice.js          # no browser, no server — pure parser
 ```
 
 Each script prints what it found and ends with `errors: none`. Nothing is
@@ -197,6 +200,22 @@ looks. Also when it may be offered — not on a rest day, not without a planned
 length, not on something already recorded, but yes on a missed session. Each of
 those cases is opened through the "All" list, and the test fails if a case
 could not be reached rather than passing on a null.
+
+**`voice.js`** — the spoken-session parser, and the only test here that needs
+neither a browser nor a server. That is the point of it: the parser was written
+as a pure function so a few hundred phrasings can be thrown at it in a second.
+It defends the promise he actually asked for — **order never matters** — by
+running every multi-clause case forwards, backwards and shuffled and demanding
+the same answer, plus spoken numbers ("forty five minutes", "heart rate one
+thirty eight"), the awkward clock readings, and that nothing is invented or
+silently dropped.
+
+**`say-it.js`** — the same thing wired to the form. Mostly one assertion: after
+reading a sentence in, **the queue is still empty**. It fills fields and never
+saves, which is what makes a mishearing harmless. Also the shared
+`Avg Pace/Pwr` column, which means km/h on a bike and per-100m in the pool, and
+that the box still works with the browser's recogniser taken away — which on
+his phone is the likely case.
 
 ## Fixtures
 

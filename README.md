@@ -22,6 +22,11 @@ existing cells.
   is hard and down to single words. A question mark opens all ten at once, each
   one tappable, since choosing well means seeing what the numbers either side
   of your guess claim.
+- **Say it** — say the session and the form fills in: *"8.2 km, 45 minutes,
+  5:30 per km, 138 bpm"*. Any order — every number is identified by the words
+  around it. It fills the form and never saves, so a mishearing is visible
+  rather than written. The keyboard's own microphone is the route that works
+  everywhere; a mic button appears where the browser has a recogniser.
 - **Did it — 45m** — one tap logs a session that went as planned, writing the
   planned duration and the completed marker and nothing else. The button says
   the number before you press it.
@@ -161,6 +166,7 @@ drain is otherwise indistinguishable from one that is working.
 └── js/
     ├── zip.js          # minimal zip reader/writer (Compression Streams)
     ├── photos.js       # pictures attached to a session, on this device only
+    ├── voice.js        # reads a spoken session into form values (pure)
     ├── xlsx.js         # xlsx parsing + surgical cell writes
     ├── mapping.js      # works out which column is which
     ├── plan.js         # workouts, disciplines, units, log fields

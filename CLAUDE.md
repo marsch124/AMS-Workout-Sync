@@ -173,6 +173,24 @@ working · 5 charts on Progress. One release each.
   `tests/as-planned.js` asserts it: an entry carrying blank fields would put
   empty strings over numbers already in the sheet.
 
+- **v1.48.0 — say it.** `js/voice.js` is a **pure** parser (text in, values
+  out) precisely so it can be shouted at with hundreds of phrasings by
+  `tests/voice.js` with no browser at all; `tests/say-it.js` covers only the
+  wiring. Three rules hold it up:
+  - **Order never matters** — he asked for that outright. Identification is by
+    the words around a number, never by position. Bare numbers fall back to
+    Garmin's per-sport order *and* a plausibility range, so 620 does not become
+    a swim pace.
+  - **It fills the form and never saves.** That is what lets it guess at all.
+    `say-it.js` asserts the queue is still empty afterwards.
+  - **The box, not the microphone, is the feature.** The keyboard's own
+    dictation works on every phone; `SpeechRecognition` is unreliable in a
+    home-screen PWA, so the mic button is drawn only when present.
+  - 🪤 His sheet has one shared `Avg Pace/Pwr` column meaning km/h on a bike,
+    min/km on a run, per-100m in the pool. `readIntoForm()` routes a spoken
+    speed into `avgPace` when there is no `avgSpeed` column and the sport's
+    pace field asks for km/h.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The
@@ -187,6 +205,7 @@ its row) stays, because the moved-rather-than-lost count needs it too.
 |---|---|
 | `js/db.js` | IndexedDB: `kv`, `queue`, `photos`, `photoBlobs` |
 | `js/photos.js` | pictures on a session or an extra: shrink, store, attribute |
+| `js/voice.js` | a spoken session, read into form values. Pure, and tested as such |
 | `js/zip.js` / `js/xlsx.js` | reading and writing `.xlsx` by hand |
 | `js/mapping.js` | which column is which; heading signatures; collisions |
 | `js/plan.js` | disciplines, parsing, `buildEdits` — what gets written |
@@ -243,7 +262,7 @@ Four things move together, or the app ships stale on a phone:
 
 - `CURRENT` in `js/version.js` + a changelog entry (newest first)
 - `APP_VERSION` in `sw.js`
-- every `?v=` in `index.html` (15 of them)
+- every `?v=` in `index.html` (16 of them)
 - commit, then `git push -u origin main`
 
 The changelog is written for Martin, not as a commit log — say what changed and
@@ -265,7 +284,7 @@ node tests/failure-paths.js          # and the rest
 Repo tests: `failure-paths`, `column-collision`, `foreign-extras-sheet`,
 `edited-workbook`, `calendar-export`, `session-share`, `progress`, `logging`,
 `move-log`, `leaving-a-form`, `week-wash`, `august-audit`, `rest-day`,
-`photos`, `extra-photos`, `share-app`, `screen-wording`, `plan-overview`, `as-planned`. Fixtures are synthetic and gitignored — **no real
+`photos`, `extra-photos`, `share-app`, `screen-wording`, `plan-overview`, `as-planned`, `voice` (no browser), `say-it`. Fixtures are synthetic and gitignored — **no real
 training data in this repository**.
 
 Extra scripts live in the session scratchpad and drive Martin's *real*

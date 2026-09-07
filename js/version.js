@@ -8,13 +8,28 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.47.0';
+    const CURRENT = '1.48.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.48.0',
+            date: '2026-09-07',
+            headline: 'Say it',
+            items: [
+                '**Say the session and the form fills in.** *"8.2 km, 45 minutes, 5:30 per km, 138 bpm, felt like a 7"* — five fields, one sentence.',
+                '**In any order.** You said you would never remember a fixed one, so there is not one. Every number is worked out from the words around it, not from where it sits: "138 bpm" is a heart rate whether you say it first, last or in the middle.',
+                '**It fills the form. It never saves.** A mishearing that wrote itself into your training plan would be the worst thing this app could do, so everything it understands goes into the fields for you to look at, and Save is still yours to press.',
+                'It says what it heard: *Read in: 8.2 distance · 45 time · 5:30 pace · 138 heart rate.* And what it could not do — a value your sheet has no column for, or a number it could not place.',
+                '**The box is the feature, not the microphone.** Tap it and use the microphone on your own keyboard — that works on every phone. Where the browser has a recogniser of its own there is a microphone button beside the box too, which just saves opening the keyboard.',
+                'If you only reel the numbers off with no words at all, it falls back to the order Garmin shows them in for that sport — and skips any field the number could not plausibly belong to, so 620 does not end up as a swim pace.',
+                'It understands spoken numbers as well as digits: *forty five minutes*, *heart rate one thirty eight*, *eight point two kilometres*, *a hundred and forty two beats per minute*.',
+                'Your one **Avg Pace/Pwr** column is handled properly. A km/h said on a bike goes into it, a min/km on a run, a per-100 in the pool — and the read-back calls it whatever the form beside it is calling it that day.',
+            ]
+        },
         {
             version: '1.47.0',
             date: '2026-09-07',
