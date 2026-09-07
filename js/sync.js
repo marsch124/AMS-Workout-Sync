@@ -663,10 +663,15 @@ const AmsSync = (function () {
      * sheet instead of writing into the plan.
      */
     async function logExtra(entry) {
+        // Named here rather than at the sheet, so the name survives the handover: the queue
+        // entry and the row it becomes are the same extra, and a replay has to be able to
+        // say so. Without it two identical extras on one day are one extra, and the second
+        // is dropped on the way in.
+        const named = Object.assign({}, entry, { ref: entry.ref || AmsExtras.newRef() });
         const record = await AmsDb.queue({
             extra: true,
-            dayKey: entry.date,
-            values: { extra: entry }
+            dayKey: named.date,
+            values: { extra: named }
         });
 
         // Refresh the pending list, or what was just saved would not appear

@@ -19,13 +19,29 @@ const AmsExtras = (function () {
 
     const COLUMNS = [
         'Date', 'Day', 'Activity', 'What it was', 'Duration (min)', 'Distance (km)',
-        'Avg HR', 'Effort', 'Counts as training', 'Notes'
+        'Avg HR', 'Effort', 'Counts as training', 'Notes', 'Ref'
     ];
 
+    /*
+     * `ref` is last on purpose. Sheets written before it existed have ten columns and no
+     * eleventh heading, and `looksLikeOurs()` only ever reads columns 1, 3 and 5 — so an
+     * older Extras sheet is still recognised, still written to, and gains the heading the
+     * first time something is appended to it.
+     */
     const COL = {
         date: 1, weekday: 2, activity: 3, what: 4, duration: 5,
-        distance: 6, avgHr: 7, effort: 8, isTraining: 9, notes: 10
+        distance: 6, avgHr: 7, effort: 8, isTraining: 9, notes: 10, ref: 11
     };
+
+    /*
+     * The app's own name for one extra, made when it is logged and carried into the sheet.
+     *
+     * Short, because it has to sit in a spreadsheet column he can see. Unique, because that
+     * is the entire point: see `alreadyRecorded()`.
+     */
+    function newRef() {
+        return 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    }
 
     /*
      * `kind` decides two things: whether the metric fields are worth showing,
@@ -185,11 +201,31 @@ const AmsExtras = (function () {
     }
 
     /*
-     * Has this already been written? Extras append rather than overwrite, so a
-     * queue replayed twice would otherwise duplicate them. Matching on the day,
-     * the activity and the duration is enough to recognise one.
+     * Has this already been written? Extras append rather than overwrite, so a queue
+     * replayed twice would otherwise duplicate them.
+     *
+     * This used to recognise one by its day, its activity and its length, which was enough
+     * to stop a replay and far too much to allow a repeat: two half-hour dog walks on one
+     * day are indistinguishable that way, so the second was silently swallowed — and worse,
+     * reported as written and dropped from the queue, leaving nothing to retry. The three
+     * things that identify an extra to a *person* do not identify it to the app.
+     *
+     * So the app gives each one a reference of its own when it is logged, and matches on
+     * that. A replay carries the same reference and is recognised; a second walk carries a
+     * different one and is written.
+     *
+     * The old rule stays for entries queued before this existed, and for a sheet whose rows
+     * were written then: no reference to compare means falling back to the only identity
+     * those rows have.
      */
     function alreadyRecorded(sheet, entry) {
+        const ref = entry && entry.ref;
+        if (ref) {
+            for (let row = 2; row <= sheet.maxRow; row++) {
+                if (sheet.textAt(row, COL.ref) === ref) return true;
+            }
+            return false;
+        }
         for (let row = 2; row <= sheet.maxRow; row++) {
             if (sheet.textAt(row, COL.date) !== entry.date) continue;
             if (AmsMapping.normalise(sheet.textAt(row, COL.activity))
@@ -263,6 +299,14 @@ const AmsExtras = (function () {
         push(COL.effort, 'number', entry.effort);
         push(COL.isTraining, 'text', entry.isTraining ? 'Yes' : 'No');
         push(COL.notes, 'text', entry.notes);
+        push(COL.ref, 'text', entry.ref);
+
+        // A sheet written before refs existed has ten headings. Give it the eleventh in the
+        // same write as the row that needs it, rather than leaving a column of values under
+        // a blank heading.
+        if (entry.ref && !String(sheet.textAt(1, COL.ref) || '').trim()) {
+            edits.push({ ref: AmsXlsx.makeRef(COL.ref, 1), kind: 'text', value: 'Ref' });
+        }
 
         return { row: row, edits: edits };
     }
@@ -306,7 +350,8 @@ const AmsExtras = (function () {
                 avgHr: sheet.textAt(row, COL.avgHr),
                 effort: sheet.textAt(row, COL.effort),
                 isTraining: /^y|^j|^1|^true/i.test(sheet.textAt(row, COL.isTraining)),
-                notes: sheet.textAt(row, COL.notes)
+                notes: sheet.textAt(row, COL.notes),
+                ref: sheet.textAt(row, COL.ref)
             });
         }
 
@@ -326,6 +371,7 @@ const AmsExtras = (function () {
         saveActivities: saveActivities,
         resetActivities: resetActivities,
         idFor: idFor,
+        newRef: newRef,
         activity: activity,
         labelOf: labelOf,
         keyFor: keyFor,

@@ -286,6 +286,36 @@ impossible rows to the two new statistics screens, where an infinite speed used
 to pass a `> 0` check perfectly happily and turn every average downstream into
 nothing at all.
 
+**`extras-identity.js`** — the one bug in this round that was real. Extras are
+appended rather than written to a known row, so the writer has to recognise what
+it has already written; it did that by day, activity and duration, which
+recognises a retry perfectly and cannot tell a genuine repeat from one. Two
+half-hour walks on one day were one walk, and the second was reported as saved
+and dropped from the queue, so nothing was left to retry. Each extra now carries
+a reference of its own. The test holds the two halves apart — a repeat is
+written, a replay is not — and, because his sheet already has extras in it from
+before, checks that rows without a reference are still recognised the old way
+and that the column gains its heading when something new is appended.
+
+**`conflict.js`** — what happens when the workbook changed in Dropbox while the
+phone still had logging waiting. Dropbox is stubbed, because the real thing
+cannot be made to conflict on demand and this is entirely about behaviour when
+it does. Three things that pull against each other: nothing lost when an upload
+is refused, nothing written twice when the retry succeeds (extras included,
+since those append), and the file left alone when it cannot get through at all.
+The path existed and was carefully built; nothing had ever run it.
+
+Its own trap: **logging starts a sync by itself** as soon as Dropbox is
+connected, so a test that queues entries against a connected stub finds its
+work already uploaded and every explicit `sync()` answering `already-syncing`.
+The stub starts disconnected and is switched on once the queue is arranged.
+
+**`waiting.js`** — the warning that logging has not reached the workbook. Most
+of what it tests is the silence: nothing with an empty queue, nothing for
+something logged seconds ago, and nothing left behind once the queue goes up.
+A warning that appears on an ordinary day is one he would learn to ignore, so
+it says nothing until something has been stuck for a full day.
+
 ## Fixtures
 
 `make-fixtures.py` writes synthetic workbooks into `tests/fixtures/`. Nobody's
@@ -296,3 +326,8 @@ should point at the app, not at data that cannot be replaced.
 carries three weeks of real values, because the app decides how to write a pace
 by looking at what is already in the column. An empty column tells it nothing,
 so a fixture that only has today in it cannot exercise the path at all.
+
+`legacy-extras.xlsx` is the shape of a sheet this app wrote before extras
+carried a reference: ten headings, no eleventh, rows identified only by day,
+activity and length. He has one. It is the fixture that proves the change is
+safe on the file he already owns rather than only on a new one.

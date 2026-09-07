@@ -2661,3 +2661,23 @@ body.is-viewing-photo .tab-bar { display: none; }
 }
 
 .mix-drift { color: var(--color-warning); font-weight: 700; }
+
+/*
+ * Logging that has not reached the workbook for a day or more. Amber rather than red: it
+ * is not broken yet, and shouting about it every time he opens the app would teach him to
+ * ignore it. It only ever appears when something really is stuck.
+ */
+.waiting-warn {
+    border-left: 4px solid var(--warn, #c98a00);
+    background: color-mix(in srgb, var(--warn, #c98a00) 8%, var(--card));
+}
+.waiting-warn-title {
+    margin: 0 0 4px;
+    font-weight: 700;
+    font-size: 1.05rem;
+}
+.waiting-warn-body {
+    margin: 0 0 12px;
+    color: var(--muted);
+    line-height: 1.45;
+}

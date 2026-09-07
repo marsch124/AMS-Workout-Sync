@@ -8,13 +8,25 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.54.0';
+    const CURRENT = '1.55.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.55.0',
+            date: '2026-09-07',
+            headline: 'Two dog walks are two dog walks',
+            items: [
+                '**A repeated extra no longer disappears.** Log the same thing twice in one day \u2014 two half-hour walks, a stretch morning and evening \u2014 and only the first ever reached your workbook. The app treated *same day, same activity, same length* as meaning the same session, because that is how it recognised its own work when a save was retried. The second was swallowed, reported as saved, and dropped, so there was nothing left to try again.',
+                'Each extra now carries a short reference of its own, in a **new "Ref" column** at the far right of the Extras sheet. You can hide that column in Excel; nothing else needs it. Extras already in your sheet keep working exactly as they are, and the column appears the first time something new is written.',
+                '**Warning when logging has not reached your workbook.** Anything you log is written to the phone first and sent afterwards \u2014 that is what makes it work with no signal. Until it is sent it exists in one place only, and a phone is allowed to clear its own storage without asking. If something has been waiting a full day, Today now says so and offers to send it. Below a day it stays quiet: an ordinary sync takes seconds, and a warning you see every day is one you stop reading.',
+                '**The Dropbox recovery path is tested at last.** If you edit the workbook in Excel while your phone still has logging waiting, the app has to notice, fetch your newer copy, and add its entries to that \u2014 without losing anything and without writing anything twice. It always did; nothing had ever checked. Now three tests do, including the one that matters most: when it cannot get through at all, everything you logged is still waiting for the next try.',
+                'Thirty tests now run against this app, up from twenty-seven.',
+            ]
+        },
         {
             version: '1.54.0',
             date: '2026-09-07',
