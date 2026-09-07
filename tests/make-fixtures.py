@@ -67,7 +67,7 @@ def block(path):
     wb.save(path)
 
 
-def season(path):
+def season(path, weeks_behind=0, log_until=None):
     """A whole build: 48 weeks, 419 sessions, the size of the real Ironman book.
 
     Everything in this app was written against a 25-session workbook. The plan
@@ -78,10 +78,15 @@ def season(path):
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = 'Weekly Schedules'
-    ws.append(HEADERS)
+    # A Phase column of its own: the road across the whole build is drawn from
+    # it, and without one here that drawing would never be exercised.
+    ws.append(HEADERS + ['Phase'])
 
     # Eleven months, ending in a race, with a recovery week every fourth.
-    monday = monday_of_this_week()
+    # `weeks_behind` starts the plan in the past, which is the only way to
+    # exercise a build that is already under way: how far along it is, what has
+    # been banked against what was due, and where the marker sits.
+    monday = monday_of_this_week() - datetime.timedelta(weeks=weeks_behind)
     phases = [('Base', 12), ('Build', 16), ('Peak', 12), ('Taper', 8)]
 
     week = 0
@@ -100,27 +105,35 @@ def season(path):
                 day = monday + datetime.timedelta(days=week * 7 + day_index)
                 if session is None:
                     ws.append([week + 1, day, DAYS[day.weekday()], 'Rest',
-                               'REST DAY - full day off', None, '-', phase])
+                               'REST DAY - full day off', None, '-', phase,
+                               None, None, None, None, None, phase])
                     written += 1
                     continue
                 sport, minutes = session
+                planned = round(minutes * scale)
+                logged = log_until is not None and day < log_until
                 ws.append([week + 1, day, DAYS[day.weekday()], sport,
-                           phase + ': ' + sport.lower() + ' session', round(minutes * scale),
-                           'Z2', phase])
+                           phase + ': ' + sport.lower() + ' session', planned,
+                           'Z2', phase,
+                           'Yes' if logged else None,
+                           planned if logged else None,
+                           None, 138 if logged else None, None, phase])
                 written += 1
             for day_index, (sport, minutes) in extra:
                 day = monday + datetime.timedelta(days=week * 7 + day_index)
                 ws.append([week + 1, day, DAYS[day.weekday()], sport,
-                           phase + ': second ' + sport.lower(), round(minutes * scale), 'Z1', phase])
+                           phase + ': second ' + sport.lower(), round(minutes * scale), 'Z1', phase,
+                           None, None, None, None, None, phase])
                 written += 1
             week += 1
 
     race_day = monday + datetime.timedelta(days=week * 7)
     ws.append([week + 1, race_day, DAYS[race_day.weekday()], 'Race',
-               'RACE DAY - the whole point of it', 720, '-', 'Race'])
+               'RACE DAY - the whole point of it', 720, '-', 'Race',
+               None, None, None, None, None, 'Race'])
     written += 1
     wb.save(path)
-    print('  season.xlsx: %d rows over %d weeks' % (written, week + 1))
+    print('  %s: %d rows over %d weeks' % (os.path.basename(path), written, week + 1))
 
 
 def monday_of_this_week():
@@ -349,6 +362,8 @@ if __name__ == '__main__':
     plain(os.path.join(OUT, 'plain.xlsx'))
     block(os.path.join(OUT, 'block.xlsx'))
     season(os.path.join(OUT, 'season.xlsx'))
+    season(os.path.join(OUT, 'season-underway.xlsx'), weeks_behind=20,
+           log_until=monday_of_this_week() - datetime.timedelta(days=7))
     hostile_text(os.path.join(OUT, 'nasty.xlsx'))
     column_inserted(os.path.join(OUT, 'column-inserted.xlsx'))
     foreign_extras(os.path.join(OUT, 'foreign-extras.xlsx'))

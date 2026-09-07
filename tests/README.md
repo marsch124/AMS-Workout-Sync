@@ -32,6 +32,7 @@ node tests/screen-wording.js
 node tests/plan-overview.js
 node tests/as-planned.js
 node tests/say-it.js
+node tests/road.js
 
 node tests/voice.js          # no browser, no server — pure parser
 ```
@@ -216,6 +217,16 @@ saves, which is what makes a mishearing harmless. Also the shared
 `Avg Pace/Pwr` column, which means km/h on a bike and per-100m in the pool, and
 that the box still works with the browser's recogniser taken away — which on
 his phone is the likely case.
+
+**`road.js`** — the whole build, at the top of Progress. Everything it shows is
+read out of the workbook, so what is guarded is that the reading stays honest:
+the race and its date come from a row in the plan, and where there is no race
+row the last day is called the last day rather than dressed up as one; the
+phase bands are the plan's own shape and add up to the whole road; the marker
+sits where today actually falls; the countdown changes unit as the race nears.
+And the one that matters daily: **a session dated today is neither due nor
+behind**. Uses `season-underway.xlsx`, which starts twenty weeks ago with the
+past logged, because day one exercises none of those figures.
 
 ## Fixtures
 

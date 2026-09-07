@@ -2301,3 +2301,142 @@ body.is-viewing-photo .tab-bar { display: none; }
     font-style: italic;
     color: var(--color-text-secondary);
 }
+
+/* ======================== THE ROAD TO THE RACE ======================== */
+
+/*
+ * Eleven months on one screen. The countdown is the biggest thing because it
+ * is the thing you look for; the bar under it is the plan's own shape, each
+ * phase as wide as the days it covers — which is why a taper looks short.
+ */
+.road-card {
+    padding: 1rem 0.9rem 0.85rem;
+}
+
+.road-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.15rem;
+}
+
+.road-count {
+    font-size: 2.6rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--color-text);
+}
+
+.road-unit {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+}
+
+.road-race {
+    margin: 0.35rem 0 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.road-when {
+    margin: 0.1rem 0 0;
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+}
+
+.road-bar {
+    position: relative;
+    display: flex;
+    margin: 0.9rem 0 0.5rem;
+    height: 1.55rem;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: var(--color-surface-2);
+}
+
+/*
+ * Four tints of the app's own green rather than four colours: the bands are
+ * chapters of one thing, and giving each its own hue would say they were four
+ * different things.
+ */
+.road-band {
+    position: relative;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--accent) calc(14% + var(--band) * 9%), transparent);
+    border-right: 1px solid var(--color-bg);
+}
+
+.road-band:last-child { border-right: 0; }
+.road-band.is-done { opacity: 0.55; }
+.road-band.is-now { background: color-mix(in srgb, var(--accent) 62%, transparent); }
+
+.road-band-name {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: clip;
+    padding: 0 0.2rem;
+    color: var(--color-text);
+    opacity: 0.75;
+}
+
+.road-band.is-now .road-band-name { opacity: 1; }
+
+/* Where today falls along the whole road. */
+.road-now {
+    position: absolute;
+    top: -2px;
+    bottom: -2px;
+    width: 2px;
+    margin-left: -1px;
+    background: var(--color-text);
+    box-shadow: 0 0 0 1px var(--color-bg);
+}
+
+.road-phase {
+    margin: 0 0 0.75rem;
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+}
+
+.road-phase strong { color: var(--color-text); }
+
+.road-figures {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.road-figure { min-width: 0; }
+
+.road-figure-n {
+    display: block;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.road-figure-l {
+    display: block;
+    margin-top: 0.1rem;
+    font-size: 0.7rem;
+    line-height: 1.3;
+    color: var(--color-text-secondary);
+}
+
+.road-note {
+    margin: 0.7rem 0 0;
+    font-size: 0.76rem;
+    color: var(--color-warning);
+}

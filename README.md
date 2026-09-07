@@ -11,6 +11,11 @@ existing cells.
 - **Today** — the session planned for today, broken into warm-up, intervals,
   technique and cool-down, colour-coded by discipline: swim, bike, run, strength,
   mobility (stretching is read as mobility — the same session by another name).
+- **The road to the race** — Progress opens with the whole build: weeks to the
+  race, the phases drawn as one bar with today marked on it, and sessions done,
+  hours banked against hours due, and the total the plan comes to. Read out of
+  the workbook — the race is a row in it, the phases a column — so nothing is
+  configured and nothing is stored.
 - **The block at a glance** — the Plan tab opens with eight weeks drawn as eight
   rows: a column per day, a bar per session, taller for longer, coloured by
   sport, hollow for still to come. One height scale across all of them, so a

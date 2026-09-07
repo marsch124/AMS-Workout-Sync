@@ -4035,7 +4035,14 @@ const AmsUi = (function () {
                 + '<em>Done</em> is what you performed. <em>Missed</em> is what you marked as not done, kept '
                 + 'apart from the sessions you did and still open to log if it turns out you did it. '
                 + '<em>All</em> is everything.</p>'
-                + '<p><strong>Progress</strong> — three things your workbook cannot say about itself: '
+                + '<p><strong>Progress</strong> — opens with <em>the road to the race</em>: how many weeks '
+                + 'are left, the phases of your plan drawn as one bar with a marker where today falls, and '
+                + 'sessions done, hours banked against hours due, and what the whole build comes to. All of '
+                + 'it read out of your workbook — the race is a row in it and the phases are a column in it '
+                + '— so nothing is configured and nothing is stored. A plan with no race row says <em>the '
+                + 'last day of the plan</em> rather than inventing one, and a plan with no phase column '
+                + 'simply gets no bar. A session dated today counts as neither due nor behind.</p>'
+                + '<p>Below it, three things your workbook cannot say about itself: '
                 + 'which sport is running behind, how many sessions you have '
                 + 'kept in a row, and how often one was moved rather than lost. It is worked out from your '
                 + 'sessions each time you open it, and it never writes anything: the totals and the chart '
@@ -4718,6 +4725,240 @@ const AmsUi = (function () {
 
     let progressToken = 0;
 
+    /* ---------- the road to the race ---------- */
+
+    /*
+     * Where you are in the whole of it.
+     *
+     * Today shows this week; the Plan tab shows eight. The thing neither can
+     * show is the shape of an eleven-month build and how far along it you are
+     * — which is the question the plan is actually an answer to, and the only
+     * one nothing in this app was answering.
+     *
+     * Every figure here is read out of the workbook. The race is a session in
+     * it like any other, the phases are a column in it, and the hours are the
+     * ones already being summed for the week card. Nothing is configured and
+     * nothing is stored: change the plan in Excel and this follows.
+     */
+
+    /*
+     * The race, if the plan has one.
+     *
+     * A workbook that names it — a row whose sport reads as a race — is
+     * believed. Otherwise the last day in the plan is used and called what it
+     * is, "the last day of the plan", rather than dressed up as a race day the
+     * app has invented.
+     */
+    function raceDay() {
+        const plan = AmsSync.visiblePlan();
+        if (!plan.length) return null;
+
+        const today = AmsSync.todayKey();
+        const races = plan.filter((w) => w.discipline.id === 'race');
+        const ahead = races.filter((w) => w.dayKey >= today);
+        const chosen = ahead.length ? ahead[0] : races[races.length - 1];
+
+        if (chosen) {
+            return { dayKey: chosen.dayKey, title: chosen.title || 'Race day', isRace: true };
+        }
+        const last = plan[plan.length - 1];
+        return { dayKey: last.dayKey, title: 'The last day of the plan', isRace: false };
+    }
+
+    /*
+     * The phases, in the order the plan puts them, each with the days it
+     * covers. Taken from the phase column, which is the plan's own account of
+     * its shape — inferring blocks from the volume would be the app second-
+     * guessing a coach.
+     */
+    function phases() {
+        const plan = AmsSync.visiblePlan();
+        const out = [];
+        for (const workout of plan) {
+            const name = (workout.phase || '').trim();
+            if (!name) continue;
+            const last = out[out.length - 1];
+            if (last && last.name === name) {
+                last.to = workout.dayKey;
+                continue;
+            }
+            out.push({ name: name, from: workout.dayKey, to: workout.dayKey });
+        }
+        return out;
+    }
+
+    function daysBetween(fromKey, toKey) {
+        const a = AmsPlan.parseDayKey(fromKey);
+        const b = AmsPlan.parseDayKey(toKey);
+        if (!a || !b) return 0;
+        return Math.round((b - a) / 86400000);
+    }
+
+    /*
+     * Everything the road needs, worked out once. Hours are counted from the
+     * plan rather than from the weekly summaries so that a session moved
+     * across a week boundary is still counted exactly once.
+     */
+    function roadFigures() {
+        const plan = AmsSync.visiblePlan().filter((w) => w.discipline.id !== 'rest');
+        if (!plan.length) return null;
+
+        const race = raceDay();
+        if (!race) return null;
+
+        const mapping = AmsSync.getState().mapping || {};
+        const today = AmsSync.todayKey();
+        const start = plan[0].dayKey;
+
+        let plannedAll = 0;
+        let plannedSoFar = 0;
+        let doneSeconds = 0;
+        let done = 0;
+        let behind = 0;
+        let toCome = 0;
+
+        for (const workout of plan) {
+            const seconds = AmsPlan.plannedDurationSeconds(workout, mapping) || 0;
+            plannedAll += seconds;
+
+            /*
+             * Strictly before today, the same line `outstanding()` draws. A
+             * session on today's date has not failed to happen yet, and
+             * counting it as due at eight in the morning would open the screen
+             * by telling him he is behind on a ride he is about to go out on.
+             */
+            const past = workout.dayKey < today;
+            if (past) plannedSoFar += seconds;
+            if (workout.dayKey > today) toCome++;
+
+            if (!AmsSync.isRecorded(workout)) {
+                if (past) behind++;
+                continue;
+            }
+            if (AmsSync.isMissed(workout)) continue;
+
+            done++;
+            doneSeconds += actualSecondsOf(workout, mapping) || seconds;
+        }
+
+        const totalDays = Math.max(1, daysBetween(start, race.dayKey));
+        const goneDays = Math.min(totalDays, Math.max(0, daysBetween(start, today)));
+
+        return {
+            race: race,
+            start: start,
+            phases: phases(),
+            sessions: plan.length,
+            done: done,
+            behind: behind,
+            toCome: toCome,
+            plannedAll: plannedAll,
+            plannedSoFar: plannedSoFar,
+            doneSeconds: doneSeconds,
+            daysToGo: daysBetween(today, race.dayKey),
+            weeksToGo: Math.ceil(daysBetween(today, race.dayKey) / 7),
+            through: goneDays / totalDays,
+            started: today >= start
+        };
+    }
+
+    /* What a logged session actually took, where the sheet or the queue says. */
+    function actualSecondsOf(workout, mapping) {
+        if (workout.pending && workout.pending.values && !workout.pending.values.missed) {
+            return AmsPlan.parseDuration(workout.pending.values.actualDuration);
+        }
+        const cell = workout.results && workout.results.actualDuration;
+        if (cell && typeof cell.number === 'number') {
+            return AmsPlan.durationFromCell(cell.number, (mapping.units || {}).duration || 'hours');
+        }
+        return null;
+    }
+
+    /*
+     * Counting down in the unit that means something at that distance. Eleven
+     * months out, days is a number nobody can hold; race week, weeks is a
+     * shrug. So it changes as the race comes closer, which is what a person
+     * does anyway.
+     */
+    function countdown(road) {
+        if (road.daysToGo < 0) return { number: '—', unit: 'the race has been' };
+        if (road.daysToGo === 0) return { number: 'Today', unit: road.race.isRace ? 'race day' : 'the last day' };
+        if (road.daysToGo <= 21) {
+            return { number: String(road.daysToGo), unit: road.daysToGo === 1 ? 'day to go' : 'days to go' };
+        }
+        return { number: String(road.weeksToGo), unit: 'weeks to go' };
+    }
+
+    function roadCard() {
+        const road = roadFigures();
+        if (!road) return '';
+
+        const clock = countdown(road);
+        const date = AmsPlan.parseDayKey(road.race.dayKey);
+        const when = date
+            ? date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+            : '';
+
+        /*
+         * The phases as one bar, each as wide as the days it covers, with the
+         * marker where today falls. It is the plan's own shape: the reason a
+         * taper looks short is that it is.
+         */
+        const totalDays = Math.max(1, daysBetween(road.start, road.race.dayKey));
+        const today = AmsSync.todayKey();
+        const bands = road.phases.map((phase, index) => {
+            const width = Math.max(1, daysBetween(phase.from, phase.to) + 1) / totalDays * 100;
+            const isNow = today >= phase.from && today <= phase.to;
+            return '<span class="road-band' + (isNow ? ' is-now' : '')
+                + (today > phase.to ? ' is-done' : '') + '"'
+                + ' style="width:' + width.toFixed(2) + '%; --band: ' + (index % 4) + '"'
+                + ' title="' + esc(phase.name) + '">'
+                + '<span class="road-band-name">' + esc(phase.name) + '</span>'
+                + '</span>';
+        }).join('');
+
+        const nowPhase = road.phases.find((p) => today >= p.from && today <= p.to);
+        const marker = road.started && road.through <= 1
+            ? '<span class="road-now" style="left:' + (road.through * 100).toFixed(2) + '%"></span>'
+            : '';
+
+        // formatDuration answers in seconds when there are only seconds, and
+        // "0s banked" is not how anybody says none.
+        const hours = (seconds) => (seconds >= 60 ? AmsPlan.formatDuration(seconds) : '0m');
+        const bankedHours = hours(road.doneSeconds);
+        const soFarHours = hours(road.plannedSoFar);
+        const allHours = hours(road.plannedAll);
+
+        return '<div class="card road-card">'
+            + '<div class="road-head">'
+            + '<span class="road-count">' + esc(clock.number) + '</span>'
+            + '<span class="road-unit">' + esc(clock.unit) + '</span>'
+            + '</div>'
+            + '<p class="road-race">' + esc(road.race.title) + '</p>'
+            + '<p class="road-when">' + esc(when) + '</p>'
+
+            + (bands
+                ? '<div class="road-bar">' + bands + marker + '</div>'
+                    + (nowPhase ? '<p class="road-phase">You are in <strong>' + esc(nowPhase.name)
+                        + '</strong></p>' : '')
+                : '')
+
+            + '<div class="road-figures">'
+            + '<div class="road-figure"><span class="road-figure-n">' + road.done + '</span>'
+            + '<span class="road-figure-l">done of ' + road.sessions + '</span></div>'
+            + '<div class="road-figure"><span class="road-figure-n">' + esc(bankedHours) + '</span>'
+            + '<span class="road-figure-l">banked of ' + esc(soFarHours) + ' due</span></div>'
+            + '<div class="road-figure"><span class="road-figure-n">' + esc(allHours) + '</span>'
+            + '<span class="road-figure-l">the whole build</span></div>'
+            + '</div>'
+
+            + (road.behind
+                ? '<p class="road-note">' + road.behind + ' session' + (road.behind === 1 ? '' : 's')
+                    + ' behind you '+ (road.behind === 1 ? 'was' : 'were') + ' never recorded.</p>'
+                : '')
+            + '</div>';
+    }
+
     async function renderProgress() {
         const body = $('progressBody');
         if (!body) return;
@@ -4751,7 +4992,10 @@ const AmsUi = (function () {
         if (stale()) return;
 
         if (!stats.any) {
-            body.innerHTML = emptyState('icon-progress', 'Nothing has happened yet',
+            // The road is about what is in front of you, so it is worth
+            // drawing on the first day of a plan when nothing is behind you.
+            body.innerHTML = roadCard()
+                + emptyState('icon-progress', 'Nothing has happened yet',
                 'Once sessions are behind you, this is where the patterns in them show up.');
             return;
         }
@@ -4761,6 +5005,8 @@ const AmsUi = (function () {
          * statistic, and a screen that draws confident bars over four data
          * points is lying with a straight face.
          */
+        const road = roadCard();
+
         const thin = stats.counted < 12;
         const preamble = thin
             ? '<div class="stat-caution">'
@@ -4844,7 +5090,7 @@ const AmsUi = (function () {
             + (moves.since ? ' since ' + esc(shortDay(new Date(moves.since))) : '')
             + ', on this phone only. Anything rescheduled in Excel is invisible here.');
 
-        body.innerHTML = preamble + summary + consistency + sportBlock + movesBlock
+        body.innerHTML = road + preamble + summary + consistency + sportBlock + movesBlock
             + '<p class="stat-footnote">Worked out from the sessions in your workbook each time this '
             + 'screen is opened. Nothing here is stored in the plan, and nothing here writes to it — '
             + 'the totals and the chart on your Progress sheet remain the ones Excel keeps.</p>';
@@ -5090,6 +5336,8 @@ const AmsUi = (function () {
         toast,
         weekFigures,
         __weekCalendar: weekCalendar,   // pure, and exposed so its wording can be tested directly
+        __roadFigures: roadFigures,     // pure reads of the plan, so they can be checked directly
+        __countdown: countdown,
         __appUrl: appUrl,               // takes an href, so both branches can be asked for
         __appShareText: appShareText,
         __openChoice: openChoice,       // so a test can check the sheet goes back to asking

@@ -203,6 +203,24 @@ working · 5 charts on Progress. One release each.
     is the only point at which "seven out of ten" is "7 out of 10" and the ten
     can be folded away.
 
+- **v1.50.0 — the road to the race** (`roadCard()`, top of Progress). Read
+  wholly from the workbook: the race is a row whose sport reads as `race`, the
+  phases are the phase column, the hours are `plannedDurationSeconds`. Nothing
+  configured, nothing stored.
+  - 🚨 **Today counts as neither due nor behind** — `dayKey < today`, the same
+    line `outstanding()` draws. Counting today's session as due would open the
+    screen by telling him he is behind on a ride he has not been out on yet.
+  - No race row → "the last day of the plan", never an invented race. No phase
+    column → no bar, the rest still draws. Both asserted in `tests/road.js`.
+  - Fixtures: `season.xlsx` (409 sessions, 49 weeks, a Phase column and a race
+    row) and `season-underway.xlsx` (the same started 20 weeks ago with the
+    past logged) — the second exists because day one exercises none of the
+    interesting figures.
+  - 🪤 Testing trap: the dev **service worker caches fixture fetches**. A
+    regenerated `.xlsx` kept loading as the old one until the caches were
+    cleared. And a saved mapping is reused when the recorded headings still
+    hold, so adding a column to a fixture needs `AmsDb.remove('mapping')`.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The
@@ -296,7 +314,7 @@ node tests/failure-paths.js          # and the rest
 Repo tests: `failure-paths`, `column-collision`, `foreign-extras-sheet`,
 `edited-workbook`, `calendar-export`, `session-share`, `progress`, `logging`,
 `move-log`, `leaving-a-form`, `week-wash`, `august-audit`, `rest-day`,
-`photos`, `extra-photos`, `share-app`, `screen-wording`, `plan-overview`, `as-planned`, `voice` (no browser), `say-it`. Fixtures are synthetic and gitignored — **no real
+`photos`, `extra-photos`, `share-app`, `screen-wording`, `plan-overview`, `as-planned`, `voice` (no browser), `say-it`, `road`. Fixtures are synthetic and gitignored — **no real
 training data in this repository**.
 
 Extra scripts live in the session scratchpad and drive Martin's *real*

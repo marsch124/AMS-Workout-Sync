@@ -8,13 +8,27 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.49.0';
+    const CURRENT = '1.50.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.50.0',
+            date: '2026-09-07',
+            headline: 'The road to the race',
+            items: [
+                '**Progress opens with the whole build.** How many weeks to the race, what it is called and when it is, the phases of the plan drawn as one bar with a marker where today falls, and three figures: sessions done, hours banked against hours due, and what the whole thing comes to.',
+                'Today shows this week and Plan shows eight. The one thing nothing could show was the shape of an eleven-month build and how far along it you are — which is the question a plan of that length is an answer to.',
+                '**Every figure is read out of your workbook.** The race is a row in it, the phases are a column in it, the hours are the same ones the week card already adds up. Nothing is configured and nothing is stored: change the plan in Excel and this follows on the next open.',
+                'The phase bar is the plan\u2019s own shape — each band as wide as the days it covers, which is why a taper looks short. The one you are in is lit, the ones behind you are faded.',
+                'The countdown changes unit as the race comes closer: weeks while it is months away, days inside the last three, and **Today** on the day.',
+                'A session dated today counts as neither due nor behind. Opening this at eight in the morning to be told you are behind on a ride you are about to go out on would be the app being wrong on purpose.',
+                'If a plan has no race row it says *the last day of the plan* rather than inventing a race; if it has no phase column, the bar is simply left out and the rest still works.',
+            ]
+        },
         {
             version: '1.49.0',
             date: '2026-09-07',
