@@ -230,6 +230,23 @@ working · 5 charts on Progress. One release each.
   and `.empty-state` padding cut from 2.75rem to 1.8rem because a rest day was
   pushing the one colourful thing on the page (Coming up) below the fold.
 
+- **v1.52.0 — is it working.** `AmsStats.trends()` (pure; `stats.js` now has a
+  `module.exports` guard so `tests/trends.js` runs in plain node). Measure:
+  speed \u00f7 heart rate, which moves for both of the reasons fitness moves it.
+  Fed by `AmsSync.trendRows()` \u2192 `actualsOf()`, which normalises queue and
+  sheet to one shape and **derives speed from distance \u00f7 time** rather than
+  reading the pace column \u2014 that column is km/h, min/km and per-100m
+  depending on the sport, and no average of those three means anything.
+  - 🚨 **This is the only screen making a claim about him, not the plan.** The
+    restraint is the feature: 8 complete sessions per sport minimum, easy
+    (rpe\u22645) preferred when there are enough, a \u00b13% dead band, implausible
+    heart rates dropped, and the split is **by count not by date** so a winter
+    gap cannot compare a season with a fortnight.
+  - The ratio itself is never shown; each sport appears in its own unit. A test
+    asserts that, and asserts the caveats are on screen rather than in comments.
+  - A sport recorded *without* heart rates still gets an entry, so the block can
+    say what is missing instead of vanishing.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The
@@ -323,7 +340,7 @@ node tests/failure-paths.js          # and the rest
 Repo tests: `failure-paths`, `column-collision`, `foreign-extras-sheet`,
 `edited-workbook`, `calendar-export`, `session-share`, `progress`, `logging`,
 `move-log`, `leaving-a-form`, `week-wash`, `august-audit`, `rest-day`,
-`photos`, `extra-photos`, `share-app`, `screen-wording`, `plan-overview`, `as-planned`, `voice` (no browser), `say-it`, `road`. Fixtures are synthetic and gitignored — **no real
+`photos`, `extra-photos`, `share-app`, `screen-wording`, `plan-overview`, `as-planned`, `voice` (no browser), `say-it`, `road`, `trends` (no browser), `is-it-working`. Fixtures are synthetic and gitignored — **no real
 training data in this repository**.
 
 Extra scripts live in the session scratchpad and drive Martin's *real*

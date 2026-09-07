@@ -112,12 +112,29 @@ def season(path, weeks_behind=0, log_until=None):
                 sport, minutes = session
                 planned = round(minutes * scale)
                 logged = log_until is not None and day < log_until
+
+                # A logged session records what it actually took: the planned
+                # minutes, a distance, a heart rate and an effort. The speed
+                # improves slowly across the block at a steady heart rate,
+                # which is the shape "is it working" exists to find — without
+                # it the trend has nothing to read and its test proves nothing.
+                distance = None
+                heart = None
+                effort = None
+                if logged:
+                    base = {'Swim': 2.6, 'Bike': 27.0, 'Run': 10.4}.get(sport)
+                    if base:
+                        speed = base * (1 + week * 0.004)          # km/h, creeping up
+                        distance = round(speed * planned / 60.0, 2)
+                        heart = 138 if sport != 'Swim' else 142
+                        effort = 4
+
                 ws.append([week + 1, day, DAYS[day.weekday()], sport,
                            phase + ': ' + sport.lower() + ' session', planned,
                            'Z2', phase,
                            'Yes' if logged else None,
                            planned if logged else None,
-                           None, 138 if logged else None, None, phase])
+                           distance, heart, effort, phase])
                 written += 1
             for day_index, (sport, minutes) in extra:
                 day = monday + datetime.timedelta(days=week * 7 + day_index)

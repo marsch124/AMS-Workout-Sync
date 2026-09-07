@@ -489,6 +489,73 @@ const AmsSync = (function () {
      * The Progress screen's figures. Everything is derived here and now from
      * the plan already in memory; nothing is cached, and nothing is written.
      */
+    /*
+     * What a logged session actually recorded, in one shape and one set of
+     * units, whether it is still in the queue or already in the sheet.
+     *
+     * Distance comes back in kilometres whatever the workbook counts in, and
+     * speed is left to be derived from distance over time rather than read
+     * from the pace column — that column means km/h on a bike, min/km on a run
+     * and per-100m in the pool, and no average of those three is anything.
+     */
+    function actualsOf(workout, mapping) {
+        const units = mapping.units || {};
+        const number = (value) => {
+            const n = parseFloat(String(value === undefined || value === null ? '' : value)
+                .replace(',', '.'));
+            return isNaN(n) ? 0 : n;
+        };
+
+        let minutes = 0;
+        let distance = 0;
+        let hr = 0;
+        let rpe = 0;
+
+        if (workout.pending && workout.pending.values && !workout.pending.values.moveTo
+            && !workout.pending.values.missed) {
+            const typed = workout.pending.values;
+            const seconds = AmsPlan.parseDuration(typed.actualDuration);
+            minutes = seconds ? seconds / 60 : 0;
+            distance = number(typed.actualDistance);
+            hr = number(typed.avgHr);
+            rpe = number(typed.rpe);
+            // A distance typed on the form is in the unit the form asked for.
+            if ((typed.distanceUnit || 'km') === 'm') distance = distance / 1000;
+            else if ((units.distance || 'km') === 'm' && !typed.distanceUnit) distance = distance / 1000;
+        } else {
+            const cell = (id) => {
+                const value = workout.results && workout.results[id];
+                return value && typeof value.number === 'number' ? value.number : 0;
+            };
+            const seconds = cell('actualDuration')
+                ? AmsPlan.durationFromCell(cell('actualDuration'), units.duration || 'hours')
+                : 0;
+            minutes = seconds ? seconds / 60 : 0;
+            distance = cell('actualDistance');
+            if ((units.distance || 'km') === 'm') distance = distance / 1000;
+            hr = cell('avgHr');
+            rpe = cell('rpe');
+        }
+
+        return {
+            sport: workout.discipline.id,
+            dayKey: workout.dayKey,
+            minutes: minutes,
+            km: distance,
+            hr: hr,
+            rpe: rpe
+        };
+    }
+
+    /* Every session that has actually been recorded, as trend rows. */
+    function trendRows() {
+        const state = getState();
+        const mapping = state.mapping || {};
+        return (state.plan || [])
+            .filter((w) => w.discipline.id !== 'rest' && isRecorded(w) && !isMissed(w))
+            .map((w) => actualsOf(w, mapping));
+    }
+
     async function stats() {
         const state = getState();
         const mapping = state.mapping || {};
@@ -503,7 +570,10 @@ const AmsSync = (function () {
             isRecorded: isRecorded,
             orderOf: AmsPlan.disciplineOrder,
             plannedSecondsOf: (workout) => AmsPlan.plannedDurationSeconds(workout, mapping)
-        }), { hasPlan: !!(state.plan && state.plan.length) });
+        }), {
+            hasPlan: !!(state.plan && state.plan.length),
+            trends: AmsStats.trends({ rows: trendRows() })
+        });
     }
 
     /*
@@ -1263,6 +1333,7 @@ const AmsSync = (function () {
         isMissed,
         outstanding,
         weekSummary,
+        trendRows,
         weekDays,
         weekStart
     };

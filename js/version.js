@@ -8,13 +8,27 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.51.0';
+    const CURRENT = '1.52.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.52.0',
+            date: '2026-09-07',
+            headline: 'Is it working?',
+            items: [
+                '**The question logging is actually for.** Progress now answers it, one sport at a time: *5:40 /km at 138 bpm* then, *5:28 /km at 138 bpm* now.',
+                'What it measures is **how far you travel per heartbeat**. Going faster at the same heart rate moves it; so does the same speed at a lower one. Both of those are fitness, and both are built from the three numbers you already write down — distance, time and average heart rate.',
+                'Each sport is shown in the unit it is spoken in: min/km for a run, km/h on a bike, per 100m in the pool. The ratio underneath is never put on the screen, because nobody thinks in it.',
+                '**It would rather say nothing than guess.** Eight sessions of one sport carrying all three numbers, or it tells you how many are still needed. Only easy sessions are compared where there are enough of them — steady work is where aerobic fitness shows, and a set of intervals is a different question wearing the same numbers.',
+                'And a three per cent band in the middle where it simply says *holding steady*, because a good night\u2019s sleep is worth about that much and it should not be announced as progress.',
+                'If you have been logging sessions but not heart rates, it says so and tells you what is missing rather than staying quiet.',
+                'It is worth reading over months rather than weeks. Heart rate answers to heat, sleep, coffee and stress as well as to training, and the screen says that too.',
+            ]
+        },
         {
             version: '1.51.0',
             date: '2026-09-07',

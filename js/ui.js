@@ -4042,7 +4042,20 @@ const AmsUi = (function () {
                 + '— so nothing is configured and nothing is stored. A plan with no race row says <em>the '
                 + 'last day of the plan</em> rather than inventing one, and a plan with no phase column '
                 + 'simply gets no bar. A session dated today counts as neither due nor behind.</p>'
-                + '<p>Below it, three things your workbook cannot say about itself: '
+                + '<p><strong>Is it working?</strong> comes next, and it is the only thing in this app '
+                + 'that makes a claim about you rather than about the plan. It measures how far you '
+                + 'travel per heartbeat — distance over time, divided by average heart rate — then '
+                + 'against now, one sport at a time, shown in the unit that sport is spoken in. Going '
+                + 'faster at the same heart rate moves it; so does the same speed at a lower one.</p>'
+                + '<p>It only counts sessions carrying a distance, a time <em>and</em> an average heart '
+                + 'rate, and it wants eight of one sport before it will say anything — otherwise it tells '
+                + 'you how many are still needed. Where there are enough easy sessions it uses only those, '
+                + 'because steady work is where aerobic fitness shows and a set of intervals is a '
+                + 'different question wearing the same numbers. Inside three per cent either way it says '
+                + '<em>holding steady</em>: a good night\u2019s sleep is worth about that much. Heart rate '
+                + 'answers to heat, sleep, coffee and stress as well as to training, so read it over '
+                + 'months rather than weeks.</p>'
+                + '<p>Below that, three things your workbook cannot say about itself: '
                 + 'which sport is running behind, how many sessions you have '
                 + 'kept in a row, and how often one was moved rather than lost. It is worked out from your '
                 + 'sessions each time you open it, and it never writes anything: the totals and the chart '
@@ -4725,6 +4738,113 @@ const AmsUi = (function () {
 
     let progressToken = 0;
 
+    /* ---------- is it working ---------- */
+
+    /*
+     * Then against now, in the units the sport is actually spoken in: minutes
+     * per kilometre for a run, kilometres an hour on a bike, per hundred
+     * metres in the pool. The arithmetic underneath is one number — speed per
+     * heartbeat — but nobody thinks in that, so it is never the thing shown.
+     * What is shown is the pace and the heart rate that produced it, twice,
+     * and the sentence that follows from the pair.
+     */
+    const TREND_LABEL = { swim: 'Swims', bike: 'Rides', run: 'Runs' };
+
+    function paceText(sport, speedKmh) {
+        if (!(speedKmh > 0)) return '—';
+        if (sport === 'bike') return (Math.round(speedKmh * 10) / 10) + ' km/h';
+
+        const secondsPerKm = 3600 / speedKmh;
+        const per = sport === 'swim' ? secondsPerKm / 10 : secondsPerKm;   // per 100m in the pool
+        const minutes = Math.floor(per / 60);
+        const seconds = Math.round(per - minutes * 60);
+        const rolled = seconds === 60 ? [minutes + 1, 0] : [minutes, seconds];
+        return rolled[0] + ':' + (rolled[1] < 10 ? '0' : '') + rolled[1]
+            + (sport === 'swim' ? ' /100m' : ' /km');
+    }
+
+    const TREND_VERDICT = {
+        better: 'Better — you are covering more ground for the same heartbeats.',
+        level: 'Holding steady.',
+        down: 'Down a little. Heat, fatigue, hills and a hard block all do this; one stretch is not a verdict.'
+    };
+
+    function trendBlock(trends) {
+        if (!trends || !trends.sports.length) return '';
+
+        const shown = trends.sports.filter((s) => s.enough);
+        const waiting = trends.sports.filter((s) => !s.enough);
+
+        if (!shown.length) {
+            // Say what is missing rather than nothing at all: the answer is
+            // "not yet", and "not yet" is only useful with a count attached.
+            const nearest = waiting.slice().sort((a, b) => b.have - a.have)[0];
+            if (!nearest) return '';
+            const so_far = nearest.have === 0 ? 'there are none yet'
+                : nearest.have === 1 ? 'there is one so far'
+                : 'there are ' + nearest.have + ' so far';
+            return '<div class="card stat-card">'
+                + '<p class="stat-title">Is it working?</p>'
+                + '<p class="stat-lede">Not enough logged yet to answer this honestly. It needs '
+                + nearest.need + ' sessions of one sport carrying a distance, a time '
+                + '<em>and</em> an average heart rate — ' + so_far + '. '
+                + 'Saying it out loud is the quick way: "8 km, 45 minutes, 138 bpm".</p>'
+                + '</div>';
+        }
+
+        const cards = shown.map((sport) => {
+            const change = Math.round(sport.change * 100);
+            const arrow = sport.verdict === 'better' ? '↑' : sport.verdict === 'down' ? '↓' : '→';
+
+            return '<div class="trend">'
+                + '<p class="trend-sport">' + esc(TREND_LABEL[sport.sport] || sport.sport) + '</p>'
+                + '<div class="trend-pair">'
+                + '<div class="trend-half">'
+                + '<span class="trend-when">then</span>'
+                + '<span class="trend-pace">' + esc(paceText(sport.sport, sport.then.speed)) + '</span>'
+                + '<span class="trend-hr">at ' + Math.round(sport.then.hr) + ' bpm</span>'
+                + '</div>'
+                + '<span class="trend-arrow is-' + esc(sport.verdict) + '">' + arrow + '</span>'
+                + '<div class="trend-half">'
+                + '<span class="trend-when">now</span>'
+                + '<span class="trend-pace">' + esc(paceText(sport.sport, sport.now.speed)) + '</span>'
+                + '<span class="trend-hr">at ' + Math.round(sport.now.hr) + ' bpm</span>'
+                + '</div>'
+                + '</div>'
+                + '<p class="trend-verdict is-' + esc(sport.verdict) + '">'
+                + (change > 0 ? '+' : '') + change + '% · ' + TREND_VERDICT[sport.verdict] + '</p>'
+                + '<p class="trend-basis">'
+                + sport.sessions + ' logged '
+                + (sport.easyOnly ? 'easy sessions' : 'sessions of every kind')
+                + ', the first ' + sport.then.sessions + ' against the last ' + sport.now.sessions
+                + '.</p>'
+                + '</div>';
+        }).join('');
+
+        const stillWaiting = waiting.filter((s) => s.have)
+            .map((s) => (TREND_LABEL[s.sport] || s.sport).toLowerCase() + ' (' + s.have + ' of ' + s.need + ')');
+
+        return '<div class="card stat-card">'
+            + '<p class="stat-title">Is it working?</p>'
+            + '<p class="stat-lede">How far you travel per heartbeat, then against now. Going faster '
+            + 'at the same heart rate moves it; so does the same speed at a lower one. Both are '
+            + 'fitness.</p>'
+            + cards
+            + (stillWaiting.length
+                ? '<p class="stat-note">Not enough yet for ' + esc(stillWaiting.join(', ')) + '.</p>'
+                : '')
+            + '<p class="stat-note">Only sessions carrying a distance, a time and an average heart '
+            + 'rate can be counted'
+            + (shown.some((s) => s.easyOnly)
+                ? ', and easy ones are preferred where there are enough of them — steady work is where '
+                + 'aerobic fitness shows, and a session of intervals is a different question wearing '
+                + 'the same numbers'
+                : '')
+            + '. Heart rate answers to heat, sleep, coffee and stress as well as to training, so this '
+            + 'is worth reading over months rather than weeks.</p>'
+            + '</div>';
+    }
+
     /* ---------- the road to the race ---------- */
 
     /*
@@ -5090,7 +5210,8 @@ const AmsUi = (function () {
             + (moves.since ? ' since ' + esc(shortDay(new Date(moves.since))) : '')
             + ', on this phone only. Anything rescheduled in Excel is invisible here.');
 
-        body.innerHTML = road + preamble + summary + consistency + sportBlock + movesBlock
+        body.innerHTML = road + trendBlock(stats.trends) + preamble + summary + consistency
+            + sportBlock + movesBlock
             + '<p class="stat-footnote">Worked out from the sessions in your workbook each time this '
             + 'screen is opened. Nothing here is stored in the plan, and nothing here writes to it — '
             + 'the totals and the chart on your Progress sheet remain the ones Excel keeps.</p>';

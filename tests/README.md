@@ -33,8 +33,10 @@ node tests/plan-overview.js
 node tests/as-planned.js
 node tests/say-it.js
 node tests/road.js
+node tests/is-it-working.js
 
 node tests/voice.js          # no browser, no server — pure parser
+node tests/trends.js         # no browser, no server — pure arithmetic
 ```
 
 Each script prints what it found and ends with `errors: none`. Nothing is
@@ -227,6 +229,24 @@ sits where today actually falls; the countdown changes unit as the race nears.
 And the one that matters daily: **a session dated today is neither due nor
 behind**. Uses `season-underway.xlsx`, which starts twenty weeks ago with the
 past logged, because day one exercises none of those figures.
+
+**`trends.js`** — the arithmetic behind "Is it working?", in plain node. This
+is the only screen in the app that makes a claim about the person rather than
+the plan, which puts a different weight on it: saying "you are getting fitter"
+on three sessions and a warm afternoon would be worse than saying nothing, and
+it would be believed. So most of what is tested is restraint — when it refuses
+to answer, the size of the band in which it says "about the same", what it will
+not count, and that the split is by count rather than by date so a winter gap
+cannot compare a season with a fortnight. It also checks the measure moves for
+*both* the reasons fitness moves it: faster at the same heart rate, and the
+same speed at a lower one.
+
+**`is-it-working.js`** — the same block once drawn, where what matters is the
+wording. Each sport in the unit it is spoken in and never the ratio underneath;
+every pace accompanied by the heart rate that produced it; the caveats on the
+screen rather than in the comments; and, for somebody who has been logging
+durations and nothing else, that it says what is missing instead of quietly
+not appearing.
 
 ## Fixtures
 
