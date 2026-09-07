@@ -4094,21 +4094,9 @@ const AmsUi = (function () {
                 + 'it, and logging again overwrites, so nothing about it is hard to undo. It is offered on '
                 + 'anything with a planned length not yet recorded, a session marked missed included.</p>'
 
-                + '<p><strong>Say it</strong> sits at the top of the log form. Tap the box, press the '
-                + 'microphone on your keyboard, say the session, and press <em>Read it into the form</em>. '
-                + '"8.2 km, 45 minutes, 5:30 per km, 138 bpm, felt like a 7" fills five fields.</p>'
-                + '<p><strong>Order does not matter</strong> — every number is identified by the words '
-                + 'around it rather than by where it sits, so "138 bpm" is a heart rate wherever you say '
-                + 'it. Spoken numbers work as well as digits: <em>forty five minutes</em>, <em>heart rate '
-                + 'one thirty eight</em>, <em>eight point two kilometres</em>. If you say nothing but bare '
-                + 'numbers it falls back to the order Garmin lists them in for that sport, skipping any '
-                + 'field the number could not plausibly be.</p>'
-                + '<p><strong>It fills the form and never saves.</strong> That is deliberate: a mishearing '
-                + 'that wrote itself into your workbook would be the worst thing this app could do. It '
-                + 'tells you what it understood, what your sheet has no column for, and what it could not '
-                + 'place — and then leaves Save to you.</p>'
-                + '<p>The box is the feature; the microphone button beside it only appears where the '
-                + 'browser has a recogniser of its own, and only saves opening the keyboard.</p>'
+                + '<p><strong>Say it</strong> sits at the top of the log form: say the session and '
+                + 'the fields fill in. There is a section of its own further down with every word it '
+                + 'knows.</p>'
 
                 + '<p><strong>Log</strong> asks first for the numbers that suit the sport; every other column '
                 + 'your sheet has is one tap away, and once you ask for the full set it keeps showing it. '
@@ -4155,6 +4143,73 @@ const AmsUi = (function () {
                 + 'the flat rest line for that day. Nothing is written to the sheet: the rest row is '
                 + 'exactly where it was, and moving the session away again brings the rest day straight '
                 + 'back.</p>')
+
+            + section('Say it \u2014 every word it knows',
+                '<p>Say the session and the form fills in. <em>"8.2 km, 45 minutes, 5:30 per km, '
+                + '138 bpm, felt like a 7"</em> reaches five fields at once.</p>'
+
+                + '<p><strong>Tap the box and use the microphone on your own keyboard.</strong> That is '
+                + 'the way that works on every phone. Where the browser has a recogniser of its own there '
+                + 'is a microphone button beside the box as well, which only saves opening the keyboard — '
+                + 'if it is not there, nothing is missing. Then press <em>Read it into the form</em>.</p>'
+
+                + '<p><strong>It fills the form. It never saves.</strong> That is the whole reason it is '
+                + 'allowed to guess: everything it works out lands in a field where you can see it, and '
+                + 'Save is still yours to press. It also says what it understood, what your sheet has no '
+                + 'column for, and any number it could not place.</p>'
+
+                + '<p><strong>The order is yours.</strong> Every number is identified by the words around '
+                + 'it, never by where it sits, so all of these are the same session:</p>'
+                + '<ul>'
+                + '<li>"8.2 km, 45 minutes, 5:30 per km, 138 bpm"</li>'
+                + '<li>"138 bpm, 5:30 per km, 45 minutes, 8.2 km"</li>'
+                + '<li>"forty five minutes and eight point two kilometres, heart rate one thirty eight"</li>'
+                + '</ul>'
+
+                + '<p><strong>Numbers may be spoken or typed.</strong> <em>forty five</em>, <em>one '
+                + 'thirty eight</em>, <em>a hundred and forty two</em>, <em>eight point two</em> all '
+                + 'arrive as figures.</p>'
+
+                + '<p><strong>What it listens for</strong> \u2014 any one of these words identifies the '
+                + 'number beside it. This list is printed from the app itself, so it is never out of '
+                + 'date.</p>'
+                + AmsVoice.vocabulary().map((field) =>
+                    '<div class="say-words">'
+                    + '<p class="say-words-name">' + esc(field.name) + '</p>'
+                    + '<p class="say-words-list">'
+                    + field.units.concat(field.labels).map((w) => '<code>' + esc(w) + '</code>').join(' ')
+                    + '</p>'
+                    + (field.examples.length
+                        ? '<p class="say-words-eg">' + field.examples.map(esc).join(' &middot; ') + '</p>'
+                        : '')
+                    + '</div>').join('')
+
+                + '<p><strong>Some things need no number at all.</strong> <em>half an hour</em>, '
+                + '<em>an hour</em>, <em>an hour and a half</em>, <em>a quarter of an hour</em>. And for '
+                + 'effort: <em>felt easy</em> is a 3, <em>felt steady</em> a 4, <em>felt hard</em> a 7, '
+                + '<em>felt very hard</em> an 8, <em>felt flat out</em> a 10. Those last ones are the app '
+                + 'putting words in your mouth, which is only fair because you can see the number it '
+                + 'chose and change it.</p>'
+
+                + '<p><strong>A time with a colon</strong> is read for what it most likely is. On its own, '
+                + '<em>1:15</em> is an hour and a quarter; said after a duration, <em>5:30</em> is a pace. '
+                + '<em>1:02:30</em> is an hour, two minutes and thirty seconds.</p>'
+
+                + '<p><strong>Metres stay metres in the pool</strong> and become kilometres anywhere the '
+                + 'sheet counts kilometres, so "2400 metres" is 2400 on a swim and 2.4 on a ride.</p>'
+
+                + '<p><strong>Your one Avg Pace/Pwr column</strong> means a different thing on each sport, '
+                + 'and this follows it: a km/h said on a bike goes in it, a min/km on a run, a per-100 in '
+                + 'the pool.</p>'
+
+                + '<p><strong>If you only read the numbers off</strong> with no words at all, it falls '
+                + 'back to the order Garmin Connect shows them in for that sport \u2014 and skips any '
+                + 'field the number could not plausibly belong to, so a 620 will not be taken for a swim '
+                + 'pace. Where Garmin\u2019s own order differs between an indoor and an outdoor run, only '
+                + 'the part they agree on is guessed at; the rest is left for you rather than invented.</p>'
+
+                + '<p>Say two of the same thing and the first one wins. Say something with no numbers in '
+                + 'it at all and nothing happens, which is the right amount of happening.</p>')
 
             + section('Changing the plan in Excel',
                 '<p>Shortening sessions, rewriting a workout, reshaping a week — all safe to do in Excel '

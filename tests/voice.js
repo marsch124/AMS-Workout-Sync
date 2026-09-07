@@ -175,6 +175,77 @@ cases.forEach(([text, sport, want, why]) => {
 });
 
 console.log('');
+console.log('THINGS THAT MEAN A NUMBER WITHOUT BEING ONE');
+
+[
+  ['half an hour', 'run', { actualDuration: '30' }],
+  ['an hour', 'bike', { actualDuration: '60' }],
+  ['an hour and a half', 'bike', { actualDuration: '90' }],
+  ['a quarter of an hour', 'run', { actualDuration: '15' }],
+  ['42 km in an hour and a half', 'bike', { actualDistance: '42', actualDuration: '90' }],
+  ['felt easy', 'run', { rpe: '3' }],
+  ['felt steady', 'run', { rpe: '4' }],
+  ['felt hard', 'run', { rpe: '7' }],
+  ['felt very hard', 'run', { rpe: '8' }],
+  ['felt flat out', 'run', { rpe: '10' }],
+  ['seven out of ten', 'run', { rpe: '7' }],
+  ['45 minutes and it felt easy', 'run', { actualDuration: '45', rpe: '3' }],
+  ['300 metres of climbing', 'bike', { elevation: '300' }],
+  ['8 km, 300 metres of climbing, 1 hour 20', 'bike',
+    { actualDistance: '8', elevation: '300', actualDuration: '80' }],
+  ['pulse 142', 'run', { avgHr: '142' }],
+  ['rpe of 6', 'run', { rpe: '6' }],
+  ['88 rpm', 'bike', { cadence: '88' }]
+].forEach(([text, sport, want]) => {
+  const got = AmsVoice.parse(text, { sport: sport }).values;
+  line('"' + text + '"', JSON.stringify(got));
+  Object.keys(want).forEach((field) => {
+    check('phrase: ' + text, got[field] === want[field],
+      field + ': wanted ' + want[field] + ', got ' + got[field]);
+  });
+  // "seven out of ten" must not leave the ten behind looking for a home.
+  check('phrase leaves nothing stray: ' + text,
+    Object.keys(got).length === Object.keys(want).length,
+    'got ' + JSON.stringify(got));
+});
+
+// The one that caught itself: "an hour" becomes sixty minutes, and must not
+// do so inside "kilometres an hour".
+console.log('');
+console.log('AND THE RULES DO NOT EAT EACH OTHER');
+[
+  ['32 kilometres an hour', 'bike', { avgSpeed: '32' }],
+  ['32 km per hour', 'bike', { avgSpeed: '32' }]
+].forEach(([text, sport, want]) => {
+  const got = AmsVoice.parse(text, { sport: sport }).values;
+  line('"' + text + '"', JSON.stringify(got));
+  Object.keys(want).forEach((field) => {
+    check('no rule eaten: ' + text, got[field] === want[field],
+      field + ': wanted ' + want[field] + ', got ' + got[field]);
+  });
+});
+
+console.log('');
+console.log('THE VOCABULARY IT PUBLISHES IS THE ONE IT USES');
+
+const vocab = AmsVoice.vocabulary();
+line('groups', vocab.map(f => f.name).join(', '));
+line('words in all', vocab.reduce((n, f) => n + f.units.length + f.labels.length, 0));
+check('every group has words', vocab.every(f => f.units.length + f.labels.length > 0));
+check('every group has an example', vocab.every(f => f.examples.length > 0));
+
+// Every published example must actually parse into the field it is filed
+// under — a reference full of phrasings that do not work is worse than none.
+vocab.forEach((field) => {
+  field.examples.forEach((example) => {
+    const sport = field.id === 'avgSpeed' ? 'bike' : field.id === 'avgPace' ? 'run' : 'run';
+    const got = AmsVoice.parse(example, { sport: sport }).values;
+    check('the published example "' + example + '" gives ' + field.id,
+      got[field.id] !== undefined, JSON.stringify(got));
+  });
+});
+
+console.log('');
 console.log('NOTHING IS DROPPED IN SILENCE');
 
 const limited = AmsVoice.parse('45 minutes, 620 calories, 138 bpm', {

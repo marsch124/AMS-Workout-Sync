@@ -8,13 +8,25 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.48.0';
+    const CURRENT = '1.49.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.49.0',
+            date: '2026-09-07',
+            headline: 'Every word Say it knows',
+            items: [
+                '**How this works** has a section of its own for Say it now, with every word it listens for, grouped by what it fills in, and worked examples for each.',
+                '**That list is printed by the app from its own dictionary**, not typed out by hand. It cannot go out of date: add a word to the app and the guide grows it. There is a test that fails if the two ever disagree.',
+                '**And the dictionary is wider.** Things that mean a number without being one: *half an hour*, *an hour*, *an hour and a half*, *a quarter of an hour*. Effort in words: *felt easy* is a 3, *felt steady* a 4, *felt hard* a 7, *felt very hard* an 8, *felt flat out* a 10 — and *seven out of ten* works too.',
+                'Also added: *pulse* for heart rate, *rpe of 6*, *88 rpm* for cadence, and *300 metres of climbing*, which used to be read as three hundred metres of distance.',
+                'Every example printed in the guide is checked by a test that it really does what it says — a reference full of phrasings that do not work would be worse than no reference.',
+            ]
+        },
         {
             version: '1.48.0',
             date: '2026-09-07',

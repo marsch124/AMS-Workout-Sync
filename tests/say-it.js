@@ -170,6 +170,72 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(40) + v);
     errors.push('nothing tells him to use the keyboard microphone, which is the reliable route');
   }
 
+  // ---------------------------------------------------------------- 5
+  console.log('');
+  console.log('THE GUIDE LISTS WHAT THE PARSER KNOWS');
+
+  const guide = await page.evaluate(async () => {
+    document.querySelector('.tab[data-tab="settings"]').click();
+    await new Promise(r => setTimeout(r, 400));
+    [...document.querySelectorAll('#settingsBody [data-go]')]
+      .find(n => n.dataset.go === 'guide').click();
+    await new Promise(r => setTimeout(r, 500));
+
+    const heads = [...document.querySelectorAll('#guideBody *')]
+      .filter(n => /every word it knows/i.test(n.textContent) && n.children.length === 0);
+    if (!heads.length) return { error: 'no "Say it" section in the guide' };
+    heads[heads.length - 1].click();
+    await new Promise(r => setTimeout(r, 400));
+
+    const printed = [...document.querySelectorAll('.say-words-list code')].map(n => n.textContent);
+    const groups = [...document.querySelectorAll('.say-words-name')].map(n => n.textContent);
+    const known = AmsVoice.vocabulary();
+
+    const everyWord = [];
+    known.forEach((field) => field.units.concat(field.labels).forEach(w => everyWord.push(w)));
+
+    return {
+      groups: groups,
+      printed: printed.length,
+      known: everyWord.length,
+      missing: everyWord.filter(w => printed.indexOf(w) === -1),
+      groupsMissing: known.map(f => f.name).filter(n => groups.indexOf(n) === -1),
+      // The prose either side of the list has to be there too.
+      saysItNeverSaves: /never saves/i.test(document.getElementById('guideBody').innerText),
+      saysOrderIsYours: /order is yours/i.test(document.getElementById('guideBody').innerText),
+      saysKeyboard: /microphone on your own keyboard/i.test(document.getElementById('guideBody').innerText),
+      saysGarmin: /Garmin/i.test(document.getElementById('guideBody').innerText),
+      saysSharedColumn: /Avg Pace\/Pwr/i.test(document.getElementById('guideBody').innerText),
+      examples: [...document.querySelectorAll('.say-words-eg')].length
+    };
+  });
+
+  if (guide.error) { errors.push(guide.error); }
+  else {
+    line('groups printed', guide.groups.length + ' — ' + guide.groups.join(', '));
+    line('words printed vs known', guide.printed + ' of ' + guide.known);
+    line('example lines', guide.examples);
+
+    /*
+     * The list in the guide is generated from the parser's own tables, so this
+     * cannot drift — which is exactly what it is here to prove. A hand-typed
+     * list would be wrong the first time a word was added and nobody went back
+     * to the guide.
+     */
+    if (guide.missing.length) {
+      errors.push('the guide does not list: ' + guide.missing.join(', '));
+    }
+    if (guide.groupsMissing.length) {
+      errors.push('the guide is missing a whole group: ' + guide.groupsMissing.join(', '));
+    }
+    if (!guide.examples) errors.push('no worked examples in the guide');
+    if (!guide.saysItNeverSaves) errors.push('the guide does not say it never saves');
+    if (!guide.saysOrderIsYours) errors.push('the guide does not say the order is his');
+    if (!guide.saysKeyboard) errors.push('the guide does not point at the keyboard microphone');
+    if (!guide.saysGarmin) errors.push('the guide does not explain the bare-number fallback');
+    if (!guide.saysSharedColumn) errors.push('the guide does not cover the shared pace column');
+  }
+
   console.log('');
   console.log('errors: ' + (errors.length ? '\n  - ' + errors.join('\n  - ') : 'none'));
   await browser.close();

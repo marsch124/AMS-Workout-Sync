@@ -76,7 +76,7 @@ const AmsVoice = (function () {
         ['ascent', 'elevation'], ['climb', 'elevation'],
 
         ['perceived effort', 'rpe'], ['felt like a', 'rpe'], ['felt like', 'rpe'],
-        ['effort', 'rpe'], ['rpe', 'rpe']
+        ['effort of', 'rpe'], ['effort', 'rpe'], ['rpe of', 'rpe'], ['rpe', 'rpe']
     ];
 
     /*
@@ -96,6 +96,15 @@ const AmsVoice = (function () {
         ['kilometres per hour', 'avgSpeed'], ['kilometers per hour', 'avgSpeed'],
         ['km an hour', 'avgSpeed'], ['km per hour', 'avgSpeed'],
         ['km/h', 'avgSpeed'], ['kmh', 'avgSpeed'], ['kph', 'avgSpeed'],
+
+        // Elevation before the plain metres, or "300 metres of climbing"
+        // reads as three hundred metres of distance.
+        ['metres of climbing', 'elevation'], ['meters of climbing', 'elevation'],
+        ['metres of ascent', 'elevation'], ['meters of ascent', 'elevation'],
+        ['metres of elevation', 'elevation'], ['meters of elevation', 'elevation'],
+        ['m of climbing', 'elevation'], ['m of ascent', 'elevation'],
+
+        ['out of ten', 'rpe'], ['out of 10', 'rpe'],
 
         ['beats per minute', 'avgHr'], ['bpm', 'avgHr'], ['beats', 'avgHr'],
         ['watts', 'avgPower'], ['watt', 'avgPower'],
@@ -207,6 +216,49 @@ const AmsVoice = (function () {
         return out.join(' ');
     }
 
+    /*
+     * Things people say that mean a number without containing one. Replaced
+     * before anything else looks at the text, longest first — "an hour and a
+     * half" has to be dealt with before "an hour" gets to it.
+     *
+     * The effort words are the liberty here: "felt hard" becomes an effort of
+     * 7. That is a reading rather than a transcription, and it is only
+     * defensible because nothing is saved — it lands in the box, where a
+     * disagreement costs one tap.
+     */
+    const PHRASES = [
+        /*
+         * Speeds first. "an hour" becomes sixty minutes a few lines down, and
+         * left to it "32 kilometres an hour" turned into a distance followed
+         * by a duration — the unit eaten by the rule meant for the duration.
+         */
+        [/\b(kilometres|kilometers|km|k) (an|per) hour\b/g, 'km/h'],
+
+        [/\ban hour and a half\b/g, '90 minutes'],
+        [/\bone and a half hours\b/g, '90 minutes'],
+        [/\btwo and a half hours\b/g, '150 minutes'],
+        [/\bhalf an hour\b/g, '30 minutes'],
+        [/\ba quarter of an hour\b/g, '15 minutes'],
+        [/\bthree quarters of an hour\b/g, '45 minutes'],
+        [/\ban hour\b/g, '60 minutes'],
+
+        [/\bfelt (?:very|really) hard\b/g, 'effort 8'],
+        [/\bfelt (?:flat|all) out\b/g, 'effort 10'],
+        [/\bfelt hard\b/g, 'effort 7'],
+        [/\bfelt steady\b/g, 'effort 4'],
+        [/\bfelt (?:very )?easy\b/g, 'effort 3']
+    ];
+
+    /*
+     * Run after the spoken numbers have become digits, because that is the
+     * only point at which "seven out of ten" is "7 out of 10" and the ten can
+     * be folded away. Left alone it stayed in the sentence as a number of its
+     * own and went looking for a field to live in.
+     */
+    const PHRASES_AFTER = [
+        [/\b(\d+(?:\.\d+)?)\s+out of\s+10\b/g, 'effort $1']
+    ];
+
     function normalise(text) {
         let out = String(text || '').toLowerCase();
         out = out.replace(/[，,](?=\s)/g, ' ');          // a comma used as punctuation
@@ -214,7 +266,11 @@ const AmsVoice = (function () {
         out = out.replace(/[^\w\s:./-]/g, ' ');
         out = out.replace(/\bhrs?\b/g, ' hours ');
         out = out.replace(/\s+/g, ' ').trim();
-        return wordsToDigits(out);
+        for (const [pattern, replacement] of PHRASES) out = out.replace(pattern, replacement);
+        out = out.replace(/\s+/g, ' ').trim();
+        out = wordsToDigits(out);
+        for (const [pattern, replacement] of PHRASES_AFTER) out = out.replace(pattern, replacement);
+        return out.replace(/\s+/g, ' ').trim();
     }
 
     /* Every number in the text, with where it sits and what shape it has. */
@@ -526,11 +582,66 @@ const AmsVoice = (function () {
         return recognition;
     }
 
+    /*
+     * What it knows, read out of the very tables it matches against.
+     *
+     * The guide prints this rather than a list somebody typed out, because a
+     * typed list is wrong the first time a word is added here and nobody
+     * remembers to go and change it. Only the examples are prose.
+     */
+    const FIELD_NAMES = {
+        actualDistance: 'Distance', actualDuration: 'Time', avgHr: 'Heart rate',
+        maxHr: 'Highest heart rate', avgPace: 'Pace', avgSpeed: 'Speed',
+        avgPower: 'Power', cadence: 'Cadence', calories: 'Calories',
+        elevation: 'Climbing', rpe: 'Perceived effort'
+    };
+
+    const EXAMPLES = {
+        actualDistance: ['8.2 km', '2400 metres', '2.4 k', 'eight point two kilometres'],
+        actualDuration: ['45 minutes', '1:15', '1 hour 20', 'half an hour',
+                         'an hour and a half', 'forty five minutes'],
+        avgHr: ['138 bpm', 'heart rate 138', 'average heart rate one thirty eight', 'pulse 142'],
+        maxHr: ['max heart rate 171', 'peak heart rate 171'],
+        avgPace: ['5:30 per km', '1:52 per hundred', 'pace 4:52'],
+        avgSpeed: ['32 km/h', '32 kilometres an hour', 'average speed 31.5'],
+        avgPower: ['210 watts', 'average power 205'],
+        cadence: ['88 rpm', 'cadence 172'],
+        calories: ['620 calories', '620 kcal'],
+        elevation: ['300 metres of climbing', 'elevation 450'],
+        rpe: ['felt like a 7', 'effort 8', 'seven out of ten', 'felt hard', 'felt easy']
+    };
+
+    function vocabulary() {
+        const byField = {};
+        const add = (field, word, kind) => {
+            if (!FIELD_NAMES[field]) return;
+            if (!byField[field]) byField[field] = { units: [], labels: [] };
+            const list = byField[field][kind];
+            if (list.indexOf(word) === -1) list.push(word);
+        };
+        UNITS.forEach(function (row) { add(row[1], row[0], 'units'); });
+        LABELS.forEach(function (row) { add(row[1], row[0], 'labels'); });
+
+        return Object.keys(FIELD_NAMES)
+            .filter(function (field) { return byField[field]; })
+            .map(function (field) {
+                return {
+                    id: field,
+                    name: FIELD_NAMES[field],
+                    units: byField[field].units,
+                    labels: byField[field].labels,
+                    examples: EXAMPLES[field] || []
+                };
+            });
+    }
+
     return {
         parse: parse,
         supported: supported,
         listen: listen,
+        vocabulary: vocabulary,
         SPOKEN_ORDER: SPOKEN_ORDER,
+        FIELD_NAMES: FIELD_NAMES,
         __normalise: normalise
     };
 })();

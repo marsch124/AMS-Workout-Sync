@@ -2265,3 +2265,39 @@ body.is-viewing-photo .tab-bar { display: none; }
 @media (prefers-reduced-motion: reduce) {
     .say-mic.is-listening { animation: none; }
 }
+
+/* The list of words "Say it" knows, printed from the parser's own tables. */
+.say-words {
+    margin: 0 0 0.7rem;
+    padding: 0.5rem 0.6rem;
+    background: var(--color-surface-2);
+    border-radius: var(--radius-sm);
+}
+
+.say-words-name {
+    margin: 0 0 0.3rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.say-words-list {
+    margin: 0;
+    line-height: 1.9;
+}
+
+.say-words-list code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.72rem;
+    background: var(--color-surface);
+    padding: 0.1rem 0.32rem;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.say-words-eg {
+    margin: 0.4rem 0 0;
+    font-size: 0.76rem;
+    font-style: italic;
+    color: var(--color-text-secondary);
+}

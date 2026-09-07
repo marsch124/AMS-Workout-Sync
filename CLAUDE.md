@@ -191,6 +191,18 @@ working · 5 charts on Progress. One release each.
     speed into `avgPace` when there is no `avgSpeed` column and the sport's
     pace field asks for km/h.
 
+- **v1.49.0 — the vocabulary, published.** The guide's word list is **generated
+  from `AmsVoice.vocabulary()`**, which reads the parser's own `UNITS`/`LABELS`
+  tables. A hand-typed list would be wrong the first time a word was added.
+  `tests/say-it.js` asserts every known word appears in the rendered guide
+  (108 of 108), and `tests/voice.js` asserts every *published example* actually
+  parses into the field it is filed under.
+  - 🪤 `PHRASES` rewrites text before the numbers are read, and the rules can
+    eat each other: `an hour → 60 minutes` destroyed `32 kilometres an hour`
+    until the speed rule was put first. `PHRASES_AFTER` runs post-digits, which
+    is the only point at which "seven out of ten" is "7 out of 10" and the ten
+    can be folded away.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The
