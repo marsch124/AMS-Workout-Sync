@@ -547,6 +547,37 @@ const AmsSync = (function () {
         };
     }
 
+    /*
+     * Every session in a window, with what it asked for and what it got. A
+     * session not recorded contributes nothing to `actual`, which is the whole
+     * point: an unanswered week should look like an empty one.
+     */
+    function loadRows() {
+        const state = getState();
+        const mapping = state.mapping || {};
+        return (state.plan || [])
+            .filter((w) => w.discipline.id !== 'rest')
+            .map((w) => {
+                const done = isRecorded(w) && !isMissed(w);
+                const actuals = done ? actualsOf(w, mapping) : null;
+                return {
+                    sport: w.discipline.id,
+                    dayKey: w.dayKey,
+                    planned: AmsPlan.plannedDurationSeconds(w, mapping) || 0,
+                    actual: actuals && actuals.minutes > 0 ? actuals.minutes * 60 : 0
+                };
+            });
+    }
+
+    /* The Mondays of the last `count` weeks, oldest first, this week last. */
+    function recentWeekStarts(count) {
+        const thisWeek = weekStart(todayKey());
+        if (!thisWeek) return [];
+        const out = [];
+        for (let i = count - 1; i >= 0; i--) out.push(addDays(thisWeek, -i * 7));
+        return out;
+    }
+
     /* Every session that has actually been recorded, as trend rows. */
     function trendRows() {
         const state = getState();
@@ -572,7 +603,14 @@ const AmsSync = (function () {
             plannedSecondsOf: (workout) => AmsPlan.plannedDurationSeconds(workout, mapping)
         }), {
             hasPlan: !!(state.plan && state.plan.length),
-            trends: AmsStats.trends({ rows: trendRows() })
+            trends: AmsStats.trends({ rows: trendRows() }),
+            load: AmsStats.load({
+                rows: loadRows(),
+                weekStarts: recentWeekStarts(12),
+                // The Monday after this one: everything from there on belongs
+                // to a week this window is not looking at.
+                endExclusive: addDays(weekStart(todayKey()) || todayKey(), 7)
+            })
         });
     }
 
@@ -1334,6 +1372,8 @@ const AmsSync = (function () {
         outstanding,
         weekSummary,
         trendRows,
+        loadRows,
+        recentWeekStarts,
         weekDays,
         weekStart
     };

@@ -2543,3 +2543,121 @@ body.is-viewing-photo .tab-bar { display: none; }
     line-height: 1.4;
     color: var(--color-text-secondary);
 }
+
+/* ===================== TWELVE WEEKS, AND THE MIX ===================== */
+
+/*
+ * A column per week: the hours done drawn solid from the bottom, and a line
+ * across where the plan asked you to reach. Short of the line is a week you
+ * gave something up; past it, one you gave something extra — both readable
+ * without reading a number.
+ */
+.wk-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    margin: 0.9rem 0 0.2rem;
+}
+
+.wk {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.wk-col {
+    position: relative;
+    width: 100%;
+    height: 5.2rem;
+    border-radius: 3px;
+    background: var(--color-surface-2);
+    overflow: visible;
+}
+
+.wk-fill {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 3px;
+    background: var(--accent);
+    opacity: 0.85;
+}
+
+.wk.is-now .wk-fill { opacity: 1; }
+
+/* The line the plan asked for. It sits above the fill when the week fell
+   short, and inside it when the week went past. */
+.wk-target {
+    position: absolute;
+    left: -1px;
+    right: -1px;
+    height: 2px;
+    margin-bottom: -1px;
+    border-radius: 1px;
+    background: var(--color-text);
+    opacity: 0.55;
+}
+
+.wk-label {
+    font-size: 0.58rem;
+    line-height: 1;
+    white-space: nowrap;
+    color: var(--color-text-secondary);
+}
+
+.wk.is-now .wk-label { color: var(--color-text); font-weight: 700; }
+
+/* ---- where the hours went ---- */
+
+.mix-bar {
+    display: flex;
+    height: 0.85rem;
+    margin: 0.9rem 0 0.7rem;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--color-surface-2);
+}
+
+.mix-part { background: var(--sport, var(--accent)); }
+
+.mix-rows { display: flex; flex-direction: column; gap: 0.4rem; }
+
+.mix-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.mix-dot {
+    flex: 0 0 auto;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    background: var(--sport, var(--accent));
+}
+
+.mix-label { flex: 1 1 auto; min-width: 0; color: var(--color-text); font-weight: 600; }
+.mix-hours { flex: 0 0 auto; color: var(--color-text); font-variant-numeric: tabular-nums; }
+
+.mix-share {
+    flex: 0 0 2.4rem;
+    text-align: right;
+    font-weight: 700;
+    color: var(--color-text);
+    font-variant-numeric: tabular-nums;
+}
+
+.mix-plan {
+    flex: 0 0 5.2rem;
+    text-align: right;
+    font-size: 0.72rem;
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+}
+
+.mix-drift { color: var(--color-warning); font-weight: 700; }

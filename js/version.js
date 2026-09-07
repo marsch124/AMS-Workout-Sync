@@ -8,13 +8,24 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.52.0';
+    const CURRENT = '1.53.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.53.0',
+            date: '2026-09-07',
+            headline: 'Twelve weeks, and where the hours went',
+            items: [
+                '**Twelve weeks as twelve columns.** The hours you did drawn solid, with a line across each one where the plan asked you to reach. Short of the line is a week you gave something up; past it, one you gave something extra — and you can see which is which without reading a number.',
+                '**Where those hours went**, by sport, over the same twelve weeks. Hours rather than sessions, which makes it a different question from *which sport runs behind* further down: a twenty-minute swim kept and a three-hour ride skipped are one apiece there and nothing like each other here.',
+                'Each sport shows what it took, its share, and the share the plan asked for. Anything five points or more away from its planned share is flagged — worth knowing rather than worth worrying about, since a block often leans on purpose.',
+                'That completes the five things you asked for: one-tap logging, saying it out loud, the road to the race, whether it is working, and now the charts.',
+            ]
+        },
         {
             version: '1.52.0',
             date: '2026-09-07',

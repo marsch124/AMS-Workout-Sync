@@ -16,6 +16,10 @@ existing cells.
   hours banked against hours due, and the total the plan comes to. Read out of
   the workbook — the race is a row in it, the phases a column — so nothing is
   configured and nothing is stored.
+- **Twelve weeks** — the last twelve as twelve columns: hours done, with a line
+  across each where the plan asked you to reach.
+- **Where the hours went** — the same weeks by sport, in hours rather than
+  sessions, against the share the plan asked for.
 - **Is it working?** — how far you travel per heartbeat, then against now, one
   sport at a time and in the unit that sport is spoken in. Eight complete
   sessions before it will say anything, easy ones preferred, and a three per

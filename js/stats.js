@@ -372,9 +372,89 @@ const AmsStats = (function () {
         };
     }
 
+    /* ---------- where the hours went ---------- */
+
+    /*
+     * Two questions the Progress sheet answers in a grid and a phone cannot:
+     * how each week came out against what it asked for, and where the hours
+     * actually go between the sports.
+     *
+     * Both are hours rather than counts, which is the difference between this
+     * and "which sport runs behind" further down the screen. That one asks
+     * whether sessions were kept; this asks what the training was made of. A
+     * swimmer who never misses a twenty-minute swim and skips half his rides
+     * looks obedient there and lopsided here, and both are true.
+     *
+     * `weekStarts` is handed in already worked out, oldest first, with the day
+     * the window stops at. Calendars are the caller's business — this module
+     * has no notion of a Monday and is not going to grow one.
+     *
+     * `endExclusive` is not optional in spirit. Without it every session in the
+     * rest of the plan fell into the last bucket, because "the last week
+     * beginning on or before this day" is true of a session next March as much
+     * as of one this Thursday. Twelve weeks then reported three hundred hours.
+     */
+    function load(input) {
+        const rows = input.rows || [];
+        const starts = (input.weekStarts || []).slice();
+        if (!starts.length) return { weeks: [], sports: [], planned: 0, actual: 0 };
+
+        const from = starts[0];
+        const until = input.endExclusive || null;
+        const weeks = starts.map((start) => ({ start: start, planned: 0, actual: 0, sessions: 0 }));
+
+        const bucketFor = (dayKey) => {
+            // The last week that begins on or before this day.
+            for (let i = weeks.length - 1; i >= 0; i--) {
+                if (dayKey >= weeks[i].start) return weeks[i];
+            }
+            return null;
+        };
+
+        const bySport = {};
+        let planned = 0;
+        let actual = 0;
+
+        for (const row of rows) {
+            if (!row.dayKey || row.dayKey < from) continue;
+            if (until && row.dayKey >= until) continue;
+            const week = bucketFor(row.dayKey);
+            if (!week) continue;
+
+            const p = row.planned || 0;
+            const a = row.actual || 0;
+            week.planned += p;
+            week.actual += a;
+            if (a > 0) week.sessions++;
+
+            planned += p;
+            actual += a;
+
+            if (!bySport[row.sport]) bySport[row.sport] = { sport: row.sport, planned: 0, actual: 0 };
+            bySport[row.sport].planned += p;
+            bySport[row.sport].actual += a;
+        }
+
+        const sports = Object.keys(bySport)
+            .map((id) => bySport[id])
+            .filter((s) => s.planned > 0 || s.actual > 0)
+            .sort((a, b) => b.actual - a.actual || b.planned - a.planned);
+
+        // Shares are of what was actually done and of what was asked for, kept
+        // apart on purpose: drifting from the plan's own balance is the thing
+        // worth seeing, and one number cannot show a drift.
+        sports.forEach((s) => {
+            s.shareActual = actual > 0 ? s.actual / actual : 0;
+            s.sharePlanned = planned > 0 ? s.planned / planned : 0;
+        });
+
+        return { weeks: weeks, sports: sports, planned: planned, actual: actual };
+    }
+
     return {
         summarise: summarise,
-        trends: trends
+        trends: trends,
+        load: load
     };
 })();
 

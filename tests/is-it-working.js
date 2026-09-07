@@ -1,5 +1,6 @@
 /*
- * "Is it working?" on the screen.
+ * The three drawings at the top of Progress, once they are on a screen:
+ * "Is it working?", the twelve-week chart, and where the hours went.
  *
  * The arithmetic has a test of its own that needs no browser
  * (`tests/trends.js`). What is checked here is the part that only exists once
@@ -181,6 +182,93 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
   line('five complete sessions', 'enough: ' + few.enough + ', needs ' + few.need);
   if (few.enough) errors.push('five sessions were treated as enough to judge fitness on');
   if (few.need !== 8) errors.push('the threshold moved without the test being told');
+
+  // ---------------------------------------------------------------- 4
+  console.log('');
+  console.log('TWELVE WEEKS, AND WHERE THE HOURS WENT');
+
+  await load('season-underway.xlsx');
+  const charts = await page.evaluate(async () => {
+    document.querySelector('.tab[data-tab="progress"]').click();
+    await new Promise(r => setTimeout(r, 1300));
+
+    const cardFor = (re) => [...document.querySelectorAll('#progressBody .stat-card')]
+      .find(c => re.test(c.textContent));
+    const weeksCard = cardFor(/twelve weeks/i);
+    const mixCard = cardFor(/where the hours went/i);
+    if (!weeksCard || !mixCard) return { error: 'one of the two charts is missing' };
+
+    const columns = [...weeksCard.querySelectorAll('.wk')];
+    const heightOf = (node) => node ? parseFloat(node.style.height) : null;
+    const targetOf = (node) => node ? parseFloat(node.style.bottom) : null;
+
+    const rows = [...mixCard.querySelectorAll('.mix-row')].map(r => ({
+      text: r.innerText.replace(/\s+/g, ' ').trim(),
+      drift: r.querySelector('.mix-drift') ? r.querySelector('.mix-drift').textContent : null
+    }));
+
+    return {
+      columns: columns.length,
+      labelled: columns.filter(c => c.querySelector('.wk-label').textContent.trim()).length,
+      nowMarked: weeksCard.querySelectorAll('.wk.is-now').length,
+      // A week done short of its target must draw the line above the fill,
+      // and a week done past it must draw the line inside — that relation is
+      // the whole chart.
+      pairs: columns.map(c => ({
+        fill: heightOf(c.querySelector('.wk-fill')),
+        target: targetOf(c.querySelector('.wk-target'))
+      })).filter(p => p.target !== null),
+      lede: weeksCard.querySelector('.stat-lede').textContent,
+      segments: mixCard.querySelectorAll('.mix-part').length,
+      rows: rows,
+      mixNote: [...mixCard.querySelectorAll('.stat-note')].map(n => n.textContent).join(' ')
+    };
+  });
+
+  if (charts.error) { errors.push(charts.error); }
+  else {
+    line('columns, of which labelled', charts.columns + ' / ' + charts.labelled);
+    line('this week marked', charts.nowMarked);
+    line('the lede', charts.lede);
+    line('mix rows', charts.rows.length + ', bar in ' + charts.segments + ' parts');
+
+    if (charts.columns !== 12) errors.push('the week chart is not twelve weeks wide');
+    if (!charts.labelled || charts.labelled > 6) {
+      errors.push('the dates under the columns are missing or crowded: ' + charts.labelled);
+    }
+    if (charts.nowMarked !== 1) errors.push('this week is not picked out exactly once');
+    if (!/of .* asked for/.test(charts.lede)) errors.push('the chart does not say done against asked for');
+
+    const short = charts.pairs.filter(p => (p.fill || 0) < p.target - 1);
+    const over = charts.pairs.filter(p => (p.fill || 0) > p.target + 1);
+    line('weeks under their line / over it', short.length + ' / ' + over.length);
+    if (!short.length) {
+      errors.push('no week is drawn short of its target on a fixture that is 76% complete');
+    }
+    if (charts.pairs.some(p => p.target > 100.5 || p.target < 0)) {
+      errors.push('a target line is drawn outside the column');
+    }
+
+    if (charts.rows.length < 3) errors.push('the sport mix has too few rows to be a mix');
+    if (charts.segments < 3) errors.push('the stacked bar has fewer parts than there are sports');
+    if (!charts.rows.every(r => /\d+%/.test(r.text) && /plan \d+%/.test(r.text))) {
+      errors.push('a sport row is missing either its share or the share the plan asked for');
+    }
+
+    /*
+     * The badge on a row and the sentence underneath must agree. They are two
+     * readings of the same difference, and they disagreed the first time —
+     * one rounding the percentages and the other testing the raw ratio.
+     */
+    const badged = charts.rows.filter(r => r.drift)
+      .map(r => r.text.split(' ')[0]);
+    const named = badged.filter(name => new RegExp(name, 'i').test(charts.mixNote));
+    line('rows badged as drifting', badged.join(', ') || 'none');
+    line('and named in the sentence below', named.join(', ') || 'none');
+    if (badged.length !== named.length) {
+      errors.push('a sport is badged as drifting but not named underneath, or the other way about');
+    }
+  }
 
   console.log('');
   console.log('errors: ' + (errors.length ? '\n  - ' + errors.join('\n  - ') : 'none'));

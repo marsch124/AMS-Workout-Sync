@@ -37,6 +37,7 @@ node tests/is-it-working.js
 
 node tests/voice.js          # no browser, no server — pure parser
 node tests/trends.js         # no browser, no server — pure arithmetic
+node tests/load.js           # no browser, no server — pure arithmetic
 ```
 
 Each script prints what it found and ends with `errors: none`. Nothing is
@@ -247,6 +248,15 @@ every pace accompanied by the heart rate that produced it; the caveats on the
 screen rather than in the comments; and, for somebody who has been logging
 durations and nothing else, that it says what is missing instead of quietly
 not appearing.
+
+**`load.js`** — the weeks and the sport mix, in plain node. It exists because
+the bug it guards has already happened: bucketing by "the last week beginning
+on or before this day" is true of a session next March as much as of one this
+Thursday, so the rest of an eleven-month plan fell into the current week and
+twelve weeks reported three hundred hours. That the window has two ends is the
+first thing tested. After it: a Sunday belongs to the week it ends, an
+unanswered week looks empty rather than full, and what was done is kept apart
+from what was asked for so a drift between them can be seen at all.
 
 ## Fixtures
 

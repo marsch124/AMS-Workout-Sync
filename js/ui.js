@@ -4055,6 +4055,11 @@ const AmsUi = (function () {
                 + '<em>holding steady</em>: a good night\u2019s sleep is worth about that much. Heart rate '
                 + 'answers to heat, sleep, coffee and stress as well as to training, so read it over '
                 + 'months rather than weeks.</p>'
+                + '<p><strong>Twelve weeks</strong> draws the last twelve as twelve columns: the hours '
+                + 'you did, with a line across each where the plan asked you to reach. <strong>Where the '
+                + 'hours went</strong> divides those same weeks between the sports — in hours, which is a '
+                + 'different question from the one below about sessions kept, and shows anything sitting '
+                + 'five points or more from the share the plan asked for.</p>'
                 + '<p>Below that, three things your workbook cannot say about itself: '
                 + 'which sport is running behind, how many sessions you have '
                 + 'kept in a row, and how often one was moved rather than lost. It is worked out from your '
@@ -4738,6 +4743,143 @@ const AmsUi = (function () {
 
     let progressToken = 0;
 
+    /* ---------- twelve weeks, and where the hours went ---------- */
+
+    /*
+     * Two drawings the Progress sheet keeps as a grid, which is the right
+     * shape on a laptop and the wrong one on a phone.
+     *
+     * The first is the week against what it asked for. A column per week, the
+     * hours you did drawn solid, and the hours the plan wanted marked as a
+     * line across it. A bar short of its line is a week you gave something up;
+     * a bar past it is one you gave something extra. Both are readable without
+     * a single number being read, which is the point of drawing it at all.
+     *
+     * The second is where those hours went between the sports — hours, not
+     * sessions, which is what makes it a different question from "which sport
+     * runs behind" further down. A twenty-minute swim kept and a two-hour ride
+     * skipped are one apiece there and nothing like each other here.
+     */
+    function hoursShort(seconds) {
+        if (!seconds || seconds < 60) return '0';
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.round((seconds - hours * 3600) / 60);
+        if (!hours) return minutes + 'm';
+        return minutes ? hours + 'h ' + minutes + 'm' : hours + 'h';
+    }
+
+    function weeksChart(load) {
+        const weeks = load.weeks.filter((w) => w.planned > 0 || w.actual > 0);
+        if (weeks.length < 3) return '';
+
+        const tallest = Math.max.apply(null, load.weeks.map((w) => Math.max(w.planned, w.actual)));
+        if (!tallest) return '';
+
+        const today = AmsSync.todayKey();
+        const thisWeek = load.weeks[load.weeks.length - 1];
+
+        const columns = load.weeks.map((week, index) => {
+            const height = Math.round(week.actual / tallest * 100);
+            const target = Math.round(week.planned / tallest * 100);
+            const isNow = week === thisWeek;
+            const date = AmsPlan.parseDayKey(week.start);
+            // Every third week gets a date, or twelve of them collide.
+            const label = (index % 3 === 0 || isNow) && date
+                ? date.getUTCDate() + ' ' + date.toLocaleDateString(undefined, { month: 'short' })
+                : '';
+
+            return '<div class="wk' + (isNow ? ' is-now' : '') + '"'
+                + ' title="' + esc(week.start + ' — ' + hoursShort(week.actual)
+                    + ' of ' + hoursShort(week.planned)) + '">'
+                + '<div class="wk-col">'
+                + (week.actual > 0
+                    ? '<span class="wk-fill" style="height:' + height + '%"></span>' : '')
+                + (week.planned > 0
+                    ? '<span class="wk-target" style="bottom:' + target + '%"></span>' : '')
+                + '</div>'
+                + '<span class="wk-label">' + esc(label) + '</span>'
+                + '</div>';
+        }).join('');
+
+        const share = load.planned > 0 ? Math.round(load.actual / load.planned * 100) : 0;
+        const lede = load.planned > 0
+            ? '<strong>' + esc(hoursShort(load.actual)) + '</strong> of '
+                + esc(hoursShort(load.planned)) + ' asked for over these twelve weeks — '
+                + share + '%.'
+            : 'Nothing planned in these twelve weeks.';
+
+        return '<div class="card stat-card">'
+            + '<p class="stat-title">Twelve weeks</p>'
+            + '<p class="stat-lede">' + lede + '</p>'
+            + '<div class="wk-chart">' + columns + '</div>'
+            + '<p class="stat-note">Each column is a week: the hours you did, with a line across it '
+            + 'where the plan asked you to reach. This week is still going, so its column is short by '
+            + 'however much of it is left.</p>'
+            + '</div>';
+    }
+
+    function sportsChart(load) {
+        const sports = load.sports.filter((s) => s.actual > 0 || s.planned > 0);
+        if (sports.length < 2) return '';
+
+        const done = sports.filter((s) => s.actual > 0);
+        const bar = done.map((sport) => {
+            const width = (sport.shareActual * 100).toFixed(2);
+            return '<span class="mix-part" style="width:' + width + '%; --sport: '
+                + (AmsPlan.DISCIPLINE_BY_ID.get(sport.sport) || {}).color + '"'
+                + ' title="' + esc(sport.sport) + '"></span>';
+        }).join('');
+
+        /*
+         * The drift is worked out from the two percentages as they are printed,
+         * not from the ratios behind them. Otherwise a row can show -5 while
+         * the sentence underneath, testing the unrounded difference, decides it
+         * is 4.98 and does not mention it — and the screen contradicts itself
+         * in front of you.
+         */
+        const driftOf = (sport) =>
+            Math.round(sport.shareActual * 100) - Math.round(sport.sharePlanned * 100);
+
+        const rows = sports.map((sport) => {
+            const discipline = AmsPlan.DISCIPLINE_BY_ID.get(sport.sport);
+            const drift = driftOf(sport);
+            return '<div class="mix-row" style="--sport: ' + ((discipline || {}).color || 'var(--sport-other)') + '">'
+                + '<span class="mix-dot"></span>'
+                + '<span class="mix-label">' + esc((discipline || {}).label || sport.sport) + '</span>'
+                + '<span class="mix-hours">' + esc(hoursShort(sport.actual)) + '</span>'
+                + '<span class="mix-share">' + Math.round(sport.shareActual * 100) + '%</span>'
+                + '<span class="mix-plan">'
+                + (sport.sharePlanned > 0
+                    ? 'plan ' + Math.round(sport.sharePlanned * 100) + '%'
+                        + (Math.abs(drift) >= 5
+                            ? ' <span class="mix-drift">' + (drift > 0 ? '+' : '') + drift + '</span>'
+                            : '')
+                    : '')
+                + '</span>'
+                + '</div>';
+        }).join('');
+
+        const drifted = sports.filter((s) => Math.abs(driftOf(s)) >= 5);
+        const namesOf = (list) => list.map((s) =>
+            (AmsPlan.DISCIPLINE_BY_ID.get(s.sport) || {}).label || s.sport);
+
+        return '<div class="card stat-card">'
+            + '<p class="stat-title">Where the hours went</p>'
+            + '<p class="stat-lede">The same twelve weeks, by sport. Hours rather than sessions — a '
+            + 'twenty-minute swim and a three-hour ride count as one apiece further down this screen, '
+            + 'and nothing like each other here.</p>'
+            + (bar ? '<div class="mix-bar">' + bar + '</div>' : '')
+            + '<div class="mix-rows">' + rows + '</div>'
+            + (drifted.length
+                ? '<p class="stat-note">' + esc(namesOf(drifted).join(' and ')) + ' '
+                    + (drifted.length === 1 ? 'sits' : 'sit')
+                    + ' five points or more from the share the plan asked for. That is worth '
+                    + 'knowing rather than worth worrying about: a block often leans on purpose.</p>'
+                : '<p class="stat-note">The balance is within five points of what the plan asked for '
+                    + 'on every sport.</p>')
+            + '</div>';
+    }
+
     /* ---------- is it working ---------- */
 
     /*
@@ -5210,8 +5352,11 @@ const AmsUi = (function () {
             + (moves.since ? ' since ' + esc(shortDay(new Date(moves.since))) : '')
             + ', on this phone only. Anything rescheduled in Excel is invisible here.');
 
-        body.innerHTML = road + trendBlock(stats.trends) + preamble + summary + consistency
-            + sportBlock + movesBlock
+        const load = stats.load || { weeks: [], sports: [], planned: 0, actual: 0 };
+
+        body.innerHTML = road + trendBlock(stats.trends)
+            + weeksChart(load) + sportsChart(load)
+            + preamble + summary + consistency + sportBlock + movesBlock
             + '<p class="stat-footnote">Worked out from the sessions in your workbook each time this '
             + 'screen is opened. Nothing here is stored in the plan, and nothing here writes to it — '
             + 'the totals and the chart on your Progress sheet remain the ones Excel keeps.</p>';

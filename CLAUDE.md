@@ -247,6 +247,21 @@ working · 5 charts on Progress. One release each.
   - A sport recorded *without* heart rates still gets an entry, so the block can
     say what is missing instead of vanishing.
 
+- **v1.53.0 — the charts.** `AmsStats.load()` (pure) buckets rows into weeks
+  and sports; `weeksChart()` and `sportsChart()` draw them. **This finished the
+  five-part programme.**
+  - 🚨 `load()` needs `endExclusive` as well as `weekStarts`. "The last week
+    beginning on or before this day" is true of a session next March as much as
+    of one this Thursday, so without it the whole rest of an eleven-month plan
+    fell into the current week and twelve weeks reported 300 hours. Caught by
+    the chart looking wrong, now first in `tests/load.js`.
+  - 🪤 A row badge and the sentence under it must be computed the same way. The
+    badge rounded the percentages, the sentence tested the raw ratio, and swim
+    showed "-5" while the sentence said only bike had drifted. `driftOf()` is
+    now the single source and `is-it-working.js` asserts the two agree.
+  - Hours, not counts, on purpose — that is what separates this from "which
+    sport runs behind" lower down the same screen.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The
@@ -340,7 +355,7 @@ node tests/failure-paths.js          # and the rest
 Repo tests: `failure-paths`, `column-collision`, `foreign-extras-sheet`,
 `edited-workbook`, `calendar-export`, `session-share`, `progress`, `logging`,
 `move-log`, `leaving-a-form`, `week-wash`, `august-audit`, `rest-day`,
-`photos`, `extra-photos`, `share-app`, `screen-wording`, `plan-overview`, `as-planned`, `voice` (no browser), `say-it`, `road`, `trends` (no browser), `is-it-working`. Fixtures are synthetic and gitignored — **no real
+`photos`, `extra-photos`, `share-app`, `screen-wording`, `plan-overview`, `as-planned`, `voice` (no browser), `say-it`, `road`, `trends` (no browser), `load` (no browser), `is-it-working`. Fixtures are synthetic and gitignored — **no real
 training data in this repository**.
 
 Extra scripts live in the session scratchpad and drive Martin's *real*
