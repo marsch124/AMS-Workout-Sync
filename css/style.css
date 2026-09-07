@@ -44,6 +44,11 @@
     --sport-other: #8b5cf6;
     --sport-rest: #64748b;   /* deliberately quiet — a rest day is not a session */
     --sport-race: #ef4444;
+    /* Anything done outside the plan. Not a discipline — a walk and an
+       unplanned run are both this — so it is deliberately outside the range
+       the sports occupy, and pink was free. Its whole job is to be told apart
+       from all of them at a glance, in a column 11 pixels wide. */
+    --sport-extra: #f472b6;
 
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -74,6 +79,10 @@
         --sport-other: #5b21b6;
         --sport-rest: #475569;
         --sport-race: #991b1b;
+        /* Same treatment as the sports above, and for the same reason: it
+           labels a row on the opened day, so it carries text. 6.0:1 on white.
+           Do not brighten it back towards the dark theme's pink. */
+        --sport-extra: #be185d;
         --color-danger-text: #c81e1e;
     }
 }
@@ -1209,6 +1218,16 @@ body.detail-open .tab-bar { display: none; }
     border: 1.5px solid var(--sport, var(--accent));
 }
 
+/*
+ * Something done outside the plan. Solid, because an extra is only ever
+ * recorded — there is no outstanding one for hollow to mean — and in its own
+ * colour rather than the activity's, because what the strip has to say about
+ * it first is that the plan did not ask for it.
+ */
+.week-bar-seg.is-extra {
+    background: var(--sport-extra);
+}
+
 .week-bar-seg.is-missed {
     background: repeating-linear-gradient(
         135deg,
@@ -1232,6 +1251,11 @@ body.detail-open .tab-bar { display: none; }
     background: var(--sport-rest);
     opacity: 0.7;
 }
+
+/* A rest day he went for a walk on keeps both marks: the plan still asked for
+   nothing, and he still went. The line gives up its width to the bar rather
+   than pushing it out of the column. */
+.week-day-bars .week-rest { min-width: 6px; }
 
 .week-day-letter {
     font-size: 0.66rem;
@@ -1487,6 +1511,8 @@ body.detail-open .tab-bar { display: none; }
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
 }
+
+.week-expanded-row.is-extra { --sport: var(--sport-extra); }
 
 .week-expanded-meta {
     flex-shrink: 0;

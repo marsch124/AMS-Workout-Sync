@@ -262,6 +262,48 @@ working · 5 charts on Progress. One release each.
   - Hours, not counts, on purpose — that is what separates this from "which
     sport runs behind" lower down the same screen.
 
+**v1.54.0 — the week's work taken apart on purpose.** No screen moved. The
+round trip through a real workbook is now followed cell by cell (409 sessions,
+3,272 planned cells compared before and after), a pace column Excel treats as a
+clock is tested in both forms, 52 deliberately broken sentences are read to the
+parser, and both new screens step over an implausible row rather than emptying
+themselves on it. `tests/new-writes.js` and `tests/rough-input.js` came out of
+it.
+
+**v1.55.0 — the extras, drawn.** Anything logged outside the plan gets a bar in
+the week strip, in pink. Asked for in one sentence ("we have bars for planned
+workouts. Maybe we could make the same bar, but make it pink"), and the pink
+was indeed free.
+
+- `weekDays()` now carries `extras` and `extraSeconds` per day, read through
+  `allExtras()` in sync.js — one shape for a queued extra (`date`) and a synced
+  one (`dayKey`), because nothing drawing a week cares which side of a sync an
+  extra is on. `weekSummary()` reads through it too; it had its own slightly
+  different copy of that flattening.
+- 🚨 **The height scale counts the extras in** — `plannedSeconds +
+  extraSeconds`, not `plannedSeconds`. A two-hour hike measured against the
+  biggest *planned* day draws a bar taller than the column that holds it, which
+  is the one way a bar chart lies without looking wrong. It does shorten the
+  planned bars on a week with a lot outside the plan; that is the truth about
+  that week. `tests/extra-bars.js` measures it with a 2h extra in a week whose
+  biggest day is 65m.
+- **Solid, always.** There is no outstanding extra, so hollow would have
+  nothing to mean. And **one pink for every activity**, not the activity's own
+  colour: colour is how the strip says which sport, so a colour of its own is
+  how it says "not one of them, and not in the plan". `--sport-extra`,
+  `#f472b6` dark / `#be185d` light (6.0:1 — it labels a row on the opened day,
+  so it carries text).
+- **A rest day with an extra on it keeps its rest line.** Deliberately *not*
+  the v1.41.0 rule: a session moved onto a rest day ends it because the plan
+  now asks for something there; a walk does not change what the plan asked for.
+  Both marks, in the same column.
+- The opened day lists them, because a pink bar you can tap that then answers
+  "Nothing planned" is worse than no panel at all. The key names the pink only
+  on a week that has one, exactly as it does the rest day.
+- **The Plan tab's block card was left alone** on purpose. Its scale is the
+  🚨 one-scale-across-every-week rule, its job is the shape of the *plan*, and
+  six of its eight rows are weeks that cannot have an extra in them yet.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The
@@ -355,7 +397,7 @@ node tests/failure-paths.js          # and the rest
 Repo tests: `failure-paths`, `column-collision`, `foreign-extras-sheet`,
 `edited-workbook`, `calendar-export`, `session-share`, `progress`, `logging`,
 `move-log`, `leaving-a-form`, `week-wash`, `august-audit`, `rest-day`,
-`photos`, `extra-photos`, `share-app`, `screen-wording`, `plan-overview`, `as-planned`, `voice` (no browser), `say-it`, `road`, `trends` (no browser), `load` (no browser), `is-it-working`. Fixtures are synthetic and gitignored — **no real
+`photos`, `extra-photos`, `share-app`, `screen-wording`, `plan-overview`, `as-planned`, `voice` (no browser), `say-it`, `road`, `trends` (no browser), `load` (no browser), `is-it-working`, `new-writes`, `rough-input`, `extra-bars`. Fixtures are synthetic and gitignored — **no real
 training data in this repository**.
 
 Extra scripts live in the session scratchpad and drive Martin's *real*

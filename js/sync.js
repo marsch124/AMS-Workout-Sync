@@ -1226,6 +1226,27 @@ const AmsSync = (function () {
     }
 
     /*
+     * Every extra in one shape, queued and synced alike.
+     *
+     * A queued extra carries `date` and one read back from the sheet carries
+     * `dayKey`; both hold the same ISO day. Nothing that draws a week cares
+     * which side of a sync an extra is on — it happened either way — so the
+     * distinction is flattened here rather than at each call site.
+     *
+     * The label comes through `AmsExtras.labelOf()` because that is the name
+     * the sheet carries, so a walk logged in March still reads as a walk after
+     * the activity list has been edited.
+     */
+    function allExtras() {
+        return (state.pendingExtras || []).concat(state.extras || []).map((extra) => ({
+            dayKey: extra.date || extra.dayKey || '',
+            label: AmsExtras.labelOf(extra),
+            minutes: typeof extra.minutes === 'number' ? extra.minutes : null,
+            seconds: typeof extra.minutes === 'number' ? extra.minutes * 60 : 0
+        }));
+    }
+
+    /*
      * How the current week stands: planned against recorded, in minutes and in
      * sessions. Computed from the plan already in memory, so it costs nothing
      * and needs no formula in the sheet.
@@ -1276,15 +1297,12 @@ const AmsSync = (function () {
          * training; folding these in would make the one number the plan exists
          * to produce mean something else.
          */
-        const inWeek = (key) => key && key >= from && key <= to;
         let extraSeconds = 0;
         let extraCount = 0;
-        const everyExtra = (state.pendingExtras || []).map((e) => ({ key: e.date || e.dayKey, minutes: e.minutes }))
-            .concat((state.extras || []).map((e) => ({ key: e.dayKey || e.date, minutes: e.minutes })));
-        for (const extra of everyExtra) {
-            if (!inWeek(extra.key)) continue;
+        for (const extra of allExtras()) {
+            if (!extra.dayKey || extra.dayKey < from || extra.dayKey > to) continue;
             extraCount++;
-            if (typeof extra.minutes === 'number') extraSeconds += extra.minutes * 60;
+            extraSeconds += extra.seconds;
         }
 
         return {
@@ -1312,6 +1330,9 @@ const AmsSync = (function () {
         const mapping = state.mapping || {};
         const days = [];
 
+        // Built once and filtered per day, rather than rebuilt seven times.
+        const extras = allExtras();
+
         for (let i = 0; i < 7; i++) {
             const key = addDays(from, i);
             const sessions = state.plan.filter((w) => w.dayKey === key);
@@ -1322,6 +1343,8 @@ const AmsSync = (function () {
                 plannedSeconds += AmsPlan.plannedDurationSeconds(workout, mapping) || 0;
             }
 
+            const dayExtras = extras.filter((e) => e.dayKey === key);
+
             days.push({
                 dayKey: key,
                 date: AmsPlan.parseDayKey(key),
@@ -1329,8 +1352,15 @@ const AmsSync = (function () {
                 isPast: key < today,
                 sessions: sessions,
                 training: sessions.filter((w) => w.discipline.id !== 'rest'),
+                /*
+                 * An extra does not end a rest day the way a session moved on
+                 * to one does. The plan still asked for nothing; he went for a
+                 * walk anyway, and both of those are true at once.
+                 */
                 isRest: sessions.length > 0 && sessions.every((w) => w.discipline.id === 'rest'),
-                plannedSeconds: plannedSeconds
+                plannedSeconds: plannedSeconds,
+                extras: dayExtras,
+                extraSeconds: dayExtras.reduce((sum, e) => sum + e.seconds, 0)
             });
         }
         return days;

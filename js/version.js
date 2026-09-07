@@ -8,13 +8,26 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.54.0';
+    const CURRENT = '1.55.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.55.0',
+            date: '2026-09-07',
+            headline: 'The extras, drawn',
+            items: [
+                '**Everything you do outside the plan now has a bar of its own on the week, in pink.** A walk, a yoga session, an unplanned run \u2014 it stands in its day beside the sessions the plan asked for, the same shape and the same scale, so an hour on foot looks like an hour.',
+                'Pink because no sport uses it. Colour is how that drawing tells you swim from bike from run, so a colour of its own is how it tells you *this one was not in the plan at all* \u2014 which is the thing you want to know first about it.',
+                'They are drawn solid, like anything recorded. There is no such thing as an extra still to do, so there is nothing for the hollow outline to mean.',
+                'A rest day you went for a walk on keeps its rest line and gets the pink bar as well. The plan asked for nothing and you went anyway, and both of those are worth seeing.',
+                'The week card already counted these in its \u201cextra\u201d figure. Until now the drawing above that line said nothing about them, so a week with an hour\u2019s walking in it looked exactly like a week without one.',
+                'Tap the day and the walk is listed under it with its length. Tap the week itself and the key explains the pink, on any week that has one.',
+            ]
+        },
         {
             version: '1.54.0',
             date: '2026-09-07',

@@ -465,6 +465,13 @@ const AmsUi = (function () {
      * The point is the shape — where the long ride sits, which evening is
      * free, whether Friday is genuinely clear — which is the thing you plan
      * around and which no amount of "2h 34m to go" conveys.
+     *
+     * Extras get a bar of the same kind, in a pink no sport uses. Colour is
+     * how this drawing says which sport, so a colour of its own is how it says
+     * "not a sport at all, and not in the plan" — the one thing about an extra
+     * that has to survive being glanced at. They are drawn solid because an
+     * extra is only ever recorded: there is no such thing as an outstanding
+     * one, so hollow would have nothing to mean.
      */
     function weekStrip() {
         const days = AmsSync.weekDays();
@@ -472,7 +479,13 @@ const AmsUi = (function () {
 
         // Bar heights are relative to the biggest day of this week, so a heavy
         // week and a light one each use the full height and stay readable.
-        const tallest = days.reduce((max, d) => Math.max(max, d.plannedSeconds), 0);
+        //
+        // The extras count towards that day total, or a two-hour hike measured
+        // against the biggest *planned* day would draw a bar taller than the
+        // column it sits in. It does mean a week with a lot outside the plan
+        // draws its planned bars a little shorter, which is the truth about
+        // that week rather than a distortion of it.
+        const tallest = days.reduce((max, d) => Math.max(max, d.plannedSeconds + d.extraSeconds), 0);
         if (!tallest) return '';
 
         const letters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -490,6 +503,21 @@ const AmsUi = (function () {
                         + (AmsPlan.formatDuration(planned) || '')) + '"></span>';
             }).join('');
 
+            /*
+             * An extra with no duration on it still gets a bar, at the floor
+             * height every short session gets. He did something; the app not
+             * knowing how long is a reason to draw it small, not to leave the
+             * day looking empty.
+             */
+            const extraBars = day.extras.map((extra) => {
+                const height = Math.max(9, Math.round(extra.seconds / tallest * 100));
+                const length = AmsPlan.formatDuration(extra.seconds);
+                return '<span class="week-bar-seg is-extra"'
+                    + ' style="height:' + height + '%"'
+                    + ' title="' + esc(extra.label + (length ? ' · ' + length : '')
+                        + ' · outside the plan') + '"></span>';
+            }).join('');
+
             const label = day.date ? day.date.getUTCDate() : '';
             const classes = ['week-day'];
             if (day.isToday) classes.push('is-today');
@@ -497,26 +525,44 @@ const AmsUi = (function () {
             if (day.isRest) classes.push('is-rest');
             if (expandedDay === day.dayKey) classes.push('is-open');
 
+            const spoken = (day.isRest ? 'rest day'
+                : day.training.length ? day.training.length + ' session'
+                    + (day.training.length === 1 ? '' : 's') + ', '
+                    + (AmsPlan.formatDuration(day.plannedSeconds) || '')
+                : 'nothing planned')
+                + (day.extras.length ? ', ' + day.extras.length + ' extra' : '');
+
             return '<button class="' + classes.join(' ') + '" role="listitem"'
                 + ' data-day="' + esc(day.dayKey) + '"'
-                + ' aria-label="' + esc(longDay(day.date) + ' — '
-                    + (day.isRest ? 'rest day'
-                        : day.training.length ? day.training.length + ' session'
-                            + (day.training.length === 1 ? '' : 's') + ', '
-                            + (AmsPlan.formatDuration(day.plannedSeconds) || '')
-                        : 'nothing planned')) + '">'
-                + '<span class="week-day-bars">' + (day.isRest ? '<span class="week-rest"></span>' : bars) + '</span>'
+                + ' aria-label="' + esc(longDay(day.date) + ' — ' + spoken) + '">'
+                + '<span class="week-day-bars">'
+                + (day.isRest ? '<span class="week-rest"></span>' : bars) + extraBars + '</span>'
                 + '<span class="week-day-letter">' + letters[index] + '</span>'
                 + '<span class="week-day-date">' + label + '</span>'
                 + '</button>';
         }).join('') + '</div>';
     }
 
-    /* The sessions of whichever day was tapped, shown without leaving Today. */
+    /*
+     * The sessions of whichever day was tapped, shown without leaving Today.
+     *
+     * The extras are listed under the same roof, because they are drawn in the
+     * strip above: a pink bar you can tap that then opens a panel saying
+     * "Nothing planned" is a worse answer than no panel at all.
+     */
     function expandedDayBlock() {
         if (!expandedDay) return '';
         const sessions = AmsSync.forDay(expandedDay);
+        const day = AmsSync.weekDays().find((d) => d.dayKey === expandedDay);
+        const extras = (day && day.extras) || [];
         const date = AmsPlan.parseDayKey(expandedDay);
+
+        const extraRows = extras.map((extra) =>
+            '<div class="week-expanded-row is-extra">'
+            + '<span class="week-expanded-sport">Extra</span>'
+            + '<span class="week-expanded-what">' + esc(extra.label) + '</span>'
+            + '<span class="week-expanded-meta">'
+            + esc(AmsPlan.formatDuration(extra.seconds) || '') + '</span></div>').join('');
 
         return '<div class="week-expanded">'
             + '<p class="week-expanded-title">' + esc(longDay(date)) + '</p>'
@@ -529,7 +575,8 @@ const AmsUi = (function () {
                     + esc(AmsPlan.formatDuration(
                         AmsPlan.plannedDurationSeconds(w, AmsSync.getState().mapping || {})) || '')
                     + '</span></div>').join('')
-                : '<p class="hint-inline">Nothing planned.</p>')
+                : extras.length ? '' : '<p class="hint-inline">Nothing planned.</p>')
+            + extraRows
             + '</div>';
     }
 
@@ -560,8 +607,10 @@ const AmsUi = (function () {
         // Anything else the week does contain — a brick, a race — is added after.
         const seen = new Map();
         let anyRest = false;
+        let anyExtra = false;
         AmsSync.weekDays().forEach((day) => {
             if (day.isRest) anyRest = true;
+            if (day.extras.length) anyExtra = true;
             day.training.forEach((workout) => {
                 if (!seen.has(workout.discipline.id)) seen.set(workout.discipline.id, workout.discipline);
             });
@@ -576,6 +625,18 @@ const AmsUi = (function () {
             + esc(shape.text) + '</li>').join('')
             + (anyRest
                 ? '<li><span class="week-legend-swatch"><span class="week-rest"></span></span>Rest day</li>'
+                : '')
+            /*
+             * Listed only when the week has one, exactly as the rest day is.
+             * The four shapes above are always there because they are the
+             * alphabet; these two are things a week may or may not contain,
+             * and a key naming what is not on the screen is a key to read
+             * past.
+             */
+            + (anyExtra
+                ? '<li><span class="week-legend-swatch">'
+                    + '<span class="week-bar-seg is-extra"></span></span>'
+                    + 'Extra activity, outside the plan</li>'
                 : '');
 
         const sportRows = sports.length
@@ -589,7 +650,7 @@ const AmsUi = (function () {
             + '<p class="week-legend-title">Reading the week</p>'
             + '<ul class="week-legend-shapes">' + shapeRows + '</ul>'
             + sportRows
-            + '<p class="week-legend-note">Height is the planned duration, against the '
+            + '<p class="week-legend-note">Height is how long it is, against the '
             + 'biggest day of the week. Tap a day to see what is on it. The pale green wash '
             + 'across the top of the card is the week itself passing: its edge is now, and it '
             + 'reaches the far side as Sunday ends.</p>'
