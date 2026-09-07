@@ -8,13 +8,26 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.46.0';
+    const CURRENT = '1.47.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.47.0',
+            date: '2026-09-07',
+            headline: 'Did it \u2014 45m',
+            items: [
+                '**One tap logs a session that went as planned.** The button says the number it is about to write — *Did it — 45m* — and writes exactly that, plus the completed marker, and nothing else. Which is precisely what filling the duration in and pressing Save would have done, minus the form.',
+                'It is the biggest button on the card now, and the form, *Missed* and *Move* have dropped to small ones underneath. Those are the exceptions and they should look like exceptions.',
+                'No confirmation question, deliberately. A one-tap action with a question in front of it is a two-tap action; the button names the number, and logging again overwrites, so the way back is the same way in.',
+                'On the session\u2019s own screen it is offered too — including on a session you had marked missed, which is exactly when *I did it after all* wants to be one tap.',
+                '**On the form, the planned length is now tappable.** "45m planned — tap to use" fills the field, and then tells you it is 100% of plan. For the times you want the form but not the typing.',
+                'Fixed: the effort scale beside the box was running its words together — *1easy · 5steady*. A stray piece of layout was eating the spaces.',
+            ]
+        },
         {
             version: '1.46.0',
             date: '2026-09-05',

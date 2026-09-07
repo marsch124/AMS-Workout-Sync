@@ -22,6 +22,9 @@ existing cells.
   is hard and down to single words. A question mark opens all ten at once, each
   one tappable, since choosing well means seeing what the numbers either side
   of your guess claim.
+- **Did it — 45m** — one tap logs a session that went as planned, writing the
+  planned duration and the completed marker and nothing else. The button says
+  the number before you press it.
 - **Log** — a form that asks first for the numbers that suit the sport (pace for a
   run, power and cadence for a ride, per-100m pace for a swim, duration and effort
   for mobility), with every other column your sheet has one tap away and the choice

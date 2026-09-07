@@ -67,6 +67,62 @@ def block(path):
     wb.save(path)
 
 
+def season(path):
+    """A whole build: 48 weeks, 419 sessions, the size of the real Ironman book.
+
+    Everything in this app was written against a 25-session workbook. The plan
+    it is actually pointed at is nearly seventeen times that, and several
+    screens rebuild the entire list on every redraw. This fixture exists so
+    that stops being a guess.
+    """
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Weekly Schedules'
+    ws.append(HEADERS)
+
+    # Eleven months, ending in a race, with a recovery week every fourth.
+    monday = monday_of_this_week()
+    phases = [('Base', 12), ('Build', 16), ('Peak', 12), ('Taper', 8)]
+
+    week = 0
+    written = 0
+    for phase, weeks in phases:
+        for w in range(weeks):
+            easy = (week % 4) == 3
+            scale = 0.55 if easy else 1.0 + week / 90.0
+            days = [
+                ('Swim', 45), ('Bike', 75), ('Run', 40), ('Strength', 30),
+                None, ('Bike', 120), ('Run', 60),
+            ]
+            # Two sessions on a couple of days, as a real build has.
+            extra = [(1, ('Run', 25)), (5, ('Swim', 30))] if not easy else []
+            for day_index, session in enumerate(days):
+                day = monday + datetime.timedelta(days=week * 7 + day_index)
+                if session is None:
+                    ws.append([week + 1, day, DAYS[day.weekday()], 'Rest',
+                               'REST DAY - full day off', None, '-', phase])
+                    written += 1
+                    continue
+                sport, minutes = session
+                ws.append([week + 1, day, DAYS[day.weekday()], sport,
+                           phase + ': ' + sport.lower() + ' session', round(minutes * scale),
+                           'Z2', phase])
+                written += 1
+            for day_index, (sport, minutes) in extra:
+                day = monday + datetime.timedelta(days=week * 7 + day_index)
+                ws.append([week + 1, day, DAYS[day.weekday()], sport,
+                           phase + ': second ' + sport.lower(), round(minutes * scale), 'Z1', phase])
+                written += 1
+            week += 1
+
+    race_day = monday + datetime.timedelta(days=week * 7)
+    ws.append([week + 1, race_day, DAYS[race_day.weekday()], 'Race',
+               'RACE DAY - the whole point of it', 720, '-', 'Race'])
+    written += 1
+    wb.save(path)
+    print('  season.xlsx: %d rows over %d weeks' % (written, week + 1))
+
+
 def monday_of_this_week():
     today = datetime.date.today()
     return today - datetime.timedelta(days=today.weekday())
@@ -292,6 +348,7 @@ if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)
     plain(os.path.join(OUT, 'plain.xlsx'))
     block(os.path.join(OUT, 'block.xlsx'))
+    season(os.path.join(OUT, 'season.xlsx'))
     hostile_text(os.path.join(OUT, 'nasty.xlsx'))
     column_inserted(os.path.join(OUT, 'column-inserted.xlsx'))
     foreign_extras(os.path.join(OUT, 'foreign-extras.xlsx'))

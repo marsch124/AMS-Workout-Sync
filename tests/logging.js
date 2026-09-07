@@ -152,13 +152,24 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
       }
       await p.click('#todayBody [data-workout="' + missedCard.workout + '"]');
       await p.waitForTimeout(600);
-      const back = await p.evaluate(() => ({
-        screen: (document.querySelector('.screen.active') || {}).id,
-        log: (document.getElementById('openLogButton') || {}).textContent,
-        hidden: (document.getElementById('openLogButton') || {}).hidden
-      }));
-      line('tapping it opens', back.screen + ' — offers "' + (back.log || '').trim() + '"');
-      if (back.screen !== 'workoutScreen' || back.hidden || !/Log this session/.test(back.log || '')) {
+      /*
+       * What matters is that there is a way back: marked missed, then done
+       * after all, and the screen lets you say so. Since v1.47.0 there are two
+       * ways — the form, and the one-tap "Did it" — so this asks whether
+       * either is on offer rather than pinning the wording of one of them.
+       */
+      const back = await p.evaluate(() => {
+        const log = document.getElementById('openLogButton') || {};
+        const asPlanned = document.getElementById('asPlannedButton') || {};
+        return {
+          screen: (document.querySelector('.screen.active') || {}).id,
+          log: log.hidden ? null : (log.textContent || '').trim(),
+          asPlanned: asPlanned.hidden ? null : (asPlanned.textContent || '').trim()
+        };
+      });
+      line('tapping it opens', back.screen + ' — offers '
+        + [back.asPlanned, back.log].filter(Boolean).map(t => '"' + t + '"').join(' and ') || 'nothing');
+      if (back.screen !== 'workoutScreen' || (!back.log && !back.asPlanned)) {
         errs.push('a missed session cannot be logged from its own screen');
       }
     }

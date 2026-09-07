@@ -30,6 +30,7 @@ node tests/extra-photos.js
 node tests/share-app.js
 node tests/screen-wording.js
 node tests/plan-overview.js
+node tests/as-planned.js
 ```
 
 Each script prints what it found and ends with `errors: none`. Nothing is
@@ -186,6 +187,16 @@ looking perfectly reasonable and saying nothing. Uses `block.xlsx`, eight weeks
 with two recovery weeks at roughly half volume. Also checks it sits above the
 list, appears on all four segments, and is not drawn as an empty frame when
 there is no plan.
+
+**`as-planned.js`** — the one-tap log. Its value is that it is not a form, so
+what is guarded is that it stays as truthful as one: the planned duration and
+the completed marker reach the sheet and **nothing else does**. An entry
+carrying blank fields would put empty strings on top of numbers already in the
+row, and a one-tap action that scribbles is worse than a form because nobody
+looks. Also when it may be offered — not on a rest day, not without a planned
+length, not on something already recorded, but yes on a missed session. Each of
+those cases is opened through the "All" list, and the test fails if a case
+could not be reached rather than passing on a null.
 
 ## Fixtures
 

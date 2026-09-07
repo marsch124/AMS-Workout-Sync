@@ -158,6 +158,21 @@ same alphabet as the week strip on Today.
   `logging.js` and `foreign-extras-sheet.js` get the written workbook back to
   check it, which is the guard on his real file; and Settings has no eyebrow.
 
+**The five-part programme he asked for on 2026-09-07** (all of it, in order):
+1 one-tap logging · 2 speak it · 3 the road to Kalmar · 4 do the trends show it
+working · 5 charts on Progress. One release each.
+
+- **Stage 0 (done, no change needed).** He switched to the 419-session Ironman
+  book. Measured on a 409-session fixture (`season.xlsx`) at 4× CPU throttle:
+  open + build the plan 154 ms, `renderToday` 3 ms, `renderPlan` with 409 cards
+  68 ms, `visiblePlan()` 0.08 ms a call. The performance worry was unfounded —
+  do not "optimise" this on suspicion.
+- **v1.47.0 — one tap.** `logAsPlanned()` queues `{ actualDuration: <planned
+  minutes as a plain string> }` and nothing else, so `buildEdits` reaches
+  exactly two cells. That "and nothing else" is the whole safety property, and
+  `tests/as-planned.js` asserts it: an entry carrying blank fields would put
+  empty strings over numbers already in the sheet.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The
@@ -250,7 +265,7 @@ node tests/failure-paths.js          # and the rest
 Repo tests: `failure-paths`, `column-collision`, `foreign-extras-sheet`,
 `edited-workbook`, `calendar-export`, `session-share`, `progress`, `logging`,
 `move-log`, `leaving-a-form`, `week-wash`, `august-audit`, `rest-day`,
-`photos`, `extra-photos`, `share-app`, `screen-wording`, `plan-overview`. Fixtures are synthetic and gitignored — **no real
+`photos`, `extra-photos`, `share-app`, `screen-wording`, `plan-overview`, `as-planned`. Fixtures are synthetic and gitignored — **no real
 training data in this repository**.
 
 Extra scripts live in the session scratchpad and drive Martin's *real*

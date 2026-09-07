@@ -849,7 +849,17 @@ body.detail-open .tab-bar { display: none; }
 
 /* Planned duration, and how the figure being typed compares with it. Shown
    because the sheet computes compliance itself — the app never writes it. */
+/* It became a button when it became tappable; it must not start looking like
+   one. Same line, same weight, only now it does something. */
 .compliance-line {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: none;
+    font: inherit;
+    cursor: pointer;
+    padding: 0;
     margin-top: 0.45rem;
     font-size: 0.8rem;
     font-weight: 600;
@@ -1937,7 +1947,7 @@ body.is-viewing-photo .tab-bar { display: none; }
 .field-split {
     display: flex;
     gap: 0.65rem;
-    align-items: stretch;
+    align-items: center;
 }
 
 .field-split input {
@@ -1946,12 +1956,16 @@ body.is-viewing-photo .tab-bar { display: none; }
     text-align: center;
 }
 
+/*
+ * A block, not a flex container. As a flex container each <strong> and each
+ * run of text became its own anonymous item, and flex strips the whitespace
+ * around those — so "<strong>1</strong> easy" rendered as "1easy". The
+ * centring it was there for belongs to the parent anyway.
+ */
 .field-aside {
     flex: 1 1 auto;
     min-width: 0;
     margin: 0;
-    display: flex;
-    align-items: center;
     font-size: 0.8rem;
     line-height: 1.35;
     color: var(--color-text-secondary);

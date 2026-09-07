@@ -375,11 +375,27 @@ const AmsUi = (function () {
                         ? '<p class="hint-inline">'
                             + (settled.kind === 'missed' ? 'Marked missed.' : 'Recorded.')
                             + ' Tap to see it or change it.</p>'
-                        : '<div class="button-row" style="margin-top:0.4rem">'
-                            + '<button class="btn btn-primary" data-log="' + esc(workout.key) + '">Log this session</button>'
-                            + '<button class="btn btn-small" data-missed="' + esc(workout.key) + '">Missed</button>'
-                            + '<button class="btn btn-small" data-move="' + esc(workout.key) + '">Move</button>'
-                          + '</div>')
+                        : (planned
+                            /*
+                             * The commonest answer gets the biggest button and
+                             * says the number it will write. Everything else —
+                             * the form, missed, moving it — drops to a row of
+                             * small ones underneath, because they are the
+                             * exceptions and should look like exceptions.
+                             */
+                            ? '<button class="btn btn-primary btn-block" style="margin-top:0.4rem"'
+                                + ' data-as-planned="' + esc(workout.key) + '">Did it \u2014 '
+                                + esc(AmsPlan.formatDuration(planned)) + '</button>'
+                                + '<div class="button-row" style="margin-top:0.4rem">'
+                                + '<button class="btn btn-small" data-log="' + esc(workout.key) + '">Log details</button>'
+                                + '<button class="btn btn-small" data-missed="' + esc(workout.key) + '">Missed</button>'
+                                + '<button class="btn btn-small" data-move="' + esc(workout.key) + '">Move</button>'
+                              + '</div>'
+                            : '<div class="button-row" style="margin-top:0.4rem">'
+                                + '<button class="btn btn-primary" data-log="' + esc(workout.key) + '">Log this session</button>'
+                                + '<button class="btn btn-small" data-missed="' + esc(workout.key) + '">Missed</button>'
+                                + '<button class="btn btn-small" data-move="' + esc(workout.key) + '">Move</button>'
+                              + '</div>'))
                 + '</div>';
         }).join('') + extrasBlock();
     }
@@ -1916,6 +1932,7 @@ const AmsUi = (function () {
 
         const logButton = $('openLogButton');
         const missedButton = $('markMissedButton');
+        const asPlannedButton = $('asPlannedButton');
         const isRest = workout.discipline.id === 'rest';
         logButton.hidden = isRest;
         missedButton.hidden = isRest;
@@ -1923,7 +1940,21 @@ const AmsUi = (function () {
         // session marked missed has nothing to repeat, though it can still be
         // logged if it turns out you did it after all.
         const status = statusOf(workout);
-        logButton.textContent = (status && status.kind === 'logged') ? 'Log again' : 'Log this session';
+        const isLogged = !!(status && status.kind === 'logged');
+        logButton.textContent = isLogged ? 'Log again' : 'Log details';
+
+        /*
+         * Offered on anything with a planned length that has not already been
+         * recorded — including a session marked missed, which is exactly when
+         * "I did it after all" is the thing you want to say in one tap.
+         */
+        const plannedSeconds = AmsPlan.plannedDurationSeconds(workout, state.mapping || {});
+        asPlannedButton.hidden = isRest || !plannedSeconds || isLogged;
+        if (!asPlannedButton.hidden) {
+            asPlannedButton.textContent = 'Did it \u2014 ' + AmsPlan.formatDuration(plannedSeconds);
+        }
+        // With it showing, the form is no longer the primary thing to do here.
+        logButton.classList.toggle('btn-primary', asPlannedButton.hidden);
         showScreen('workoutScreen');
         paintPhotos();
     }
@@ -2491,8 +2522,16 @@ const AmsUi = (function () {
             '<div class="card" ' + sportStyle(workout) + '>'
             + '<p class="workout-card-sport">' + esc(workout.discipline.label) + '</p>'
             + '<p class="workout-card-title">' + esc(workout.title) + '</p>'
-            + (plannedMinutes ? '<p class="compliance-line" id="complianceLine">'
-                + esc(AmsPlan.formatDuration(plannedMinutes * 60)) + ' planned</p>' : '')
+            /*
+             * Tappable, because it is the answer often enough to be worth
+             * offering: the line already says the planned length, and typing
+             * that same number back in by hand is the busywork the "Did it"
+             * button exists to remove. Here it stays a choice you can then
+             * edit, which is the reason to come to this form at all.
+             */
+            + (plannedMinutes ? '<button type="button" class="compliance-line" id="complianceLine"'
+                + ' data-use-planned="' + Math.round(plannedMinutes) + '">'
+                + esc(AmsPlan.formatDuration(plannedMinutes * 60)) + ' planned — tap to use</button>' : '')
             + '</div>'
             + html
             + (hidden
@@ -2538,7 +2577,7 @@ const AmsUi = (function () {
                 line.textContent = seconds
                     ? AmsPlan.formatDuration(plannedMinutes * 60) + ' planned · '
                         + Math.round((seconds / 60) / plannedMinutes * 100) + '% of plan'
-                    : AmsPlan.formatDuration(plannedMinutes * 60) + ' planned';
+                    : AmsPlan.formatDuration(plannedMinutes * 60) + ' planned — tap to use';
             };
             durationInput.addEventListener('input', update);
             update();
@@ -2743,6 +2782,50 @@ const AmsUi = (function () {
         const unit = $('log-distanceUnit');
         if (unit) values.distanceUnit = unit.value;
         return values;
+    }
+
+    /*
+     * The session, logged exactly as the plan asked for it.
+     *
+     * Most sessions go as planned, and for those the form is four fields of
+     * ceremony around one number the app already knows. This writes that
+     * number and the completed marker, and nothing else — which is precisely
+     * what filling in the duration and pressing Save would have done.
+     *
+     * The minutes go over as a plain number because that is what the app
+     * documents a bare number to mean, and because handing formatDuration's
+     * output back to parseDuration would be trusting a round trip through two
+     * humanised strings for no reason.
+     *
+     * No confirm. A one-tap action with a question in front of it is a
+     * two-tap action, the button says the number it is about to write, and
+     * logging again overwrites — so the way back is the same way in.
+     */
+    async function logAsPlanned(key) {
+        const workout = key ? AmsSync.byKey(key) : currentWorkout;
+        if (!workout) return;
+
+        const mapping = AmsSync.getState().mapping || {};
+        const seconds = AmsPlan.plannedDurationSeconds(workout, mapping);
+        if (!seconds) {
+            toast('That session has no planned length, so there is nothing to take as read.', 'bad');
+            return;
+        }
+
+        try {
+            await AmsSync.logWorkout(workout, { actualDuration: String(Math.round(seconds / 60)) });
+            const connected = await AmsDropbox.isConnected();
+            toast(AmsPlan.formatDuration(seconds) + ' logged'
+                + (connected ? ' — writing it into the workbook.' : ' on this phone.'), 'good');
+
+            const active = document.querySelector('.screen.active');
+            if (active && active.id === 'workoutScreen') openWorkout(workout.key);
+            renderToday();
+            renderPlan();
+            renderProgress();
+        } catch (err) {
+            toast(err.message || 'That could not be saved.', 'bad');
+        }
     }
 
     async function saveLog() {
@@ -3820,7 +3903,14 @@ const AmsUi = (function () {
                         + esc(mapping.doneValue) + '</strong>' : '') + '.</p>' : ''))
 
             + section('Logging, missing, moving',
-                '<p><strong>Log</strong> asks first for the numbers that suit the sport; every other column '
+                '<p><strong>Did it \u2014 45m</strong> is the whole of logging a session that went as the '
+                + 'plan asked. It writes the planned duration and the completed marker, and touches no other '
+                + 'cell — the same two cells that filling in the duration and pressing Save would have '
+                + 'written. The button says the number before you press it, there is no question in front of '
+                + 'it, and logging again overwrites, so nothing about it is hard to undo. It is offered on '
+                + 'anything with a planned length not yet recorded, a session marked missed included.</p>'
+
+                + '<p><strong>Log</strong> asks first for the numbers that suit the sport; every other column '
                 + 'your sheet has is one tap away, and once you ask for the full set it keeps showing it. '
                 + 'Anything left blank leaves that cell exactly as it was.</p>'
 
@@ -3836,7 +3926,9 @@ const AmsUi = (function () {
                 + 'somebody running beside you — because that is the thing you can check while you are '
                 + 'doing it.</p>'
 
-                + '<p><strong>How long it took.</strong> Type a plain number and it means minutes — '
+                + '<p><strong>How long it took.</strong> The planned length at the top of the form is '
+                + 'tappable — "45m planned — tap to use" — which fills the field for you. Otherwise: '
+                + 'type a plain number and it means minutes — '
                 + '<code>45</code> is forty-five minutes, <code>90</code> is an hour and a half. That is '
                 + 'the quickest thing to type and it is what the field expects, so there is no need to '
                 + 'add a unit. If you would rather be explicit, all of these work and mean what they '
@@ -4544,7 +4636,8 @@ const AmsUi = (function () {
         document.body.addEventListener('click', (event) => {
             const card = event.target.closest('[data-workout]');
             if (card && !event.target.closest('[data-log]') && !event.target.closest('[data-missed]')
-                && !event.target.closest('[data-move]') && !event.target.closest('[data-swap]')) {
+                && !event.target.closest('[data-move]') && !event.target.closest('[data-swap]')
+                && !event.target.closest('[data-as-planned]')) {
                 openWorkout(card.dataset.workout);
                 return;
             }
@@ -4577,6 +4670,20 @@ const AmsUi = (function () {
             if (event.target.closest('[data-photo-close]')) { closePhoto(); return; }
             if (event.target.closest('[data-photo-share]')) { shareViewedPhoto(); return; }
             if (event.target.closest('[data-photo-delete]')) { deleteViewedPhoto(); return; }
+
+            const usePlanned = event.target.closest('[data-use-planned]');
+            if (usePlanned) {
+                const field = $('log-actualDuration');
+                if (field) {
+                    field.value = usePlanned.dataset.usePlanned;
+                    field.dispatchEvent(new Event('input', { bubbles: true }));
+                    markFormDirty('logScreen');
+                }
+                return;
+            }
+
+            const asPlanned = event.target.closest('[data-as-planned]');
+            if (asPlanned) { logAsPlanned(asPlanned.dataset.asPlanned); return; }
 
             const log = event.target.closest('[data-log]');
             if (log) { openLog(log.dataset.log); return; }
@@ -4670,6 +4777,7 @@ const AmsUi = (function () {
         $('shareWorkoutButton').addEventListener('click', () => shareSession(currentWorkout));
 
         $('openLogButton').addEventListener('click', () => openLog());
+        $('asPlannedButton').addEventListener('click', () => logAsPlanned());
         $('markMissedButton').addEventListener('click', () => markMissed());
         $('saveLogButton').addEventListener('click', saveLog);
         $('saveSetupButton').addEventListener('click', saveSetup);
