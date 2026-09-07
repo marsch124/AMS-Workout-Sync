@@ -672,17 +672,26 @@ body {
 
 /* ---------- empty states ---------- */
 
+/*
+ * Less air than it had. A rest day is the emptiest this screen ever gets, and
+ * two and three quarter rems above and below "nothing scheduled" pushed the
+ * one genuinely colourful thing on the page — the sessions coming up — off the
+ * bottom of it.
+ */
 .empty-state {
     text-align: center;
-    padding: 2.75rem 1.25rem;
+    padding: 1.8rem 1.25rem;
     color: var(--color-text-secondary);
 }
 
+/* The border colour made this all but invisible, which on a rest day left a
+   screen with nothing on it at all. It is the app's own green now, quietened. */
 .empty-state .icon {
     width: 2.6rem;
     height: 2.6rem;
     margin: 0 auto 0.85rem;
-    color: var(--color-border);
+    color: var(--accent);
+    opacity: 0.7;
 }
 
 .empty-state h2 {
@@ -1057,11 +1066,15 @@ body.detail-open .tab-bar { display: none; }
    the day columns use, and the legend already explains it there. Outlining the
    whole length gives the planned hours a visible extent, so the green is read
    as a share of something rather than as a line of unknown ambition. */
+/* The track carries a wash of the accent rather than nothing at all: at the
+   start of a week the bar inside it has no width, and an empty outline was the
+   greyest thing on the screen at exactly the moment there was least else on
+   it. */
 .week-bar {
     height: 10px;
     border-radius: 999px;
     border: 1.5px solid color-mix(in srgb, var(--accent) var(--week-bar-edge, 45%), transparent);
-    background: transparent;
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
     overflow: hidden;
 }
 
@@ -1173,18 +1186,27 @@ body.detail-open .tab-bar { display: none; }
 
 .week-bar-seg {
     flex: 1;
-    max-width: 9px;
+    max-width: 11px;
     min-height: 4px;
-    border-radius: 2px;
+    border-radius: 2.5px;
     background: var(--sport, var(--accent));
 }
 
-/* Outstanding work is hollow; recorded work is solid. The difference should be
-   legible at a glance without reading anything. */
+/*
+ * Outstanding work is hollow; recorded work is solid. That difference has to
+ * stay legible without reading anything — but hollow used to mean an outline
+ * and nothing else, and on a week with nothing logged yet the whole strip was
+ * four thin rules on white. Since the light-mode sport colours are dark by
+ * design (they have to carry text contrast), an outline of one reads as grey.
+ *
+ * So hollow is now tinted rather than empty: the sport's own colour at low
+ * strength, inside a full-strength edge of it. Still plainly not solid, and
+ * the week finally has the colour of the sports in it.
+ */
 .week-bar-seg.is-todo {
-    background: transparent;
+    background: var(--sport, var(--accent));
+    background: color-mix(in srgb, var(--sport, var(--accent)) 26%, transparent);
     border: 1.5px solid var(--sport, var(--accent));
-    opacity: 0.75;
 }
 
 .week-bar-seg.is-missed {
@@ -1196,7 +1218,7 @@ body.detail-open .tab-bar { display: none; }
 }
 
 .week-bar-seg.is-moved {
-    background: transparent;
+    background: color-mix(in srgb, var(--sport, var(--accent)) 14%, transparent);
     border: 1.5px dashed var(--sport, var(--accent));
 }
 
@@ -2182,16 +2204,17 @@ body.is-viewing-photo .tab-bar { display: none; }
     background: var(--sport, var(--accent));
 }
 
-/* Still to do is drawn hollow, exactly as on Today. */
+/* Still to do is drawn hollow, exactly as on Today — tinted rather than
+   empty, for the same reason. */
 .block-bar.is-todo {
-    background: transparent;
+    background: color-mix(in srgb, var(--sport, var(--accent)) 26%, transparent);
     box-shadow: inset 0 0 0 1.5px var(--sport, var(--accent));
 }
 
 .block-bar.is-moved {
-    background: transparent;
+    background: color-mix(in srgb, var(--sport, var(--accent)) 14%, transparent);
     box-shadow: inset 0 0 0 1.5px var(--sport, var(--accent));
-    opacity: 0.55;
+    opacity: 0.7;
 }
 
 .block-bar.is-missed { background: var(--sport, var(--accent)); opacity: 0.35; }

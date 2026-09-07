@@ -221,6 +221,15 @@ working · 5 charts on Progress. One release each.
     cleared. And a saved mapping is reused when the recorded headings still
     hold, so adding a column to a fixture needs `AmsDb.remove('mapping')`.
 
+- **v1.51.0 — colour.** He asked for the Today page to "pop", naming the
+  planned-but-not-done sessions. `.week-bar-seg.is-todo` was a bare outline;
+  the **light-mode sport colours are deliberately dark** (they carry text
+  contrast, guarded by `august-audit`), so an outline of one reads grey. Now
+  tinted at 26% inside a full-strength edge — hollow still reads as *not done*.
+  Same on `.block-bar.is-todo`. Also: a wash in the empty week-progress track,
+  and `.empty-state` padding cut from 2.75rem to 1.8rem because a rest day was
+  pushing the one colourful thing on the page (Coming up) below the fold.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The

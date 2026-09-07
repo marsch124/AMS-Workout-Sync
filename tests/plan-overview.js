@@ -155,24 +155,63 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(44) + v);
 
   const alphabet = await page.evaluate(() => {
     const bars = [...document.querySelectorAll('#planBody .block-bar')];
-    const hollow = bars.filter(b => getComputedStyle(b).backgroundColor === 'rgba(0, 0, 0, 0)');
-    const solid = bars.filter(b => getComputedStyle(b).backgroundColor !== 'rgba(0, 0, 0, 0)');
+
+    /*
+     * "Still to do" used to mean a bare outline, and this asked whether the
+     * background was fully transparent. Since v1.51.0 it is tinted instead —
+     * he asked for colour, and an outline of a light-mode sport colour reads
+     * as grey. So what is checked is the property that actually matters and
+     * always did: a session still to do must not be drawn the same as a
+     * session that is done. It carries a ring, and it is not filled solid.
+     */
+    /*
+     * Two shapes come back from getComputedStyle, and reading only one of them
+     * is how this test first reported a tinted bar as solid: a plain colour
+     * gives "rgba(r, g, b, a)", while anything built with color-mix gives
+     * "color(srgb r g b / a)".
+     */
+    const alphaOf = (node) => {
+      const value = getComputedStyle(node).backgroundColor;
+      if (/transparent/.test(value)) return 0;
+      const slashed = value.match(/\/\s*([\d.]+)\s*\)/);
+      if (slashed) return parseFloat(slashed[1]);
+      const rgba = value.match(/rgba?\(([^)]+)\)/);
+      if (rgba) {
+        const parts = rgba[1].split(',').map(n => parseFloat(n));
+        return parts.length > 3 ? parts[3] : 1;
+      }
+      return 1;
+    };
+
+    const todo = bars.filter(b => b.classList.contains('is-todo'));
     return {
       bars: bars.length,
-      hollow: hollow.length,
-      solid: solid.length,
+      todo: todo.length,
+      ringed: todo.filter(b => /inset/.test(getComputedStyle(b).boxShadow)).length,
+      solidLooking: todo.filter(b => alphaOf(b) > 0.9).length,
+      invisible: todo.filter(b => alphaOf(b) < 0.05
+        && !/inset/.test(getComputedStyle(b).boxShadow)).length,
       restLines: document.querySelectorAll('#planBody .block-rest').length,
       // Every bar takes its colour from the sport, as on Today.
       coloured: new Set(bars.map(b => getComputedStyle(b).getPropertyValue('--sport').trim())).size
     };
   });
 
-  line('bars', alphabet.bars + ' — ' + alphabet.hollow + ' still to do, ' + alphabet.solid + ' filled');
+  line('bars', alphabet.bars + ', of which ' + alphabet.todo + ' still to do');
+  line('still-to-do bars carrying a ring', alphabet.ringed + ' of ' + alphabet.todo);
+  line('any of them filled solid', alphabet.solidLooking);
   line('rest days drawn as a flat line', alphabet.restLines);
   line('distinct sport colours', alphabet.coloured);
 
   if (!alphabet.bars) errors.push('no bars were drawn at all');
-  if (!alphabet.hollow) errors.push('nothing is drawn hollow, so still-to-do reads as done');
+  if (!alphabet.todo) errors.push('no still-to-do bars in a plan that is entirely ahead of today');
+  if (alphabet.ringed !== alphabet.todo) {
+    errors.push('a still-to-do bar has no ring, so it cannot be told from a finished one');
+  }
+  if (alphabet.solidLooking) {
+    errors.push(alphabet.solidLooking + ' still-to-do bars are filled solid, which is what done looks like');
+  }
+  if (alphabet.invisible) errors.push('a still-to-do bar is neither tinted nor ringed, so it is invisible');
   if (!alphabet.restLines) errors.push('rest days are drawn as empty columns rather than flat lines');
   if (alphabet.coloured < 3) errors.push('the bars are not taking their colour from the sport');
 

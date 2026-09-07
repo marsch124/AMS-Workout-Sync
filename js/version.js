@@ -8,13 +8,24 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.50.0';
+    const CURRENT = '1.51.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.51.0',
+            date: '2026-09-07',
+            headline: 'More colour where there was none',
+            items: [
+                '**The sessions you have not done yet now carry their sport\u2019s colour.** They were drawn as an outline and nothing else — and since the light-mode sport colours are dark by design, so they can hold their own as text, an outline of one reads as grey. On a week with nothing logged the whole strip was four thin rules on white.',
+                'They are tinted rather than filled, so hollow still plainly means *not done yet* and solid still means *done*. The same change on the eight-week card in the Plan tab, since the two speak the same language.',
+                'The bar under the week\u2019s figures has a wash in it now instead of being an empty outline — at the start of a week it had nothing in it at all, which made it the greyest thing on the screen at the moment there was least else on it.',
+                'A rest day used to be the emptiest this app gets: a pale grey tick with a great deal of air around it, pushing the sessions coming up off the bottom of the screen. The tick is green and the air is trimmed, so what is next is visible without scrolling.',
+            ]
+        },
         {
             version: '1.50.0',
             date: '2026-09-07',
