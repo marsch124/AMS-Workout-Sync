@@ -447,6 +447,22 @@ const AmsVoice = (function () {
      * number said out loud and silently discarded is exactly the kind of thing
      * that makes a person stop trusting a feature.
      */
+    /*
+     * A number on its way into a field.
+     *
+     * Nothing but a real, positive figure may go, because every field this
+     * fills is one where zero is not an answer: a session of no minutes, a
+     * heart rate of nothing, an effort of nought. Rounded to three places on
+     * the way through as well, which is enough for any of them and stops a
+     * figure arriving in exponent notation — "1e-9" in a duration box is not a
+     * number a person can argue with.
+     */
+    function fieldValue(value) {
+        if (!isFinite(value)) return null;
+        const rounded = Math.round(value * 1000) / 1000;
+        return rounded > 0 ? String(rounded) : null;
+    }
+
     function parse(text, options) {
         const opts = options || {};
         const sport = opts.sport || 'other';
@@ -466,9 +482,10 @@ const AmsVoice = (function () {
             const hm = hoursAndMinutes(said, token, tokens);
             if (hm) {
                 if (hm.consumed) skip.add(hm.consumed);
-                if (taken.actualDuration === undefined) {
-                    taken.actualDuration = String(Math.round(hm.minutes));
-                    heard.push({ field: 'actualDuration', value: taken.actualDuration, said: token.text, from: 'unit' });
+                const usable = fieldValue(Math.round(hm.minutes));
+                if (usable !== null && taken.actualDuration === undefined) {
+                    taken.actualDuration = usable;
+                    heard.push({ field: 'actualDuration', value: usable, said: token.text, from: 'unit' });
                 }
                 continue;
             }
@@ -477,10 +494,12 @@ const AmsVoice = (function () {
                 const explicit = meaningOf(said, token);
                 const field = explicit.field || clockMeaning(token, taken, sport);
                 if (taken[field] !== undefined) continue;
-                taken[field] = field === 'actualDuration'
-                    ? String(Math.round(clockToMinutes(token)))
+                const value = field === 'actualDuration'
+                    ? fieldValue(Math.round(clockToMinutes(token)))
                     : clockToText(token);
-                heard.push({ field: field, value: taken[field], said: token.text,
+                if (value === null) continue;
+                taken[field] = value;
+                heard.push({ field: field, value: value, said: token.text,
                              from: explicit.field ? explicit.from : 'shape' });
                 continue;
             }
@@ -494,8 +513,10 @@ const AmsVoice = (function () {
             if (meaning.field === 'actualDuration' && /^(hours?|h)\b/.test(after(said, token))) {
                 value = value * 60;
             }
-            taken[meaning.field] = String(value);
-            heard.push({ field: meaning.field, value: taken[meaning.field], said: token.text, from: meaning.from });
+            const usable = fieldValue(value);
+            if (usable === null) continue;
+            taken[meaning.field] = usable;
+            heard.push({ field: meaning.field, value: usable, said: token.text, from: meaning.from });
         }
 
         // Second pass: the numbers that said nothing about themselves, in the
@@ -515,8 +536,10 @@ const AmsVoice = (function () {
             }
             let value = token.value;
             if (field === 'actualDistance') value = distanceFor(value, said, token, sport);
-            taken[field] = String(value);
-            heard.push({ field: field, value: taken[field], said: token.text, from: 'order' });
+            const usable = fieldValue(value);
+            if (usable === null) continue;
+            taken[field] = usable;
+            heard.push({ field: field, value: usable, said: token.text, from: 'order' });
         }
 
         // Anything the sheet cannot hold is reported, not dropped.

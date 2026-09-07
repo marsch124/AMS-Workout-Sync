@@ -258,8 +258,41 @@ first thing tested. After it: a Sunday belongs to the week it ends, an
 unanswered week looks empty rather than full, and what was done is kept apart
 from what was asked for so a drift between them can be seen at all.
 
+**`new-writes.js`** — the two new ways into the workbook, followed all the way
+to the file. Both one-tap logging and a spoken sentence were tested where they
+hand their values over, which is the easy half; this takes a season of 409
+sessions, logs into it, saves, opens the saved file again and asks whether the
+right cells got the right values *in the sheet's own units*, whether all 3,272
+planned cells are unchanged, and whether the rest of the archive is still byte
+for byte identical. A new writer is exactly the thing that quietly breaks
+invariant 1, and nobody would notice until a chart in Excel stopped working.
+
+Two of its four parts are there for one risk each. **Pace into a clock column**:
+where Excel has decided the pace column is a time, `1:52` has to be stored as
+112/86400 and keep its formatting — store 1.52 instead and the cell reads as
+half past one in the morning. Both kinds of pace column are covered, and which
+kind a sheet has is something the app works out by looking, so the test checks
+that it looked correctly. **A whole mixed day**: a tap, a spoken session, a
+photo, a move, a missed session and an extra, queued together and saved in one
+go, then read back out of the file.
+
+**`rough-input.js`** — fifty-two deliberately broken sentences and a pile of
+malformed rows, in plain node, on two rules: never throw, and never invent. The
+first rule is obvious. The second is the one that found things — a sentence
+with no numbers worth having in it used to produce a plain `0`, and one
+arrangement produced a number so small it was not really a number. Both would
+have been written into the sheet as though they had been said. It also feeds
+impossible rows to the two new statistics screens, where an infinite speed used
+to pass a `> 0` check perfectly happily and turn every average downstream into
+nothing at all.
+
 ## Fixtures
 
 `make-fixtures.py` writes synthetic workbooks into `tests/fixtures/`. Nobody's
 real training plan is in this repository, and none should be: a test that fails
 should point at the app, not at data that cannot be replaced.
+
+`paced-time.xlsx` is worth a word: its pace column is formatted as a clock and
+carries three weeks of real values, because the app decides how to write a pace
+by looking at what is already in the column. An empty column tells it nothing,
+so a fixture that only has today in it cannot exercise the path at all.

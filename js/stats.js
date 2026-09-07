@@ -267,9 +267,17 @@ const AmsStats = (function () {
     /* Heart rates outside this are somebody mistyping, not somebody training. */
     const TREND_HR = [60, 220];
 
+    /*
+     * Finite as well as positive. A cell holding something the reader turned
+     * into Infinity passes "> 0" perfectly happily, and then every average it
+     * touches is Infinity and every share of it is NaN — which is the shape of
+     * bug that reaches a screen looking like a number.
+     */
     function usableForTrend(row) {
         if (!row) return false;
-        if (!(row.minutes > 0) || !(row.km > 0)) return false;
+        if (!(isFinite(row.minutes) && row.minutes > 0)) return false;
+        if (!(isFinite(row.km) && row.km > 0)) return false;
+        if (!isFinite(row.hr)) return false;
         if (!(row.hr >= TREND_HR[0] && row.hr <= TREND_HR[1])) return false;
         return true;
     }
@@ -399,8 +407,18 @@ const AmsStats = (function () {
         const starts = (input.weekStarts || []).slice();
         if (!starts.length) return { weeks: [], sports: [], planned: 0, actual: 0 };
 
+        /*
+         * Sorted here rather than trusted from the caller. The bucket search
+         * walks backwards on the assumption that they are in order, and a
+         * caller handing them over shuffled would silently lose hours rather
+         * than fail — the worst way for this to be wrong.
+         */
+        starts.sort();
         const from = starts[0];
         const until = input.endExclusive || null;
+
+        /* Nothing that is not a real, non-negative number gets in. */
+        const seconds = (value) => (isFinite(value) && value > 0 ? value : 0);
         const weeks = starts.map((start) => ({ start: start, planned: 0, actual: 0, sessions: 0 }));
 
         const bucketFor = (dayKey) => {
@@ -421,8 +439,8 @@ const AmsStats = (function () {
             const week = bucketFor(row.dayKey);
             if (!week) continue;
 
-            const p = row.planned || 0;
-            const a = row.actual || 0;
+            const p = seconds(row.planned);
+            const a = seconds(row.actual);
             week.planned += p;
             week.actual += a;
             if (a > 0) week.sessions++;

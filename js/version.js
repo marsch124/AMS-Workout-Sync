@@ -8,13 +8,27 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.53.0';
+    const CURRENT = '1.54.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.54.0',
+            date: '2026-09-07',
+            headline: 'Made to try and break it',
+            items: [
+                'Nothing on any screen has moved. This release is the week\u2019s new work being taken apart on purpose, and the handful of things that came loose being fixed.',
+                '**Your workbook, checked cell by cell.** Logging by tap and by voice is now followed all the way into the saved file and back out again \u2014 a full season of 409 sessions, with all 3,272 planned cells compared before and after. The plan itself has to come through untouched, and the rest of the file has to come through byte for byte identical, or the test fails.',
+                '**Pace, which was the risky one.** When Excel treats a pace column as a clock, *1:52 per hundred* has to be stored as a fraction of a day rather than as the number 1.52 \u2014 get that wrong and the cell reads as half past one in the morning and every chart beside it goes flat. That path is now tested end to end, in both kinds of pace column.',
+                '**Saying a nonsense number no longer writes one.** Fifty-two deliberately broken sentences were read to it. A couple of them used to put a plain 0 into a field, or a number so small it was not really a number at all. Now anything that is not a real figure is simply left out, which was always the intention.',
+                '**One rogue number can no longer take a screen down with it.** A session with an impossible speed in it used to be able to turn *Is it working?* into a row of blanks. Both new screens now step over a bad row instead of tripping on it.',
+                '**A whole mixed day, saved at once** \u2014 a tap, a spoken session, a photo, a move, a missed session and an extra, all in one save, all read back out of the file afterwards.',
+                'Twenty-seven tests now run against this app, up from twenty-two. All of them pass.',
+            ]
+        },
         {
             version: '1.53.0',
             date: '2026-09-07',

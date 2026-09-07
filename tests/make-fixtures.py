@@ -340,6 +340,55 @@ def paced(path):
     wb.save(path)
 
 
+def paced_time(path):
+    """
+    The same shared pace column, but formatted as a clock — which is what
+    Excel does the moment somebody types 5:30 into a cell and lets it guess.
+
+    This is the shape that makes pace dangerous. In a text column "5:30" is
+    stored as the four characters you said; in this one it has to become the
+    fraction of a day that Excel calls half past five in the morning, and a
+    writer that forgets the conversion puts 5.5 or 330 in the sheet and the
+    chart alongside it goes flat. Past rows are filled in so the app can
+    recognise the format at all: it decides by looking at what is already
+    there.
+    """
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Weekly Schedules'
+    ws.append(['Week', 'Date', 'Day', 'Sport', 'Workout', 'Duration (min)',
+               'Intensity', 'Purpose', 'Done', 'Actual (min)', 'Actual (km)',
+               'Avg Pace', 'Avg HR', 'Effort', 'Notes'])
+
+    today = datetime.date.today()
+
+    # Three weeks already behind us, logged, so the pace column is visibly a
+    # clock column before the app is ever asked to write into it.
+    past = [
+        ('Swim', 45, 2.0, 112),      # 1:52 per 100m
+        ('Run', 40, 7.5, 320),       # 5:20 per km
+        ('Bike', 90, 45.0, 80),      # 1:20 — nonsense as a pace, fine as a cell
+    ]
+    row = 2
+    for week in range(3):
+        for index, (sport, minutes, km, pace_seconds) in enumerate(past):
+            day = today - datetime.timedelta(days=(3 - week) * 7 - index)
+            ws.append([week + 1, day, DAYS[day.weekday()], sport,
+                       'Session', minutes, 'Z2', 'Base', 'Yes', minutes, km,
+                       pace_seconds / 86400.0, 130 + index, 4])
+            ws.cell(row=row, column=12).number_format = 'mm:ss'
+            row += 1
+
+    # And today, unlogged, one of each.
+    for index, (sport, minutes, _km, _pace) in enumerate(past):
+        ws.append([4, today, DAYS[today.weekday()], sport, 'Session', minutes,
+                   'Z2', 'Base', '', None, None, None, None, None])
+        ws.cell(row=row, column=12).number_format = 'mm:ss'
+        row += 1
+
+    wb.save(path)
+
+
 def everyday(path):
     """
     Two sessions on every day of this week and next, no rest days, no blanks.
@@ -386,6 +435,7 @@ if __name__ == '__main__':
     foreign_extras(os.path.join(OUT, 'foreign-extras.xlsx'))
     history(os.path.join(OUT, 'history.xlsx'))
     paced(os.path.join(OUT, 'paced.xlsx'))
+    paced_time(os.path.join(OUT, 'paced-time.xlsx'))
     everyday(os.path.join(OUT, 'everyday.xlsx'))
     row_inserted(os.path.join(OUT, 'row-inserted.xlsx'),
                  os.path.join(OUT, 'plain.xlsx'))
