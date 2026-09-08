@@ -24,6 +24,8 @@ const AmsVersion = (function () {
                 'Pink because no sport uses it. Colour is how that drawing tells you swim from bike from run, so a colour of its own is how it tells you *this one was not in the plan at all* \u2014 which is the thing you want to know first about it.',
                 'They are drawn solid, like anything recorded. There is no such thing as an extra still to do, so there is nothing for the hollow outline to mean.',
                 'A rest day you went for a walk on keeps its rest line and gets the pink bar as well. The plan asked for nothing and you went anyway, and both of those are worth seeing.',
+                '**The same on the Plan tab.** The eight-week block at the top of it draws them too, in the same pink and on the same scale as everything else in the card. Only last week and this week can carry any, since the other six have not happened yet.',
+                '**And a section of the guide explaining all of it** \u2014 *The week, drawn*, under Settings \u2192 How it works. What the height is measured against and why the two cards measure it differently, what solid, hollow, dashed and hatched mean, why a rest day is a line rather than a gap, and every decision behind the pink.',
                 'The week card already counted these in its \u201cextra\u201d figure. Until now the drawing above that line said nothing about them, so a week with an hour\u2019s walking in it looked exactly like a week without one.',
                 'Tap the day and the walk is listed under it with its length. Tap the week itself and the key explains the pink, on any week that has one.',
             ]

@@ -428,6 +428,13 @@ if __name__ == '__main__':
     plain(os.path.join(OUT, 'plain.xlsx'))
     block(os.path.join(OUT, 'block.xlsx'))
     season(os.path.join(OUT, 'season.xlsx'))
+    # A build that starts next Monday, so nothing in it is ever in the past.
+    # season.xlsx starts on *this* week's Monday, which is only "not started
+    # yet" when the suite happens to be run on a Monday — every other day of
+    # the week it has unrecorded sessions behind it and the road card is right
+    # to say so. The test for a plan that has not started needs a plan that has
+    # not started on any day it is run.
+    season(os.path.join(OUT, 'season-unstarted.xlsx'), weeks_behind=-1)
     season(os.path.join(OUT, 'season-underway.xlsx'), weeks_behind=20,
            log_until=monday_of_this_week() - datetime.timedelta(days=7))
     hostile_text(os.path.join(OUT, 'nasty.xlsx'))

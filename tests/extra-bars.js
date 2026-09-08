@@ -15,10 +15,16 @@
  *      *planned* day would let a two-hour hike draw a bar taller than the
  *      column that holds it, which is the one way a bar chart can lie without
  *      looking wrong;
- *   4. a rest day he walked on keeps its rest line. Both things happened.
+ *   4. a rest day he walked on keeps its rest line. Both things happened;
+ *   5. the same is true of the eight-week block on the Plan tab, which draws
+ *      the same alphabet and must not learn a second one.
  *
  * plain.xlsx is the fixture because its week has all four kinds of day in it:
  * Monday blank, Wednesday training, Friday rest, and room to add a long extra.
+ *
+ * The 🚨 rule the block card exists for — one height scale across every week,
+ * never one per row — is guarded by tests/plan-overview.js, which also checks
+ * that a long extra cannot break it.
  */
 const { chromium } = require('playwright');
 
@@ -211,6 +217,70 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
   }
 
   // ---------------------------------------------------------------- 6
+  console.log('');
+  console.log('THE SAME ON THE PLAN TAB');
+
+  const block = await page.evaluate(async () => {
+    document.querySelector('.tab[data-tab="plan"]').click();
+    await new Promise(r => setTimeout(r, 700));
+
+    const card = document.querySelector('#planBody .block-card');
+    if (!card) return { error: 'no block card on the Plan tab' };
+
+    const rows = [...card.querySelectorAll('.block-week')]
+      .filter(w => !w.classList.contains('block-letters'));
+    const thisWeek = rows.find(w => w.classList.contains('is-now'));
+    const bar = card.querySelector('.block-bar.is-extra');
+    const row = thisWeek ? thisWeek.getBoundingClientRect() : null;
+
+    return {
+      rows: rows.length,
+      extrasInThisWeek: thisWeek ? thisWeek.querySelectorAll('.block-bar.is-extra').length : 0,
+      extrasElsewhere: rows.filter(w => !w.classList.contains('is-now'))
+        .reduce((n, w) => n + w.querySelectorAll('.block-bar.is-extra').length, 0),
+      painted: bar ? getComputedStyle(bar).backgroundColor : null,
+      // Nothing may be drawn taller than the row that holds it.
+      overflowing: row ? [...thisWeek.querySelectorAll('.block-bar')]
+        .filter(b => b.getBoundingClientRect().height
+          > thisWeek.querySelector('.block-week-days').getBoundingClientRect().height + 0.5).length : 0,
+      foot: (card.querySelector('.block-foot') || {}).innerText || '',
+      restLines: card.querySelectorAll('.block-rest').length
+    };
+  });
+
+  if (block.error) { errors.push(block.error); }
+  else {
+    line('weeks drawn', block.rows);
+    line('pink bars in this week', block.extrasInThisWeek);
+    line('pink bars in the other rows', block.extrasElsewhere);
+    line('painted', block.painted);
+    line('the foot says', block.foot);
+
+    if (block.extrasInThisWeek !== 4) {
+      errors.push('the Plan tab drew ' + block.extrasInThisWeek + ' of the 4 extras in this week');
+    }
+    if (block.extrasElsewhere) {
+      errors.push('an extra was drawn in a week it does not belong to');
+    }
+    if (block.painted !== colours.painted) {
+      errors.push('the block card paints extras differently from the week strip: '
+        + block.painted + ' against ' + colours.painted);
+    }
+    if (block.overflowing) {
+      errors.push(block.overflowing + ' bar(s) drawn taller than the week row holding them');
+    }
+    if (!/pink/i.test(block.foot)) {
+      errors.push('the block card draws pink bars and does not say what they are: ' + block.foot);
+    }
+    if (!block.restLines) errors.push('the block card lost its rest lines');
+  }
+
+  await page.evaluate(async () => {
+    document.querySelector('.tab[data-tab="today"]').click();
+    await new Promise(r => setTimeout(r, 500));
+  });
+
+  // ---------------------------------------------------------------- 7
   console.log('');
   console.log('THE KEY IS QUIET AGAIN WITHOUT THEM');
 

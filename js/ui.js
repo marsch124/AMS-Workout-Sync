@@ -1752,7 +1752,8 @@ const AmsUi = (function () {
                 days: days,
                 sessions: sessions,
                 plannedSeconds: summary ? summary.plannedSeconds : 0,
-                performed: summary ? summary.performed : 0
+                performed: summary ? summary.performed : 0,
+                extras: days.reduce((n, day) => n + day.extras.length, 0)
             });
         }
         return out;
@@ -1763,6 +1764,20 @@ const AmsUi = (function () {
      * week has to *look* like a recovery week, and it only does if its bars
      * are short beside the week either side of it — scaling each row to its
      * own tallest session would flatten exactly the shape this is drawn for.
+     *
+     * The extras are drawn here as they are on Today, in the same pink, and
+     * they are measured on the same scale as everything else — which here is
+     * the longest single *session* in the eight weeks rather than the biggest
+     * day, because these rows put a bar per session in a two-rem column and
+     * comparing one bar to one bar is the only thing that fits.
+     *
+     * Letting a long walk set that scale costs nothing in shape: every planned
+     * bar shrinks by the same factor, so the arc of the block is exactly as it
+     * was, only quieter. What it can cost is the short end, where a 14% floor
+     * stops a bar disappearing — shrink everything far enough and the short
+     * sessions bunch up on that floor. It takes an extra longer than the
+     * longest session of a whole eight-week block to get there, and drawing a
+     * bar taller than the row that holds it is the worse of the two.
      */
     function blockCard() {
         const weeks = blockWeeks();
@@ -1770,10 +1785,15 @@ const AmsUi = (function () {
 
         const mapping = AmsSync.getState().mapping || {};
         let tallest = 0;
-        weeks.forEach((week) => week.days.forEach((day) => day.training.forEach((workout) => {
-            const planned = AmsPlan.plannedDurationSeconds(workout, mapping) || 0;
-            if (planned > tallest) tallest = planned;
-        })));
+        weeks.forEach((week) => week.days.forEach((day) => {
+            day.training.forEach((workout) => {
+                const planned = AmsPlan.plannedDurationSeconds(workout, mapping) || 0;
+                if (planned > tallest) tallest = planned;
+            });
+            day.extras.forEach((extra) => {
+                if (extra.seconds > tallest) tallest = extra.seconds;
+            });
+        }));
         if (!tallest) return '';
 
         const today = AmsSync.todayKey();
@@ -1796,9 +1816,16 @@ const AmsUi = (function () {
                         + '></span>';
                 }).join('');
 
+                const extraBars = day.extras.map((extra) => {
+                    const height = Math.max(14, Math.round(extra.seconds / tallest * 100));
+                    return '<span class="block-bar is-extra" style="height:' + height + '%"'
+                        + ' title="' + esc(extra.label + ' · outside the plan') + '"></span>';
+                }).join('');
+
                 return '<span class="block-day' + (day.dayKey === today ? ' is-today' : '')
                     + (day.isRest ? ' is-rest' : '') + '">'
                     + (day.isRest && !bars ? '<span class="block-rest"></span>' : bars)
+                    + extraBars
                     + '</span>';
             }).join('');
 
@@ -1831,7 +1858,13 @@ const AmsUi = (function () {
             + '</div>'
             + '<div class="block-weeks">' + rows + '</div>'
             + '<p class="block-foot">Each row is a week, each column a day. '
-            + 'Taller is longer; solid is done.</p>'
+            + 'Taller is longer; solid is done.'
+            // Named only on a block that contains one, as the week key is.
+            // Six of these eight rows are weeks nothing can have happened in
+            // yet, so most of the time there is no pink to explain.
+            + (weeks.some((week) => week.extras)
+                ? ' Pink is something you did outside the plan.' : '')
+            + '</p>'
             + '</div>';
     }
 
@@ -4072,7 +4105,10 @@ const AmsUi = (function () {
 
             + section('The four tabs',
                 '<p><strong>Today</strong> — what is planned for today, broken into warm-up, intervals, '
-                + 'technique and cool-down, plus anything you did that was not planned. The share button on '
+                + 'technique and cool-down, plus anything you did that was not planned. The week card at the '
+                + 'top draws the whole week as seven columns: a bar per session, its height the length of '
+                + 'it, its colour the sport, and anything you did outside the plan in pink beside them. '
+                + 'There is a section on that drawing further down. The share button on '
                 + 'the week card asks which week you mean, and whether to send it as a message or add '
                 + 'it to a calendar. A message goes as plain text — a message anyone can read, no app and '
                 + 'no workbook needed at the other end. The calendar version is an ordinary .ics file, '
@@ -4088,10 +4124,13 @@ const AmsUi = (function () {
                 + 'the line under the button says which it is going to be before you tap it.</p>'
                 + '<p><strong>Plan</strong> — opens with <em>the block at a glance</em>: eight weeks as '
                 + 'eight rows, a column per day and a bar per session, drawn exactly as the week strip '
-                + 'on Today is. It is there to answer what a list cannot — where the volume rises, where '
+                + 'on Today is, pink extras included. It is there to answer what a list cannot — where '
+                + 'the volume rises, where '
                 + 'the recovery weeks fall, which week is the big one. Every week is measured against '
                 + 'one height rather than against itself, which is what makes an easy week look like an '
-                + 'easy week. Below it, the whole schedule in four lists. <em>Upcoming</em> is what is '
+                + 'easy week. Only the last week and this one can hold anything pink, since the other '
+                + 'six have not happened yet. Below it, the whole schedule in four lists. '
+                + '<em>Upcoming</em> is what is '
                 + 'still to do, and leads with anything from before today that was never recorded. '
                 + '<em>Done</em> is what you performed. <em>Missed</em> is what you marked as not done, kept '
                 + 'apart from the sessions you did and still open to log if it turns out you did it. '
@@ -4137,6 +4176,102 @@ const AmsUi = (function () {
                 + 'yet" and reads as broken — the message says what the app does, that they need a plan of '
                 + 'their own as an .xlsx in Dropbox first, and that on an iPhone a page becomes an app '
                 + 'through Share → Add to Home Screen.</p>')
+
+            + section('The week, drawn',
+                '<p>The card at the top of Today draws the week you are in rather than describing it: '
+                + 'seven columns, Monday to Sunday, a bar for every session. It is there for the things a '
+                + 'sentence cannot carry — where the long ride sits, which evening is free, whether Friday '
+                + 'is genuinely clear — which is what you plan the rest of your life around, and which no '
+                + 'amount of “2h 34m to go” conveys. The same drawing runs down the Plan tab as eight '
+                + 'weeks at once; the differences between the two are at the end of this section.</p>'
+
+                + '<p><strong>Height is how long.</strong> Every bar is measured against the biggest day '
+                + 'of this week, not against a fixed number of hours, so a heavy week and a light one '
+                + 'each use the full height of the card and both stay readable. That does mean the strip '
+                + 'says nothing about how this week compares with the next — it is deliberately about '
+                + 'the shape of the week in front of you. Comparing weeks with each other is the Plan '
+                + 'tab’s job, and it uses a different scale to do it. Very short sessions are held at a '
+                + 'floor height rather than being drawn to scale, or a fifteen-minute mobility session '
+                + 'would be a line of pixels beside a three-hour ride.</p>'
+
+                + '<p><strong>Colour is which sport</strong>, and the same colours are used everywhere '
+                + 'else in the app. Mobility and strength deliberately share one: they are the same kind '
+                + 'of work, they are read together, and telling two gym sessions apart by hue was never a '
+                + 'question anybody asks of a drawing this size.</p>'
+
+                + '<p><strong>Shape is what happened to it.</strong> Solid means recorded. Hollow means '
+                + 'still to do. A dashed outline means moved to another day, and a hatched bar means you '
+                + 'marked it missed. Hollow used to be an outline and nothing more, which was a mistake '
+                + 'in daylight: the light-mode sport colours are deliberately dark, because they also '
+                + 'have to carry text, and an outline of a dark colour reads as grey. It is now tinted '
+                + 'inside a full-strength edge — plainly not solid, and the week finally has the colour '
+                + 'of the sports in it.</p>'
+
+                + '<p><strong>A rest day is a flat line</strong> rather than an empty column. Planned '
+                + 'nothing and nothing planned are different things, and only one of them is an '
+                + 'instruction.</p>'
+
+                + '<p><strong>Pink is everything you did outside the plan.</strong> A walk, a hike, a '
+                + 'yoga session, an unplanned run — each gets a bar of exactly the same kind, on its own '
+                + 'day, beside the sessions the plan asked for. Before this, the drawing said nothing '
+                + 'about them at all: a week with an hour’s walking in it looked exactly like a week '
+                + 'without one, and the only sign was the word “extra” in the line of figures underneath.</p>'
+
+                + '<p>Pink because no sport uses it. Colour is how this drawing tells you swim from bike '
+                + 'from run, so a colour of its own is how it tells you <em>this was not in the plan at '
+                + 'all</em> — which is the first thing worth knowing about it. For the same reason every '
+                + 'extra is the same pink whatever the activity was: a walk and an unplanned run are '
+                + 'different things to you and the same thing to the plan, and it is the plan this '
+                + 'drawing is about. What each one actually was is a tap away.</p>'
+
+                + '<p><strong>They are always solid</strong>, like anything recorded. There is no such '
+                + 'thing as an extra still to do — you either went for the walk or you did not — so '
+                + 'hollow would have nothing to mean here.</p>'
+
+                + '<p><strong>They count towards the day’s height.</strong> A two-hour hike is drawn as '
+                + 'two hours, and the planned bars around it are measured against a week that now '
+                + 'includes it — so a week with a lot outside the plan draws its planned bars a little '
+                + 'shorter than it otherwise would. That is the truth about that week rather than a '
+                + 'distortion of it. The alternative, measuring the extras against the biggest '
+                + '<em>planned</em> day, would draw a bar taller than the column that holds it, which is '
+                + 'the one way a bar chart can lie without looking wrong.</p>'
+
+                + '<p><strong>An extra with no length on it still gets a bar</strong>, at the same floor '
+                + 'height a very short session gets. You did something; the app not knowing how long is a '
+                + 'reason to draw it small, not to leave the day looking empty.</p>'
+
+                + '<p><strong>A rest day you went for a walk on keeps its rest line</strong> and gets the '
+                + 'pink bar as well. This is deliberately not the rule for a session <em>moved</em> onto '
+                + 'a rest day, which ends the rest day — because the plan now asks for something there. '
+                + 'A walk does not change what the plan asked for. Both things are true at once, so both '
+                + 'marks are drawn.</p>'
+
+                + '<p><strong>Tap a day</strong> and what is on it opens underneath the strip: each '
+                + 'session with its length, and any extras listed after them. Tap the words '
+                + '<em>This week</em> and the key opens instead, naming every mark the week actually '
+                + 'contains — the sports in it, the rest line if there is a rest day, the pink if there '
+                + 'is anything outside the plan. A key that named marks the week does not have is a key '
+                + 'you learn to read past.</p>'
+
+                + '<p><strong>The pale green wash</strong> across the top of the card is the week itself '
+                + 'passing. Its edge is now, and it reaches the far side as Sunday ends. Under the strip, '
+                + 'two figures: what you performed, then what the week asked for. Anything done outside '
+                + 'the plan is named separately at the end of that line and kept out of both numbers, for '
+                + 'the reason set out under <em>Extra activities</em> below — the bar beneath them is '
+                + 'hours done against hours planned, and folding a hike into it would make the one number '
+                + 'the plan exists to produce mean something else.</p>'
+
+                + '<p><strong>On the Plan tab</strong> the same alphabet is used for eight weeks at once, '
+                + 'a row each: last week, this week, and the six ahead. Two things are different, both on '
+                + 'purpose. Every week there is measured against <em>one</em> height shared by the whole '
+                + 'card rather than against its own biggest day — that is the entire point of it, because '
+                + 'a recovery week is only legible as one if its bars are visibly shorter than the weeks '
+                + 'either side, and scaling each row to itself would flatten exactly the shape the '
+                + 'drawing exists to show. And that shared height is the longest single session in the '
+                + 'eight weeks rather than the biggest day, because these rows are a third the size and '
+                + 'comparing one bar with one bar is all that fits. Extras are drawn there in the same '
+                + 'pink, on the same scale as everything else. Only last week and this week can hold one, '
+                + 'since the other six have not happened yet.</p>')
 
             + section('How it reads your plan',
                 '<p>On first use the app looks at your headings and works out which column holds the date, '
@@ -4355,6 +4490,13 @@ const AmsUi = (function () {
                 + '<p>They are kept out of the plan on purpose. Compliance means actual training divided by '
                 + 'planned training — twenty minutes of meditation is not twenty minutes of training, and '
                 + 'folding it in would make the one number the plan exists to produce meaningless.</p>'
+                + '<p><strong>Kept out of that number is not the same as kept out of sight.</strong> '
+                + 'Every extra is drawn on the week card on Today, and on the eight-week block at the top '
+                + 'of the Plan tab, as a bar in pink beside the sessions the plan asked for — same shape, '
+                + 'same scale, so an hour on foot looks like an hour. Twenty minutes on the mat is twenty '
+                + 'minutes you spent, whatever the compliance figure is entitled to count. '
+                + 'How that drawing works, and why the pink is one colour for every activity, is under '
+                + '<em>The week, drawn</em> above.</p>'
                 + '<p><strong>Everything you have logged this way</strong> is listed newest first under '
                 + 'Settings → Extra activities → <em>Everything extra you logged</em>, and behind "See all" on '
                 + 'Today. Before there were photographs these were only shown on the day they happened, '

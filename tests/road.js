@@ -173,7 +173,13 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(44) + v);
   console.log('');
   console.log('A PLAN THAT HAS NOT STARTED, AND ONE WITH NO PHASES');
 
-  await load('season.xlsx');
+  /*
+   * A build that starts next Monday. This used to load season.xlsx, which
+   * starts on *this* week's Monday — so the step only tested what it claimed
+   * to on a Monday, and on the other six days it failed for the right reason:
+   * the plan had sessions behind it and the card was correct to say so.
+   */
+  await load('season-unstarted.xlsx');
   const dayOne = await page.evaluate(async () => {
     document.querySelector('.tab[data-tab="progress"]').click();
     await new Promise(r => setTimeout(r, 900));

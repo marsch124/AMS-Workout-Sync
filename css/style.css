@@ -2245,6 +2245,14 @@ body.is-viewing-photo .tab-bar { display: none; }
 
 .block-bar.is-missed { background: var(--sport, var(--accent)); opacity: 0.35; }
 
+/* Outside the plan, in the same pink as Today and for the same reason: colour
+   is how these rows say which sport, so a colour of its own is how they say
+   "not one of them". Solid, because an extra is only ever recorded. */
+.block-bar.is-extra {
+    background: var(--sport-extra);
+    box-shadow: none;
+}
+
 .block-week-hours {
     flex: 0 0 2.8rem;
     text-align: right;

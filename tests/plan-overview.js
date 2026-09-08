@@ -16,6 +16,13 @@
  *
  * The fixture is eight weeks with two recovery weeks in it, at roughly half
  * the volume of their neighbours.
+ *
+ * Since v1.55.0 the card also draws extras, and they are allowed to set that
+ * shared height — a walk longer than any session in the block would otherwise
+ * be drawn taller than the row holding it. Rescaling is linear, so the arc of
+ * the block survives it; step 5 proves that rather than assuming it, because
+ * "one scale" quietly becoming "one scale, mostly" is the same failure this
+ * whole file exists to catch.
  */
 const { chromium } = require('playwright');
 
@@ -248,6 +255,78 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(44) + v);
     if (!segments[range]) errors.push('the overview disappears on the "' + range + '" list');
   });
   if (segments.withNoPlan) errors.push('an empty overview is drawn when there is no plan to draw');
+
+  // ---------------------------------------------------------------- 5
+  console.log('');
+  console.log('A LONG EXTRA DOES NOT FLATTEN THE BLOCK');
+
+  const survived = await page.evaluate(async () => {
+    const ink = () => [...document.querySelectorAll('#planBody .block-week')]
+      .filter(w => !w.classList.contains('block-letters'))
+      .map(w => ({
+        label: w.querySelector('.block-week-label').textContent,
+        // Planned bars only: the pink one is new ink and would mask the very
+        // flattening this is looking for.
+        ink: Math.round([...w.querySelectorAll('.block-bar:not(.is-extra)')]
+          .reduce((n, b) => n + b.getBoundingClientRect().height, 0))
+      }));
+
+    const before = ink();
+
+    // Longer than anything in an eight-week block: the worst case for the
+    // shared scale, not a typical one.
+    await AmsSync.logExtra({
+      date: AmsSync.todayKey(), activity: 'hike', what: 'A very long walk',
+      minutes: 400, distance: null, avgHr: null, effort: null,
+      isTraining: false, notes: ''
+    });
+    await new Promise(r => setTimeout(r, 700));
+    AmsUi.renderPlan();
+    await new Promise(r => setTimeout(r, 400));
+
+    const after = ink();
+    // A real week row, not the row of weekday letters at the top — that one
+    // is auto-height and measuring against it calls every bar an overflow.
+    const rowHeight = document
+      .querySelector('#planBody .block-week:not(.block-letters) .block-week-days')
+      .getBoundingClientRect().height;
+
+    return {
+      before: before,
+      after: after,
+      pink: document.querySelectorAll('#planBody .block-bar.is-extra').length,
+      overflowing: [...document.querySelectorAll('#planBody .block-bar')]
+        .filter(b => b.getBoundingClientRect().height > rowHeight + 0.5).length
+    };
+  });
+
+  const order = (rows) => rows.slice().sort((a, b) => a.ink - b.ink).map(r => r.label).join(' < ');
+  line('weeks by ink, before', order(survived.before));
+  line('weeks by ink, after', order(survived.after));
+  line('pink bars drawn', survived.pink);
+
+  if (!survived.pink) errors.push('the block card did not draw the extra at all');
+  if (survived.overflowing) {
+    errors.push(survived.overflowing + ' bar(s) taller than the row holding them — the extra was not '
+      + 'counted into the shared height');
+  }
+  if (order(survived.before) !== order(survived.after)) {
+    errors.push('a long extra reordered the weeks by volume, so the rescale was not linear');
+  }
+
+  // The light week must still be visibly lighter than the heavy one, which is
+  // the property a floored bar height could quietly destroy.
+  const sorted = survived.after.filter(w => w.ink > 0).sort((a, b) => a.ink - b.ink);
+  if (sorted.length > 2) {
+    const lightest = sorted[0];
+    const heaviest = sorted[sorted.length - 1];
+    line('lightest vs heaviest, after', lightest.label + ' ' + lightest.ink + 'px vs '
+      + heaviest.label + ' ' + heaviest.ink + 'px');
+    if (!(lightest.ink < heaviest.ink * 0.75)) {
+      errors.push('after the long extra a recovery week is drawn nearly as heavy as a peak week — '
+        + 'the short bars have bunched on the floor height');
+    }
+  }
 
   console.log('');
   console.log('errors: ' + (errors.length ? '\n  - ' + errors.join('\n  - ') : 'none'));

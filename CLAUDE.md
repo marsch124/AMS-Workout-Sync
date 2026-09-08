@@ -17,7 +17,13 @@ background tints left-to-right with the week's passage (chosen from five
 mocked variants; `weekFraction()` in ui.js, gradient on `.week-card`, guarded
 by `tests/week-wash.js`; since 1.39.1 it ends at the grey rule — `.week-total` repaints the surface over it, so the edge follows the rule wherever the card's height puts it). Note for tests: `plain.xlsx` starts its week on
 Wednesday and rests on Friday by design — tests that need *today* loggable use
-`everyday.xlsx`, which has two sessions every day.
+`everyday.xlsx`, which has two sessions every day. 🪤 **Fixtures are dated
+relative to the day they are generated, so regenerate them before a run** — a
+stale `season.xlsx` fails `new-writes` and `road` with errors that look like
+code faults. And a fixture built from `monday_of_this_week()` is only
+"unstarted" when the suite is run on a Monday: `road.js` uses
+`season-unstarted.xlsx` (`weeks_behind=-1`, so it begins next Monday) for
+exactly that reason.
 
 The last run of work came from the input page and from screenshots:
 
@@ -300,9 +306,26 @@ was indeed free.
 - The opened day lists them, because a pink bar you can tap that then answers
   "Nothing planned" is worse than no panel at all. The key names the pink only
   on a week that has one, exactly as it does the rest day.
-- **The Plan tab's block card was left alone** on purpose. Its scale is the
-  🚨 one-scale-across-every-week rule, its job is the shape of the *plan*, and
-  six of its eight rows are weeks that cannot have an extra in them yet.
+- **The block card on Plan draws them too**, same pink, on its own scale — the
+  longest single *session* in the eight weeks, because those rows are a third
+  the height and only bar-against-bar fits. An extra may set that height. The
+  worry was that a long walk would flatten the block; it does not, because
+  **rescaling is linear** — every planned bar shrinks by the same factor and
+  the arc is exactly as it was, only quieter. What it *could* cost is the short
+  end, where the 14% floor stops a bar vanishing: shrink far enough and short
+  sessions bunch on the floor. `tests/plan-overview.js` step 5 logs a 6h40m
+  extra into a block whose biggest session is about an hour — the worst case,
+  not a typical one — and asserts the weeks keep their order by ink and the
+  lightest stays under 75% of the heaviest. Only the last week and this one can
+  hold an extra, so six rows are unaffected either way.
+- The block's foot names the pink only when the block contains one, as the week
+  key does. `blockWeeks()` carries `extras` (a count) for that.
+- **The guide gained a section, `The week, drawn`**, sitting between *The four
+  tabs* and *How it reads your plan*. It explains the whole drawing rather than
+  just the new part — the height scale and why the two cards use different
+  ones, the four shapes and why hollow is tinted rather than outlined, the rest
+  line, the wash, tapping a day, and every decision behind the pink. Martin
+  asked for this depth explicitly. New UI on either card belongs in it.
 
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
