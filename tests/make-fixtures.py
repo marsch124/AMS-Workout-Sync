@@ -389,6 +389,28 @@ def paced_time(path):
     wb.save(path)
 
 
+def legacy_extras(path, source):
+    """
+    A workbook whose Extras sheet this app wrote before extras carried a reference:
+    ten headings, no eleventh, and rows identified only by their day, activity and
+    length. He has one of these. It has to keep working — an existing row must still
+    be recognised so a sync does not write it twice, and the sheet has to gain the new
+    heading the first time something is appended.
+    """
+    wb = openpyxl.load_workbook(source)
+    ws = wb.create_sheet('Extras')
+    ws.append(['Date', 'Day', 'Activity', 'What it was', 'Duration (min)',
+               'Distance (km)', 'Avg HR', 'Effort', 'Counts as training', 'Notes'])
+
+    today = datetime.date.today()
+    for days, activity, minutes in [(3, 'Walk', 35), (2, 'Yoga', 20), (1, 'Walk', 50)]:
+        day = today - datetime.timedelta(days=days)
+        ws.append([day.isoformat(), DAYS[day.weekday()], activity, '', minutes,
+                   None, None, None, 'No', ''])
+
+    wb.save(path)
+
+
 def everyday(path):
     """
     Two sessions on every day of this week and next, no rest days, no blanks.
@@ -443,6 +465,8 @@ if __name__ == '__main__':
     history(os.path.join(OUT, 'history.xlsx'))
     paced(os.path.join(OUT, 'paced.xlsx'))
     paced_time(os.path.join(OUT, 'paced-time.xlsx'))
+    legacy_extras(os.path.join(OUT, 'legacy-extras.xlsx'),
+                  os.path.join(OUT, 'plain.xlsx'))
     everyday(os.path.join(OUT, 'everyday.xlsx'))
     row_inserted(os.path.join(OUT, 'row-inserted.xlsx'),
                  os.path.join(OUT, 'plain.xlsx'))

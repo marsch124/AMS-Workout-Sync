@@ -276,7 +276,34 @@ parser, and both new screens step over an implausible row rather than emptying
 themselves on it. `tests/new-writes.js` and `tests/rough-input.js` came out of
 it.
 
-**v1.55.0 — the extras, drawn.** Anything logged outside the plan gets a bar in
+**v1.55.0 — two dog walks are two dog walks.** Shipped from another session
+while the drawing below was in flight; both were numbered 1.55.0 and this one
+reached `main` first, so the drawing became 1.56.0.
+
+- 🚨 **An extra needs an identity of its own.** Extras are appended rather than
+  written to a known row, so `alreadyRecorded()` has to recognise what it has
+  already written — and it did that by day + activity + duration, which
+  recognises a *replay* perfectly and cannot tell a genuine repeat from one.
+  Two half-hour walks on one day were one walk: the second was swallowed,
+  counted in `applied` and unqueued, so nothing was left to retry. Each extra
+  now carries a `ref`, minted in `logExtra()` so it survives the queue → sheet
+  handover, written to a new column 11 ("Ref"). `alreadyRecorded()` matches on
+  it when present and falls back to the old triple for rows that predate it —
+  his sheet has those. `looksLikeOurs()` still reads only columns 1/3/5, so an
+  old sheet is unchanged and still ours.
+- **`keyFor()` is deliberately NOT changed** — see invariant 9. Photographs
+  hang on it, and giving an extra a new identity would orphan every picture
+  already taken.
+- A warning on Today when logging has been waiting a **full day**, with the
+  reason and a button to send it. Silent below a day: an ordinary sync takes
+  seconds, and a daily warning is one he stops reading.
+- `tests/extras-identity.js`, `tests/conflict.js` (the Dropbox conflict path,
+  stubbed — carefully built and never once run), `tests/waiting.js`. Its trap,
+  recorded in `tests/README.md`: **logging starts a sync by itself** when
+  Dropbox is connected, so a conflict test must queue while the stub is
+  disconnected.
+
+**v1.56.0 — the extras, drawn.** Anything logged outside the plan gets a bar in
 the week strip, in pink. Asked for in one sentence ("we have bars for planned
 workouts. Maybe we could make the same bar, but make it pink"), and the pink
 was indeed free.
@@ -420,7 +447,9 @@ node tests/failure-paths.js          # and the rest
 Repo tests: `failure-paths`, `column-collision`, `foreign-extras-sheet`,
 `edited-workbook`, `calendar-export`, `session-share`, `progress`, `logging`,
 `move-log`, `leaving-a-form`, `week-wash`, `august-audit`, `rest-day`,
-`photos`, `extra-photos`, `share-app`, `screen-wording`, `plan-overview`, `as-planned`, `voice` (no browser), `say-it`, `road`, `trends` (no browser), `load` (no browser), `is-it-working`, `new-writes`, `rough-input`, `extra-bars`. Fixtures are synthetic and gitignored — **no real
+`photos`, `extra-photos`, `share-app`, `screen-wording`, `plan-overview`, `as-planned`, `voice` (no browser), `say-it`, `road`, `trends` (no browser), `load` (no browser), `is-it-working`, `new-writes`, `rough-input` (no browser), `extras-identity`, `conflict`, `waiting`, `extra-bars` — **31 of them**. What each
+one covers is written up in `tests/README.md`; keep it current, the run list
+included. Fixtures are synthetic and gitignored — **no real
 training data in this repository**.
 
 Extra scripts live in the session scratchpad and drive Martin's *real*

@@ -34,10 +34,16 @@ node tests/as-planned.js
 node tests/say-it.js
 node tests/road.js
 node tests/is-it-working.js
+node tests/new-writes.js
+node tests/extras-identity.js
+node tests/conflict.js
+node tests/waiting.js
+node tests/extra-bars.js
 
 node tests/voice.js          # no browser, no server — pure parser
 node tests/trends.js         # no browser, no server — pure arithmetic
 node tests/load.js           # no browser, no server — pure arithmetic
+node tests/rough-input.js    # no browser, no server — parser and arithmetic
 ```
 
 Each script prints what it found and ends with `errors: none`. Nothing is
@@ -193,7 +199,11 @@ shape the drawing exists to show — the kind of mistake that leaves a chart
 looking perfectly reasonable and saying nothing. Uses `block.xlsx`, eight weeks
 with two recovery weeks at roughly half volume. Also checks it sits above the
 list, appears on all four segments, and is not drawn as an empty frame when
-there is no plan.
+there is no plan. Since v1.56.0 an extra may set that shared height, so a fifth
+step logs one longer than any session in the whole block — the worst case — and
+demands the weeks keep their order by ink and the lightest stay under 75% of
+the heaviest. Rescaling is linear and the arc survives; what it is watching for
+is the short end bunching on the floor height.
 
 **`as-planned.js`** — the one-tap log. Its value is that it is not a form, so
 what is guarded is that it stays as truthful as one: the planned duration and
@@ -286,6 +296,49 @@ impossible rows to the two new statistics screens, where an infinite speed used
 to pass a `> 0` check perfectly happily and turn every average downstream into
 nothing at all.
 
+**`extras-identity.js`** — the one bug in this round that was real. Extras are
+appended rather than written to a known row, so the writer has to recognise what
+it has already written; it did that by day, activity and duration, which
+recognises a retry perfectly and cannot tell a genuine repeat from one. Two
+half-hour walks on one day were one walk, and the second was reported as saved
+and dropped from the queue, so nothing was left to retry. Each extra now carries
+a reference of its own. The test holds the two halves apart — a repeat is
+written, a replay is not — and, because his sheet already has extras in it from
+before, checks that rows without a reference are still recognised the old way
+and that the column gains its heading when something new is appended.
+
+**`extra-bars.js`** — the pink bars: everything logged outside the plan, drawn
+in the week strip on Today and in the eight-week block on Plan. The week card
+already said "· 40m extra" in its figures, which is a sentence you have to
+read, while the drawing above it showed nothing at all. Four things have to
+stay true: an extra draws a bar on its own day whatever else is there; the pink
+belongs to no discipline, because colour is how that drawing says which sport;
+a rest day walked on keeps its rest line; and — the one that could go wrong
+without looking wrong — **the height scale takes the extras in**. Scaling
+against the biggest *planned* day lets a two-hour hike draw a bar taller than
+the column that holds it, so the test measures it with a 2h extra in a week
+whose biggest day is 65m. The same rule on the Plan tab is guarded in
+`plan-overview.js`, where a long extra must not flatten the block.
+
+**`conflict.js`** — what happens when the workbook changed in Dropbox while the
+phone still had logging waiting. Dropbox is stubbed, because the real thing
+cannot be made to conflict on demand and this is entirely about behaviour when
+it does. Three things that pull against each other: nothing lost when an upload
+is refused, nothing written twice when the retry succeeds (extras included,
+since those append), and the file left alone when it cannot get through at all.
+The path existed and was carefully built; nothing had ever run it.
+
+Its own trap: **logging starts a sync by itself** as soon as Dropbox is
+connected, so a test that queues entries against a connected stub finds its
+work already uploaded and every explicit `sync()` answering `already-syncing`.
+The stub starts disconnected and is switched on once the queue is arranged.
+
+**`waiting.js`** — the warning that logging has not reached the workbook. Most
+of what it tests is the silence: nothing with an empty queue, nothing for
+something logged seconds ago, and nothing left behind once the queue goes up.
+A warning that appears on an ordinary day is one he would learn to ignore, so
+it says nothing until something has been stuck for a full day.
+
 ## Fixtures
 
 `make-fixtures.py` writes synthetic workbooks into `tests/fixtures/`. Nobody's
@@ -296,3 +349,15 @@ should point at the app, not at data that cannot be replaced.
 carries three weeks of real values, because the app decides how to write a pace
 by looking at what is already in the column. An empty column tells it nothing,
 so a fixture that only has today in it cannot exercise the path at all.
+
+`season-unstarted.xlsx` is `season.xlsx` shifted a week later, so it begins
+next Monday. `season.xlsx` starts on *this* week's Monday, which means it is
+only a plan that has not started when the suite happens to be run on a Monday —
+every other day it has unrecorded sessions behind it and `road.js` failed for
+the right reason. Fixtures are dated relative to the day they are written, so
+regenerate them before a run.
+
+`legacy-extras.xlsx` is the shape of a sheet this app wrote before extras
+carried a reference: ten headings, no eleventh, rows identified only by day,
+activity and length. He has one. It is the fixture that proves the change is
+safe on the file he already owns rather than only on a new one.

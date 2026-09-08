@@ -297,6 +297,15 @@ const AmsUi = (function () {
         $('todayDate').textContent = todayHeading(todaysSessions);
 
         renderSyncState();
+        refreshWaitingWarning().then(() => {
+            // The count is read while rendering, so it is gathered after the fact and the
+            // screen redrawn only if the answer disagrees with what is on it — in either
+            // direction. Checking one direction only left the warning standing after the
+            // queue had gone up, which is worse than never showing it.
+            const wanted = !!waitingWarning();
+            const shown = !!$('todayBody').querySelector('.waiting-warn');
+            if (wanted !== shown) renderToday();
+        });
 
         const body = $('todayBody');
 
@@ -315,7 +324,7 @@ const AmsUi = (function () {
         }
 
         const todays = todaysSessions;
-        const header = weekCard() + outstandingNudge();
+        const header = waitingWarning() + weekCard() + outstandingNudge();
 
         if (!todays.length) {
             const next = AmsSync.upcoming(3);
@@ -1457,6 +1466,55 @@ const AmsUi = (function () {
      * Sessions in the past that were never recorded. Shown quietly rather than
      * as an alarm — the point is to make them findable, not to nag.
      */
+    /*
+     * Logging that has been sitting on the phone too long.
+     *
+     * Everything logged is written to the phone first and sent afterwards, which is what
+     * makes it work in a pool car park with no signal. The cost is that until it is sent it
+     * exists in one place only — and a phone is allowed to clear that. iOS will do it to
+     * reclaim space, and it does not ask.
+     *
+     * Normally none of this matters: a sync runs by itself the moment anything is logged,
+     * and the queue is empty seconds later. So this says nothing at all until logging has
+     * been stuck for a day, which is long enough to mean something is actually wrong —
+     * Dropbox disconnected, a sync failing every time, a workbook that has moved. Below
+     * that threshold it is noise, and the status light already covers it.
+     */
+    const WAITING_WARN_AFTER = 24 * 60 * 60 * 1000;
+
+    let waitingOldest = null;   // filled in by refreshWaitingWarning(), read while rendering
+
+    async function refreshWaitingWarning() {
+        try {
+            const queued = await AmsDb.listQueue();
+            const stamps = queued.map((e) => e.createdAt).filter((t) => t > 0);
+            waitingOldest = stamps.length ? { count: queued.length, since: Math.min.apply(null, stamps) } : null;
+        } catch (err) {
+            waitingOldest = null;
+        }
+    }
+
+    function waitingWarning() {
+        if (!waitingOldest) return '';
+        const age = Date.now() - waitingOldest.since;
+        if (age < WAITING_WARN_AFTER) return '';
+
+        const days = Math.floor(age / 86400000);
+        const howLong = days >= 1
+            ? (days === 1 ? 'since yesterday' : 'for ' + days + ' days')
+            : 'for a day';
+        const count = waitingOldest.count;
+
+        return '<div class="card waiting-warn">'
+            + '<p class="waiting-warn-title">' + count + ' thing' + (count === 1 ? '' : 's')
+            + ' still on this phone</p>'
+            + '<p class="waiting-warn-body">Logged, but not yet written into your workbook — '
+            + esc(howLong) + '. Until it is sent it exists here and nowhere else, and a phone '
+            + 'is allowed to clear its own storage without asking.</p>'
+            + '<button class="btn btn-primary btn-block" data-sync-now="1">Send it now</button>'
+            + '</div>';
+    }
+
     function outstandingNudge() {
         const missing = AmsSync.outstanding();
         if (!missing.length) return '';
@@ -4505,7 +4563,15 @@ const AmsUi = (function () {
                 + '<p><strong>Photographs</strong> go on an extra as they go on a session: on the form '
                 + 'while you log it, and on the entry itself afterwards. On the form they wait rather than '
                 + 'save, because an extra does not exist until you press Save — which is why leaving that '
-                + 'form asks about them, and why the strip says so.</p>')
+                + 'form asks about them, and why the strip says so.</p>'
+                + '<p><strong>The "Ref" column</strong> at the far right of the Extras sheet holds a short '
+                + 'code the app gives each entry. You never need it, and you can hide the column in Excel. '
+                + 'It exists because extras are <em>added</em> to the sheet rather than written into a row '
+                + 'that is already there, so the app has to be able to recognise what it has already '
+                + 'written — otherwise a save that had to be retried would add everything a second time. '
+                + 'It used to recognise one by its day, its activity and its length, which could not tell '
+                + 'two half-hour walks on the same day apart, so the second was quietly dropped. Now each '
+                + 'has a name of its own: a repeat is kept, a retry is not repeated.</p>')
 
             + section('Photos',
                 '<p>Any session takes photographs — open it, or open its log form, and tap <strong>Add</strong> '
@@ -4547,7 +4613,12 @@ const AmsUi = (function () {
                 + 'copy it read, so if the file moved on in between, Dropbox refuses the write and the app '
                 + 'starts again on the newer version.</p>'
                 + '<p>The last workbook read is kept on the phone, so today’s session is readable with no '
-                + 'signal at all.</p>')
+                + 'signal at all.</p>'
+                + '<p><strong>If something has been waiting a whole day</strong>, Today says so and offers to '
+                + 'send it. Until logging reaches your workbook it exists on this phone and nowhere else, '
+                + 'and a phone is allowed to clear its own storage to make room without asking first. Below '
+                + 'a day it stays quiet on purpose: an ordinary sync takes seconds, and a warning you see '
+                + 'every day is one you stop reading.</p>')
 
             + section('Dropbox, and your privacy',
                 '<p>The app is a static page with no server behind it, so it signs in to Dropbox using PKCE — '
@@ -5757,6 +5828,9 @@ const AmsUi = (function () {
             await renderQueue();
         });
         $('syncButton').addEventListener('click', () => runSync(true));
+        document.addEventListener('click', (event) => {
+            if (event.target.closest('[data-sync-now]')) runSync(true);
+        });
 
         document.querySelectorAll('.segment').forEach((segment) => {
             segment.addEventListener('click', () => {

@@ -8,7 +8,7 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.55.0';
+    const CURRENT = '1.56.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
@@ -16,8 +16,8 @@ const AmsVersion = (function () {
      */
     const CHANGELOG = [
         {
-            version: '1.55.0',
-            date: '2026-09-07',
+            version: '1.56.0',
+            date: '2026-09-08',
             headline: 'The extras, drawn',
             items: [
                 '**Everything you do outside the plan now has a bar of its own on the week, in pink.** A walk, a yoga session, an unplanned run \u2014 it stands in its day beside the sessions the plan asked for, the same shape and the same scale, so an hour on foot looks like an hour.',
@@ -28,6 +28,19 @@ const AmsVersion = (function () {
                 '**And a section of the guide explaining all of it** \u2014 *The week, drawn*, under Settings \u2192 How it works. What the height is measured against and why the two cards measure it differently, what solid, hollow, dashed and hatched mean, why a rest day is a line rather than a gap, and every decision behind the pink.',
                 'The week card already counted these in its \u201cextra\u201d figure. Until now the drawing above that line said nothing about them, so a week with an hour\u2019s walking in it looked exactly like a week without one.',
                 'Tap the day and the walk is listed under it with its length. Tap the week itself and the key explains the pink, on any week that has one.',
+                'Thirty-one tests now run against this app, up from thirty.',
+            ]
+        },
+        {
+            version: '1.55.0',
+            date: '2026-09-07',
+            headline: 'Two dog walks are two dog walks',
+            items: [
+                '**A repeated extra no longer disappears.** Log the same thing twice in one day \u2014 two half-hour walks, a stretch morning and evening \u2014 and only the first ever reached your workbook. The app treated *same day, same activity, same length* as meaning the same session, because that is how it recognised its own work when a save was retried. The second was swallowed, reported as saved, and dropped, so there was nothing left to try again.',
+                'Each extra now carries a short reference of its own, in a **new "Ref" column** at the far right of the Extras sheet. You can hide that column in Excel; nothing else needs it. Extras already in your sheet keep working exactly as they are, and the column appears the first time something new is written.',
+                '**Warning when logging has not reached your workbook.** Anything you log is written to the phone first and sent afterwards \u2014 that is what makes it work with no signal. Until it is sent it exists in one place only, and a phone is allowed to clear its own storage without asking. If something has been waiting a full day, Today now says so and offers to send it. Below a day it stays quiet: an ordinary sync takes seconds, and a warning you see every day is one you stop reading.',
+                '**The Dropbox recovery path is tested at last.** If you edit the workbook in Excel while your phone still has logging waiting, the app has to notice, fetch your newer copy, and add its entries to that \u2014 without losing anything and without writing anything twice. It always did; nothing had ever checked. Now three tests do, including the one that matters most: when it cannot get through at all, everything you logged is still waiting for the next try.',
+                'Thirty tests now run against this app, up from twenty-seven.',
             ]
         },
         {
