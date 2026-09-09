@@ -236,6 +236,93 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(40) + v);
     if (!guide.saysSharedColumn) errors.push('the guide does not cover the shared pace column');
   }
 
+  // ---------------------------------------------------------------- 5
+  console.log('');
+  console.log('A MICROPHONE THAT NEVER ANSWERS');
+
+  /*
+   * Reported from his phone: tap the microphone, "Listening…", and nothing
+   * ever again. On an iPhone the recogniser exists in a home-screen app and
+   * does not work in one — start() is accepted and then no result, no error,
+   * not even onend arrives.
+   *
+   * Two things were wrong and the second is the one that made it look broken
+   * rather than flaky: nothing timed out, so the screen said "Listening…" for
+   * ever; and `listening` was only cleared in onEnd, so after one silent
+   * failure every later tap went to the *stop* branch and the button did
+   * nothing at all for the rest of the session.
+   *
+   * The recogniser is replaced with one that accepts start() and then says
+   * nothing, which is exactly what his phone does.
+   */
+  if (!await openLog('run')) errors.push('could not open a run for the microphone test');
+
+  const silent = await page.evaluate(async () => {
+    const real = AmsVoice.listen;
+    let starts = 0;
+    AmsVoice.listen = () => { starts++; return { stop() {}, abort() {} }; };
+
+    const note = () => document.getElementById('sayHeard').textContent;
+    const spinning = () => !!document.querySelector('#sayMic.is-listening');
+
+    document.getElementById('sayMic').click();
+    await new Promise(r => setTimeout(r, 300));
+    const whileWaiting = { note: note(), spinning: spinning() };
+
+    // Past the watchdog. Nothing has been heard, so it has to give up.
+    await new Promise(r => setTimeout(r, 7000));
+    const afterSilence = { note: note(), spinning: spinning() };
+
+    // The button must still work. Before the fix this tap hit the stop
+    // branch and did nothing, for ever.
+    document.getElementById('sayMic').click();
+    await new Promise(r => setTimeout(r, 300));
+    const secondTry = { note: note(), starts: starts };
+
+    // Walking away must not leave a microphone running behind the screen.
+    document.querySelector('#logScreen [data-back]').click();
+    await new Promise(r => setTimeout(r, 400));
+
+    AmsVoice.listen = real;
+    return {
+      whileWaiting: whileWaiting,
+      afterSilence: afterSilence,
+      secondTry: secondTry,
+      spinningAfterLeaving: spinning(),
+      queue: await AmsDb.queueCount()
+    };
+  });
+
+  line('while waiting', '"' + silent.whileWaiting.note.slice(0, 40) + '"');
+  line('after the silence', '"' + silent.afterSilence.note.slice(0, 64) + '…"');
+  line('still spinning', silent.afterSilence.spinning);
+  line('second tap started it again', silent.secondTry.starts === 2
+    ? 'yes (' + silent.secondTry.starts + ' starts)' : 'NO (' + silent.secondTry.starts + ' starts)');
+
+  if (silent.whileWaiting.note !== 'Listening…') {
+    errors.push('tapping the microphone did not say it was listening');
+  }
+  if (silent.afterSilence.note === 'Listening…') {
+    errors.push('a recogniser that never answered left the screen saying "Listening…" for ever');
+  }
+  if (silent.afterSilence.spinning) {
+    errors.push('the microphone button is still spinning after the attempt gave up');
+  }
+  if (!/keyboard/i.test(silent.afterSilence.note)) {
+    errors.push('giving up does not point at the keyboard microphone, which is the way that works: '
+      + silent.afterSilence.note);
+  }
+  if (silent.secondTry.starts !== 2) {
+    errors.push('after one silent failure the microphone button was dead — the second tap did not '
+      + 'start a new attempt');
+  }
+  if (silent.spinningAfterLeaving) {
+    errors.push('leaving the form left the microphone running behind it');
+  }
+  // Whatever the microphone does, it must never save anything. Same rule as
+  // step 1, asserted again because this path reaches readIntoForm too.
+  if (silent.queue !== 0) errors.push('the microphone path put something in the queue');
+
   console.log('');
   console.log('errors: ' + (errors.length ? '\n  - ' + errors.join('\n  - ') : 'none'));
   await browser.close();

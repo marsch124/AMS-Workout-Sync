@@ -86,6 +86,11 @@ const AmsUi = (function () {
         const opts = options || {};
         const current = document.querySelector('.screen.active');
         if (current && current.id === id) return;
+
+        // A recogniser left running behind a screen you have walked away from
+        // is a microphone nobody knows is on, and it takes the mic button's
+        // state with it when it finally ends.
+        stopListening();
         if (current && !opts.replace && DETAIL_SCREENS.has(id)) history_.push(current.id);
 
         document.querySelectorAll('.screen').forEach((screen) => {
@@ -2708,6 +2713,57 @@ const AmsUi = (function () {
     }
 
     let listening = null;
+    let listeningTimer = null;
+
+    /*
+     * How long to wait for the recogniser to say anything at all.
+     *
+     * On an iPhone the recogniser *exists* in a home-screen app and does not
+     * work in one. `start()` is accepted and then nothing ever arrives — no
+     * result, no error, not even `onend` — so the screen said “Listening…”
+     * for ever. Worse, `listening` was only cleared in `onEnd`, so after one
+     * silent failure it stayed set and every later tap on the microphone went
+     * to the stop branch instead of the start branch: the button was dead for
+     * the rest of the session, which is what it looked like from outside.
+     *
+     * Six seconds of nothing is a failure whatever caused it, and the way out
+     * has to be the same either way, because the app cannot tell the
+     * difference between a recogniser that will not run and a person who has
+     * not spoken yet.
+     */
+    const LISTEN_SILENCE = 6000;
+
+    /*
+     * Said whenever listening does not work, and it is the whole point: every
+     * iPhone keyboard has a microphone key, it dictates into any box including
+     * this one, and it is not subject to any of this. The feature is the box.
+     */
+    const KEYBOARD_INSTEAD = 'Tap the box and use the microphone key on your keyboard '
+        + '(bottom row, beside the space bar) — it types straight into it. Then press '
+        + '“Read it into the form”.';
+
+    /*
+     * Ends a listening attempt from anywhere: the recogniser finishing, an
+     * error, the watchdog, or leaving the screen. Everything it touches is
+     * reset together, so there is no path that leaves the button spinning or
+     * `listening` pointing at a recogniser that will never answer.
+     */
+    function stopListening(message) {
+        if (listeningTimer) { clearTimeout(listeningTimer); listeningTimer = null; }
+
+        const held = listening;
+        listening = null;
+        if (held) {
+            // abort() drops what it has; stop() asks for a final result. By the
+            // time anything calls this there is nothing worth waiting for.
+            try { (held.abort || held.stop).call(held); } catch (err) { /* already gone */ }
+        }
+
+        const mic = $('sayMic');
+        if (mic) mic.classList.remove('is-listening');
+        const note = $('sayHeard');
+        if (note && message) note.textContent = message;
+    }
 
     function toggleListening() {
         const mic = $('sayMic');
@@ -2716,36 +2772,48 @@ const AmsUi = (function () {
         if (!mic || !box) return;
 
         if (listening) {
-            try { listening.stop(); } catch (err) { /* already stopping */ }
+            stopListening();
             return;
         }
+
+        let heardSomething = false;
 
         mic.classList.add('is-listening');
         note.textContent = 'Listening…';
 
         listening = AmsVoice.listen({
             onText: (text, final) => {
+                heardSomething = true;
+                if (listeningTimer) { clearTimeout(listeningTimer); listeningTimer = null; }
                 box.value = text;
                 if (final) readIntoForm(text);
             },
             onError: (err) => {
-                note.textContent = err === 'not-allowed' || err === 'service-not-allowed'
-                    ? 'This phone will not let the app listen. Use the microphone on the keyboard instead.'
-                    : 'That did not come through. Use the microphone on the keyboard instead.';
+                const why = err === 'not-allowed' || err === 'service-not-allowed'
+                    ? 'This phone will not let the app listen. '
+                    : err === 'no-speech' ? 'Nothing was heard. '
+                    : 'That did not come through. ';
+                stopListening(why + KEYBOARD_INSTEAD);
             },
             onEnd: () => {
-                listening = null;
-                mic.classList.remove('is-listening');
                 // A recogniser that heard nothing ends without ever firing a
                 // result, so the box is the only thing that knows.
-                if (box.value.trim() && note.textContent === 'Listening…') readIntoForm(box.value);
+                const typed = box.value.trim();
+                const wasListening = note.textContent === 'Listening…';
+                stopListening(typed || !wasListening ? null : KEYBOARD_INSTEAD);
+                if (typed && wasListening) readIntoForm(typed);
             }
         });
 
         if (!listening) {
-            mic.classList.remove('is-listening');
-            note.textContent = 'Listening is not available here. Use the microphone on the keyboard instead.';
+            stopListening('Listening is not available here. ' + KEYBOARD_INSTEAD);
+            return;
         }
+
+        listeningTimer = setTimeout(() => {
+            if (heardSomething) return;
+            stopListening('Listening did not start. ' + KEYBOARD_INSTEAD);
+        }, LISTEN_SILENCE);
     }
 
     /* ---------- the log form ---------- */

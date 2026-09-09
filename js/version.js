@@ -8,13 +8,26 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.57.0';
+    const CURRENT = '1.58.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.58.0',
+            date: '2026-09-09',
+            headline: 'The microphone that never answered',
+            items: [
+                '**Tapping the microphone said \u201cListening\u2026\u201d and then nothing, for ever.** Reported from your phone, and there were two faults behind it.',
+                'The first: nothing ever gave up. If the recogniser accepted the request and then said nothing back \u2014 no words, no error, not even an ending \u2014 the screen sat on \u201cListening\u2026\u201d with no way to learn anything. It now waits six seconds and then tells you plainly what to do instead.',
+                '**The second is the one that made it look broken rather than unlucky.** The app only cleared the microphone when the recogniser said it had finished. One that never finished left it set for ever, so every later tap was read as *stop* rather than *start* \u2014 the button did nothing at all for the rest of the session. Now everything is reset together, whichever way an attempt ends.',
+                'This is an iPhone limitation, not something the app can fix: the recogniser exists in a home-screen app and does not work in one. What the app can do is stop pretending and point you at the way that does work.',
+                '**The microphone key on your own keyboard.** Bottom row, beside the space bar. It dictates straight into the box, in any order, and then \u201cRead it into the form\u201d fills the fields \u2014 exactly as it would have. Nothing is lost but the tap.',
+                'Leaving the form now also stops any attempt still running, rather than leaving a microphone on behind a screen you have walked away from.',
+            ]
+        },
         {
             version: '1.57.0',
             date: '2026-09-09',

@@ -373,6 +373,32 @@ Excel is not showing* joins "If something looks wrong".
   rather than paraphrasing it — a second, looser copy of a safety rule is worse
   than no copy.
 
+**v1.58.0 — the microphone that never answered.** Reported from his phone with
+a screenshot: tap the mic, "Listening…", nothing ever again. Two faults, and
+the second is why it read as broken rather than flaky.
+
+- 🚨 **`listening` was only cleared in `onEnd`.** A recogniser that never ends
+  left it set for ever, so every later tap took the `if (listening) stop()`
+  branch instead of starting — the button was **dead for the rest of the
+  session**. `stopListening(message)` now resets the recogniser, the timer, the
+  spinner and the note together, and every exit goes through it.
+- **Nothing timed out.** `LISTEN_SILENCE` (6s) gives up when nothing at all has
+  been heard. The app cannot tell a recogniser that will not run from a person
+  who has not spoken, so the way out is the same either way.
+- The cause is not fixable here: on iOS `webkitSpeechRecognition` **exists in a
+  home-screen app and does not work in one** — `start()` is accepted and no
+  result, error or `onend` follows. `AmsVoice.supported()` only tests for the
+  constructor, which that satisfies. Deliberately **not** UA-sniffed: the
+  failure is now legible and says what to do, and sniffing iOS versions ages
+  badly. The resting hint already pointed at the keyboard mic.
+- `showScreen()` calls `stopListening()` — a recogniser left running behind a
+  screen he has walked away from is a microphone nobody knows is on.
+- `tests/say-it.js` step 5 stubs `AmsVoice.listen` with one that accepts
+  `start()` and says nothing, which is what his phone does. It asserts the
+  screen stops saying "Listening…", the spinner clears, the advice names the
+  keyboard, **the second tap starts a new attempt** (the dead-button
+  regression), and leaving the form stops it.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The
