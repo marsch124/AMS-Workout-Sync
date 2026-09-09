@@ -8,13 +8,24 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.59.0';
+    const CURRENT = '1.60.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.60.0',
+            date: '2026-09-09',
+            headline: 'Two buttons, asked for',
+            items: [
+                '**\u201cDid it \u2014 40m\u201d now says what pressing it does.** The number stays, because it is the reassurance that nothing is invented \u2014 and under it, quietly, *Logs the workout in one press*. It always did that; the button never said so, which made the thing it saves you, a whole form, invisible unless you already knew.',
+                '**Moving a session: the day and the button now share a line, half each.** You said the green button was taking all the attention and you kept missing the date picker \u2014 which ends with a session moved to the day it was already on.',
+                'Side by side and the same width, they read left to right in the order they are used: choose the day, then press. Neither outranks the other by size any more.',
+                'Both are guarded by tests now, so a later tidy-up cannot quietly undo either.',
+            ]
+        },
         {
             version: '1.59.0',
             date: '2026-09-09',

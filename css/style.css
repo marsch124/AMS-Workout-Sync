@@ -406,6 +406,30 @@ body {
     cursor: pointer;
 }
 
+/*
+ * A button that says what it does under what it will write.
+ *
+ * `.btn` is a horizontal flex row, so a two-line label needs the axis turned
+ * before either line is placed. The gap is tightened from the row's 0.4rem —
+ * at that spacing the two lines read as two separate labels rather than one
+ * thing said twice over.
+ */
+.btn-stack {
+    flex-direction: column;
+    gap: 0.1rem;
+    line-height: 1.25;
+}
+
+.btn-stack-main { font-size: 0.95rem; font-weight: 700; }
+
+/* Quiet on purpose. It is there for the first few presses and then it is
+   scenery, so it must not compete with the number above it. */
+.btn-stack-sub {
+    font-size: 0.72rem;
+    font-weight: 500;
+    opacity: 0.82;
+}
+
 .btn:active { transform: scale(0.985); }
 .btn:disabled { opacity: 0.5; }
 
@@ -936,6 +960,36 @@ body.detail-open .tab-bar { display: none; }
     font-size: 0.8rem;
     font-weight: 600;
     color: var(--color-text-secondary);
+}
+
+/*
+ * The move screen's one line: pick the day, then press.
+ *
+ * Half each, so the order is left to right and the green button no longer
+ * outweighs the thing you have to touch first. `align-items: end` lines the
+ * button up with the input rather than with the input's label, which is the
+ * same mistake `.settings-row` was making before v1.45.0 — a control level
+ * with a caption reads as belonging to the caption.
+ */
+.move-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+    align-items: end;
+}
+
+.move-row .field { margin-bottom: 0; }
+
+/* The label sits above its own half, not across the whole row. */
+.move-row .field label { display: block; }
+
+/* Two words on a narrow button wrap rather than shrink the text. */
+.move-row .btn {
+    min-height: 46px;
+    padding-left: 0.6rem;
+    padding-right: 0.6rem;
+    text-align: center;
+    line-height: 1.2;
 }
 
 /* ---------- the guide ---------- */

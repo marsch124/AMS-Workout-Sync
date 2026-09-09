@@ -428,6 +428,26 @@ retype the session.
   guide and the changelog rather than left to be discovered; it needs its own
   answer (an explicit marker, not an empty box) and did not get one here.
 
+**v1.60.0 — two buttons, asked for.**
+
+- **The one-tap button gained a second line**, *Logs the workout in one press*.
+  "Did it — 40m" said what happened and what it would write and never what
+  pressing it *does*, so the form it saves you was invisible from outside. The
+  number stays on top: it is the reassurance that nothing is invented.
+  `didItLabel()` builds it for both places it is drawn — the card on Today and
+  the session footer — because two copies of a label drift.
+- **The move screen puts the day and the button on one line, half each**
+  (`.move-row`). His words: "the green is taking more attention, so I often
+  miss the date picker" — which ends with a session moved to the day it was
+  already on. Side by side and equally wide, it is one gesture with two steps
+  in the order they happen. `align-items: end` lines the button up with the
+  *input* rather than its label — the same mistake `.settings-row` was making
+  before v1.45.0.
+- Both guarded in `tests/screen-wording.js`, which already owns the layout
+  decisions that exist because of something he reported. The move check asserts
+  the two are within 0.8–1.25× of each other, because "neither dominates" is
+  the whole point and a half-undone version would still be on one line.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The

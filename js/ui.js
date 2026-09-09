@@ -397,9 +397,9 @@ const AmsUi = (function () {
                              * small ones underneath, because they are the
                              * exceptions and should look like exceptions.
                              */
-                            ? '<button class="btn btn-primary btn-block" style="margin-top:0.4rem"'
-                                + ' data-as-planned="' + esc(workout.key) + '">Did it \u2014 '
-                                + esc(AmsPlan.formatDuration(planned)) + '</button>'
+                            ? '<button class="btn btn-primary btn-block btn-stack" style="margin-top:0.4rem"'
+                                + ' data-as-planned="' + esc(workout.key) + '">'
+                                + didItLabel(planned) + '</button>'
                                 + '<div class="button-row" style="margin-top:0.4rem">'
                                 + '<button class="btn btn-small" data-log="' + esc(workout.key) + '">Log details</button>'
                                 + '<button class="btn btn-small" data-missed="' + esc(workout.key) + '">Missed</button>'
@@ -2108,7 +2108,8 @@ const AmsUi = (function () {
         const plannedSeconds = AmsPlan.plannedDurationSeconds(workout, state.mapping || {});
         asPlannedButton.hidden = isRest || !plannedSeconds || isLogged;
         if (!asPlannedButton.hidden) {
-            asPlannedButton.textContent = 'Did it \u2014 ' + AmsPlan.formatDuration(plannedSeconds);
+            asPlannedButton.classList.add('btn-stack');
+            asPlannedButton.innerHTML = didItLabel(plannedSeconds);
         }
         // With it showing, the form is no longer the primary thing to do here.
         logButton.classList.toggle('btn-primary', asPlannedButton.hidden);
@@ -2814,6 +2815,24 @@ const AmsUi = (function () {
             if (heardSomething) return;
             stopListening('Listening did not start. ' + KEYBOARD_INSTEAD);
         }, LISTEN_SILENCE);
+    }
+
+    /*
+     * The one-tap button, in the two places it is drawn.
+     *
+     * "Did it — 40m" says what happened and what it will write, which is the
+     * half that matters once you know the button. It never said what pressing
+     * it *does*, so from outside it could as easily have been a filter or a
+     * label — the thing it actually saves you, a whole form, was invisible.
+     *
+     * The second line says so, quietly. Not instead of the first: the number
+     * is the reassurance that it will not invent one, and it stays the thing
+     * you read.
+     */
+    function didItLabel(plannedSeconds) {
+        return '<span class="btn-stack-main">Did it \u2014 '
+            + esc(AmsPlan.formatDuration(plannedSeconds)) + '</span>'
+            + '<span class="btn-stack-sub">Logs the workout in one press</span>';
     }
 
     /* ---------- the log form ---------- */
@@ -3581,10 +3600,23 @@ const AmsUi = (function () {
             + '<div class="workout-card-meta"><span class="pill">' + esc(longDay(workout.date)) + '</span></div>'
             + '</div>'
 
+            /*
+             * The date and the button share a line, half each, in the order
+             * they are used.
+             *
+             * Full width, the green button was the only thing on the screen
+             * with any weight and the date above it read as a caption — he
+             * kept pressing Move without touching the date, which moves a
+             * session to the day it is already on. Side by side they are one
+             * gesture with two steps, left to right, and neither outranks the
+             * other by size.
+             */
             + '<div class="settings-group"><h2>Move it to</h2>'
+            + '<div class="move-row">'
             + '<div class="field"><label for="moveToDate">New day</label>'
             + '<input id="moveToDate" type="date" value="' + esc(workout.dayKey) + '"></div>'
-            + '<button class="btn btn-primary btn-block" id="doMoveButton">Move the session</button>'
+            + '<button class="btn btn-primary" id="doMoveButton">Move the session</button>'
+            + '</div>'
             + '<p class="hint-inline">Only the date is rewritten. The session keeps its place in every weekly '
             + 'total, because your sheet counts by week number and sport, never by date.</p>'
             + '</div>'

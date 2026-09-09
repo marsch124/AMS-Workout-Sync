@@ -431,6 +431,122 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(44) + v);
   if (!help.after.noteHidden) errors.push('the explanation stayed behind when the sheet was next used to ask something');
   if (help.after.cancelSays !== 'Cancel') errors.push('the sheet still says Close when it is asking a question');
 
+  // ----------------------------------------------------------------
+  console.log('');
+  console.log('THE ONE-TAP BUTTON SAYS WHAT PRESSING IT DOES');
+
+  /*
+   * "Did it — 40m" says what happened and what it will write, which is the
+   * half that matters once you know the button. It never said what pressing it
+   * *does*, so the thing it saves you — a whole form — was invisible from
+   * outside. The second line says so, in both places the button is drawn: the
+   * card on Today and the footer of the session screen. They are built by one
+   * function so they cannot drift, and this checks both rather than trusting
+   * that.
+   */
+  const oneTap = await page.evaluate(async () => {
+    document.querySelector('.tab[data-tab="today"]').click();
+    await new Promise(r => setTimeout(r, 700));
+    const card = document.querySelector('#todayBody [data-as-planned]');
+    const read = (n) => n ? {
+      main: (n.querySelector('.btn-stack-main') || {}).textContent || '',
+      sub: (n.querySelector('.btn-stack-sub') || {}).textContent || '',
+      height: Math.round(n.getBoundingClientRect().height)
+    } : null;
+    const onCard = read(card);
+
+    // The footer version. An unanswered card on Today carries its own buttons
+    // and does not open a screen, so the Plan list is the way in.
+    document.querySelector('.tab[data-tab="plan"]').click();
+    await new Promise(r => setTimeout(r, 600));
+    document.querySelector('.segment[data-range="upcoming"]').click();
+    await new Promise(r => setTimeout(r, 600));
+    document.querySelector('#planBody .workout-card').click();
+    await new Promise(r => setTimeout(r, 700));
+    const footer = document.getElementById('asPlannedButton');
+    return { onCard: onCard, onSession: footer.hidden ? null : read(footer) };
+  });
+
+  [['on the card', oneTap.onCard], ['on the session', oneTap.onSession]].forEach(([where, b]) => {
+    if (!b) { errors.push('the one-tap button is missing ' + where); return; }
+    line(where, '"' + b.main + '" / "' + b.sub + '" (' + b.height + 'px)');
+    if (!/Did it/.test(b.main)) errors.push('the button ' + where + ' no longer says what happened');
+    if (!/\dm|\dh/.test(b.main)) {
+      errors.push('the button ' + where + ' no longer names the length it will write: ' + b.main);
+    }
+    if (!/log/i.test(b.sub)) {
+      errors.push('the button ' + where + ' does not say that pressing it logs the workout: "' + b.sub + '"');
+    }
+  });
+  if (oneTap.onCard && oneTap.onSession && oneTap.onCard.sub !== oneTap.onSession.sub) {
+    errors.push('the two one-tap buttons say different things: "' + oneTap.onCard.sub
+      + '" against "' + oneTap.onSession.sub + '"');
+  }
+
+  // ----------------------------------------------------------------
+  console.log('');
+  console.log('THE DAY AND THE MOVE BUTTON SHARE A LINE');
+
+  /*
+   * Reported from his phone: "the green is taking more attention, so I often
+   * miss the date picker." Full width, the button was the only thing on the
+   * screen with any weight and the date above it read as a caption — which
+   * ends with a session moved to the day it was already on.
+   *
+   * Side by side and equally wide, it is one gesture with two steps in the
+   * order they happen. Both halves of that are asserted: same line, and
+   * neither noticeably bigger than the other.
+   */
+  const moveRow = await page.evaluate(async () => {
+    const back = document.querySelector('#workoutScreen [data-back]');
+    if (back) back.click();
+    await new Promise(r => setTimeout(r, 400));
+    document.querySelector('#planBody .workout-card').click();
+    await new Promise(r => setTimeout(r, 600));
+    const move = document.querySelector('#moveButton, [data-move]');
+    if (!move) return { error: 'no way through to the move screen' };
+    move.click();
+    await new Promise(r => setTimeout(r, 700));
+
+    const input = document.getElementById('moveToDate');
+    const button = document.getElementById('doMoveButton');
+    if (!input || !button) return { error: 'the move screen has no date or no button' };
+    const a = input.getBoundingClientRect();
+    const b = button.getBoundingClientRect();
+    return {
+      sameLine: Math.abs(a.bottom - b.bottom) < 8,
+      dateFirst: a.left < b.left,
+      dateWidth: Math.round(a.width),
+      buttonWidth: Math.round(b.width),
+      buttonHeight: Math.round(b.height),
+      overlap: a.right > b.left + 1
+    };
+  });
+
+  if (moveRow.error) { errors.push(moveRow.error); }
+  else {
+    line('date and button on one line', moveRow.sameLine);
+    line('widths', moveRow.dateWidth + 'px date, ' + moveRow.buttonWidth + 'px button');
+    line('the date comes first', moveRow.dateFirst);
+
+    if (!moveRow.sameLine) {
+      errors.push('the date and the move button are not on the same line');
+    }
+    if (!moveRow.dateFirst) {
+      errors.push('the move button comes before the date, which is the wrong way round');
+    }
+    if (moveRow.overlap) errors.push('the date and the button overlap');
+    // Neither may dominate: that is the whole complaint this answers.
+    const ratio = moveRow.buttonWidth / moveRow.dateWidth;
+    if (ratio < 0.8 || ratio > 1.25) {
+      errors.push('the move button is ' + ratio.toFixed(2) + '× the width of the date — they are '
+        + 'meant to carry the same weight');
+    }
+    if (moveRow.buttonHeight < 43) {
+      errors.push('the move button is only ' + moveRow.buttonHeight + 'px tall');
+    }
+  }
+
   console.log('');
   console.log('errors: ' + (errors.length ? '\n  - ' + errors.join('\n  - ') : 'none'));
   await browser.close();
