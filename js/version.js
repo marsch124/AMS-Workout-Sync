@@ -8,13 +8,25 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.61.0';
+    const CURRENT = '1.62.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.62.0',
+            date: '2026-09-09',
+            headline: 'Adjust logged data, done properly',
+            items: [
+                '**The form now opens with your numbers already in it.** You were right and I was wrong: empty boxes with the old value sitting beside them was a strange way to build an edit form, and nobody should have to learn it.',
+                '**Tap a box and it selects what is in there**, so typing replaces it. Correcting 72 to 65 is two taps and two digits, not a hunt for the cursor.',
+                '**The button counts.** It says *Save 1 change*, or *Save 2 changes*, and stays dead until something is actually different \u2014 so you can see what it is about to do before you press it. The boxes you have changed are outlined as you edit.',
+                '**Still only the boxes you change are written.** Turn 72 into 65 and the duration is the only cell that moves. This is the one part of the old design worth keeping: if you had fixed the distance in Excel since your phone last synced, writing every box back would put the older number over your newer one.',
+                'It still cannot empty a cell \u2014 clearing a box means \u201cleave it alone\u201d, so a number in the wrong field is still an Excel job.',
+            ]
+        },
         {
             version: '1.61.0',
             date: '2026-09-09',

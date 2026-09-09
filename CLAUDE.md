@@ -468,6 +468,36 @@ screen: it was the button that opened it.
   feature was fine. Before redesigning something he says is pointless, check
   what the door into it is called.
 
+**v1.62.0 — Adjust logged data, done properly.** The empty-boxes design of
+v1.59.0 was wrong and he said so plainly: "everything opens with nothing
+entered… this is a very unorthodox way that I don't like. I would like
+everything to be pre-filled, obviously." He was right.
+
+- 🚨 **The form opens filled in. The protection moved to save time.** The
+  worry that produced the empty boxes was real — writing every box back
+  rewrites four cells because one changed, and puts a value the phone read
+  *before* the last Excel edit over the newer one. That now lives in
+  `openedWith` (a snapshot taken when the form is built, read from the boxes so
+  it is the same reading `collectLog()` makes) and `changedOnly()` at save.
+  **Do not remove either**: without them the pre-filled form is exactly the
+  hazard the empty one was avoiding.
+- `.field-now`, `data-use-recorded` and their CSS are gone. `recordedValue()`
+  stays — it is what fills the boxes now.
+- **The save button counts**: *Save 1 change*, disabled as "Nothing changed
+  yet" until something differs. Changed fields get `.is-changed`. Together they
+  answer "what is this about to write?" before it is pressed, which is the
+  question the whole episode was really about.
+- Tapping a filled box selects it (`focus` → `select()`), so typing replaces.
+- 🪤 The **show-more-fields** rebuild re-runs `openLog()`, which takes a fresh
+  snapshot. `openedWith` is restored afterwards or everything typed before
+  asking for more columns counts as unchanged and is silently dropped.
+- 🪤 **The lesson of this whole run.** Four releases went into this one screen
+  because the *name on the button* was wrong ("Log again" → he read "log
+  another workout"), and once inside, the form did not behave like a form. Both
+  were reported in plain words and both times the first instinct was to explain
+  rather than to change it. When he says he does not understand something, the
+  screen is wrong — not the explanation.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The

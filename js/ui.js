@@ -2921,12 +2921,25 @@ const AmsUi = (function () {
         $('saveLogButton').disabled = false;
 
         const distanceUnit = AmsPlan.DEFAULT_DISTANCE_UNIT[workout.discipline.id] || 'km';
+        /*
+         * Coming back to a session already recorded, the boxes are filled with
+         * what is in the workbook — which is what an edit form does everywhere
+         * else, and what he asked for in those words.
+         *
+         * The empty-box version that came before was built to protect one
+         * thing: that saving must not rewrite four cells when you changed one.
+         * That protection has moved to where it belongs, in `changedOnly()` at
+         * save time, so the form can behave normally and still touch only what
+         * you actually altered.
+         */
         const previous = workout.pending ? workout.pending.values : null;
         const plannedSeconds = AmsPlan.plannedDurationSeconds(workout, state.mapping || {});
         const plannedMinutes = plannedSeconds ? plannedSeconds / 60 : 0;
 
         const html = fields.map((field) => {
-            const value = previous && previous[field.id] !== undefined ? previous[field.id] : '';
+            const value = previous && previous[field.id] !== undefined
+                ? previous[field.id]
+                : recordedValue(workout, field.id);
             // Duration is typed freehand, so showing the column's unit here would
             // read as an instruction to enter decimal hours.
             const pace = field.id === 'avgPace' ? paceFieldFor(workout) : null;
@@ -2939,46 +2952,16 @@ const AmsUi = (function () {
                 + (unit ? ' <span class="field-unit">(' + esc(unit) + ')</span>' : '') + '</label>';
 
             if (field.id === 'notes') {
-                const noted = recordedValue(workout, field.id);
                 return '<div class="field">' + label
                     + '<textarea id="log-' + field.id + '" data-field="' + field.id
-                    + '" placeholder="How it felt, conditions, anything worth remembering">' + esc(value) + '</textarea>'
-                    + (noted && noted !== String(value)
-                        ? '<button type="button" class="field-now" data-use-recorded="' + esc(field.id) + '"'
-                            + ' data-now="' + esc(noted) + '">'
-                            + 'now: <strong>' + esc(noted) + '</strong><span class="field-now-use">use</span>'
-                            + '</button>'
-                        : '')
-                    + '</div>';
+                    + '" placeholder="How it felt, conditions, anything worth remembering">'
+                    + esc(value) + '</textarea></div>';
             }
 
             const config = inputConfig(field, workout);
             const hints = [];
             if (config.hint) hints.push(config.hint);
             if (destinations[field.id]) hints.push('→ ' + destinations[field.id]);
-
-            /*
-             * What the workbook holds for this field right now, offered rather
-             * than filled in.
-             *
-             * Filling the boxes would be the obvious thing and it is the wrong
-             * one: an empty box means "leave that cell exactly as it is", and
-             * that is what makes it safe to correct one number without
-             * touching the other four. Prefilling turns every save into a
-             * rewrite of every cell and quietly retires the guarantee. So the
-             * value is shown beside the box and put in only if it is tapped.
-             *
-             * Only when it differs from what the box already holds — with a
-             * queued entry the two are the same value and repeating it says
-             * nothing.
-             */
-            const recorded = recordedValue(workout, field.id);
-            const nowLine = recorded && recorded !== String(value)
-                ? '<button type="button" class="field-now" data-use-recorded="' + esc(field.id) + '"'
-                    + ' data-now="' + esc(recorded) + '">'
-                    + 'now: <strong>' + esc(recorded) + '</strong><span class="field-now-use">use</span>'
-                    + '</button>'
-                : '';
 
             const input = '<input id="log-' + field.id + '" data-field="' + field.id + '"'
                 + ' type="' + config.type + '"' + (config.mode ? ' inputmode="' + config.mode + '"' : '')
@@ -2997,7 +2980,6 @@ const AmsUi = (function () {
 
             return '<div class="field">' + label + body
                 + (hints.length ? '<p class="field-hint">' + esc(hints.join('  ')) + '</p>' : '')
-                + nowLine
                 + '</div>';
         }).join('');
 
@@ -3029,17 +3011,53 @@ const AmsUi = (function () {
             + photoBlock(workout)
             + '<p class="hint-inline">Saved into <strong>' + esc(workout.sheet) + '</strong> row ' + workout.row
             + '. ' + (alreadyRecorded
-                ? 'Only what you fill in is written — everything left blank stays exactly as it is.'
+                ? 'Change what is wrong and press Save. Only the boxes you change are written; '
+                    + 'the rest are left exactly as they are.'
                 : 'Leave anything blank and that cell is left exactly as it is.') + '</p>';
 
+        /*
+         * What the form is showing before it is touched, read from the boxes
+         * themselves so it is the same reading `collectLog()` will make at
+         * save time. Anything still equal to this on save was not changed and
+         * is not written.
+         */
+        openedWith = collectLog();
+        reflectChanges(alreadyRecorded);
+
         paintPhotos();
+
+        /*
+         * One listener on the body rather than one per box: both this form and
+         * the extras form rebuild themselves, and per-field listeners would go
+         * with the old inputs — the same reason the dirty-form guard is
+         * captured on the document.
+         */
+        $('logBody').addEventListener('input', () => reflectChanges(alreadyRecorded));
+
+        /*
+         * Tapping a filled box selects what is in it, so typing replaces it.
+         * Correcting 72 to 65 on a phone otherwise means tapping, moving the
+         * cursor, deleting two digits and then typing two — for a box you came
+         * to this screen specifically to overwrite.
+         */
+        $('logBody').querySelectorAll('input[data-field]').forEach((node) => {
+            node.addEventListener('focus', () => {
+                if (node.value) setTimeout(() => node.select(), 0);
+            });
+        });
 
         const showAllButton = $('showAllFieldsButton');
         if (showAllButton) {
             showAllButton.addEventListener('click', async () => {
                 await AmsDb.set('log.showAllFields', true);
                 const kept = collectLog();
+                const wasOpenedWith = openedWith;
                 await openLog(workout.key);
+                // openLog() has just taken a fresh snapshot of the rebuilt
+                // form. The one that matters is what the form held when it was
+                // *first* opened, or everything typed before asking for more
+                // columns would count as unchanged and never be written.
+                openedWith = wasOpenedWith;
                 // Put back anything already typed before the form was rebuilt.
                 for (const [id, value] of Object.entries(kept)) {
                     const node = document.getElementById('log-' + id);
@@ -3271,6 +3289,68 @@ const AmsUi = (function () {
         return { type: 'text', mode: 'text', placeholder: '' };
     }
 
+    /*
+     * What the log form held when it opened, so a save can write only the
+     * fields that moved.
+     *
+     * The boxes are pre-filled with what is already recorded, which is how an
+     * edit form should behave. Writing all of them back would be the cost of
+     * that: four cells rewritten because you corrected one, and — the case
+     * that actually bites — a value the phone read before you last edited the
+     * workbook in Excel going back over the newer one. Comparing against this
+     * keeps the ordinary form and writes one cell.
+     */
+    let openedWith = {};
+
+    /*
+     * The fields whose value is not what the form opened with. A field emptied
+     * out counts as unchanged: a blank box means "leave that cell alone", and
+     * there is no way to clear a cell from here (it has to be done in Excel).
+     */
+    function changedOnly(values) {
+        const out = {};
+        Object.keys(values).forEach((key) => {
+            if (key === 'distanceUnit') { out[key] = values[key]; return; }
+            if (String(values[key]) !== String(openedWith[key] === undefined ? '' : openedWith[key])) {
+                out[key] = values[key];
+            }
+        });
+        return out;
+    }
+
+    /*
+     * Shows, before you press anything, exactly what saving would do.
+     *
+     * On a session you have come back to correct, the one question in your
+     * head is "what is this about to write?" — and the button used to answer
+     * it with "Save to the workbook", which says nothing. Now it counts, the
+     * fields you touched are marked, and with nothing changed there is nothing
+     * to press. Guesswork removed rather than decorated over.
+     */
+    function reflectChanges(adjusting) {
+        const button = $('saveLogButton');
+        if (!button) return;
+
+        const changed = Object.keys(changedOnly(collectLog()))
+            .filter((key) => key !== 'distanceUnit');
+
+        document.querySelectorAll('#logBody [data-field]').forEach((node) => {
+            const field = node.closest('.field');
+            if (field) field.classList.toggle('is-changed', changed.indexOf(node.dataset.field) !== -1);
+        });
+
+        if (!adjusting) {
+            button.disabled = false;
+            button.textContent = 'Save to the workbook';
+            return;
+        }
+
+        button.disabled = !changed.length;
+        button.textContent = changed.length
+            ? 'Save ' + changed.length + ' change' + (changed.length === 1 ? '' : 's')
+            : 'Nothing changed yet';
+    }
+
     function collectLog() {
         const values = {};
         document.querySelectorAll('#logBody [data-field]').forEach((node) => {
@@ -3328,10 +3408,19 @@ const AmsUi = (function () {
 
     async function saveLog() {
         if (!currentWorkout) return;
-        const values = collectLog();
+        /*
+         * Only the boxes you actually altered. On a session already recorded
+         * the form opens filled in, so writing everything back would rewrite
+         * four cells because one changed — and would put a value the phone
+         * read *before* the workbook was last edited in Excel back over the
+         * newer one.
+         */
+        const values = changedOnly(collectLog());
         const meaningful = Object.keys(values).filter((k) => k !== 'distanceUnit');
         if (!meaningful.length) {
-            toast('Nothing to save yet — fill in at least one field.', 'bad');
+            toast(AmsSync.isRecorded(currentWorkout)
+                ? 'Nothing was changed, so nothing was written.'
+                : 'Nothing to save yet — fill in at least one field.', 'bad');
             return;
         }
 
@@ -4557,16 +4646,19 @@ const AmsUi = (function () {
                 + 'Anything left blank leaves that cell exactly as it was.</p>'
 
                 + '<p><strong>Getting a number wrong.</strong> Open the session again — from Today, or '
-                + 'from Plan under <em>Done</em> — and it shows you everything the workbook currently '
-                + 'holds for it. <strong>Adjust logged data</strong> opens the same form you logged it '
-                + 'with, under the same heading, with the current value offered beside each box.</p>'
-                + '<p>The boxes start empty on purpose, and that is the useful part: a box you leave '
-                + 'blank leaves its cell exactly as it was. So to turn a 72 into a 65 you type 65 in the '
-                + 'duration and save, and the distance, the heart rate and the effort are not touched, '
-                + 'let alone rewritten with what was already there. Tap <em>use</em> beside a value if '
-                + 'you want it in the box to edit rather than replace.</p>'
-                + '<p>The one thing this cannot do is <strong>empty</strong> a cell, because blank '
-                + 'already means \u201cleave it alone\u201d. A number put in the wrong field has to be '
+                + 'from Plan under <em>Done</em> — and press <strong>Adjust logged data</strong>. The '
+                + 'form opens with every number already in it. Change the one that is wrong and save.</p>'
+                + '<p>Tapping a box selects what is in it, so typing replaces it rather than adding to '
+                + 'it. The button at the bottom counts as you go — <em>Save 1 change</em> — and stays '
+                + 'dead until something is actually different, so you can always see what it is about '
+                + 'to do before you press it. Changed boxes are outlined as you edit them.</p>'
+                + '<p><strong>Only the boxes you change are written.</strong> Turn a 72 into a 65 and '
+                + 'the duration cell is the only one that moves; the distance, heart rate and effort '
+                + 'are left exactly as they are. That matters more than it sounds: if you had corrected '
+                + 'one of them in Excel since your phone last synced, writing them all back would put '
+                + 'the older number over your newer one.</p>'
+                + '<p>The one thing this cannot do is <strong>empty</strong> a cell. Clearing a box '
+                + 'means \u201cleave it alone\u201d, so a number put into the wrong field has to be '
                 + 'cleared in Excel.</p>'
 
                 + '<p><strong>Perceived effort</strong> is a number from 1 to 10 and the app says what '
@@ -5945,17 +6037,6 @@ const AmsUi = (function () {
                 const field = $('log-actualDuration');
                 if (field) {
                     field.value = usePlanned.dataset.usePlanned;
-                    field.dispatchEvent(new Event('input', { bubbles: true }));
-                    markFormDirty('logScreen');
-                }
-                return;
-            }
-
-            const useRecorded = event.target.closest('[data-use-recorded]');
-            if (useRecorded) {
-                const field = $('log-' + useRecorded.dataset.useRecorded);
-                if (field) {
-                    field.value = useRecorded.dataset.now;
                     field.dispatchEvent(new Event('input', { bubbles: true }));
                     markFormDirty('logScreen');
                     field.focus();

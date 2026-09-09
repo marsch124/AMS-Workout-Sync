@@ -7,14 +7,21 @@
  * about the 72 you had come to change into 65, and read as an invitation to
  * type the whole session in again.
  *
- * The load-bearing decision, and the thing this test is really for: **the
- * boxes stay empty**. An empty box means "leave that cell exactly as it is",
- * which is the entire reason it is safe to correct one number out of five.
- * Prefilling the boxes with what is recorded is the obvious improvement and it
- * silently retires that guarantee — every save becomes a rewrite of every
- * cell, and a stale value you never looked at goes back into the sheet as
- * though you had confirmed it. So the current value is shown *beside* the box
- * and goes in only when tapped, and this test fails if anyone fills them in.
+ * The load-bearing decision, and the thing this test is really for: **saving
+ * writes only the boxes you actually changed**.
+ *
+ * The form opens filled in with what is recorded, which is how an edit form
+ * behaves everywhere else and what he asked for in those words. The first
+ * attempt left the boxes empty with the value offered beside them, to protect
+ * exactly one thing: that correcting one number must not rewrite five cells —
+ * and in particular must not put a value the phone read *before* the workbook
+ * was last edited in Excel back over the newer one. That was the right worry
+ * and the wrong answer: he found the form unreadable, and said so plainly.
+ *
+ * The protection moved to save time instead. The form remembers what it opened
+ * showing and sends only the fields that differ. So the form can look ordinary
+ * and still touch one cell, and this test holds both halves: filled in when you
+ * arrive, one cell written when you leave.
  *
  * season-underway.xlsx is the fixture because its past is logged with four
  * different values on one session — duration, distance, heart rate and effort
@@ -92,7 +99,7 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
 
   // ---------------------------------------------------------------- 2
   console.log('');
-  console.log('THE FORM SAYS WHICH JOB IT IS, AND STAYS EMPTY');
+  console.log('THE FORM SAYS WHICH JOB IT IS, AND OPENS FILLED IN');
 
   await page.click('#openLogButton');
   await page.waitForTimeout(900);
@@ -101,22 +108,21 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
     const boxes = {};
     document.querySelectorAll('#logBody input[data-field], #logBody textarea[data-field]')
       .forEach(n => { boxes[n.dataset.field] = n.value; });
+    const save = document.getElementById('saveLogButton');
     return {
       title: document.getElementById('logTitle').textContent,
       boxes: boxes,
-      filled: Object.entries(boxes).filter(([, v]) => String(v).trim() !== '').map(([k]) => k),
-      captions: [...document.querySelectorAll('.field-now')].map(n => ({
-        field: n.dataset.useRecorded,
-        shows: n.dataset.now,
-        height: Math.round(n.getBoundingClientRect().height)
-      })),
+      empty: Object.entries(boxes).filter(([, v]) => String(v).trim() === '').map(([k]) => k),
+      save: save.textContent,
+      saveDisabled: save.disabled,
+      marked: document.querySelectorAll('#logBody .field.is-changed').length,
       footer: ([...document.querySelectorAll('#logBody .hint-inline')].pop() || {}).innerText || ''
     };
   });
 
   line('the title reads', '"' + form.title + '"');
-  line('boxes carrying a value', form.filled.length ? form.filled.join(', ') : 'none');
-  form.captions.forEach(c => line('  offered beside ' + c.field, '"' + c.shows + '" (' + c.height + 'px)'));
+  line('boxes on opening', JSON.stringify(form.boxes));
+  line('the save button says', '"' + form.save + '" (disabled: ' + form.saveDisabled + ')');
 
   if (/how did it go/i.test(form.title)) {
     errors.push('the form still asks "how did it go" when the session is already recorded: ' + form.title);
@@ -130,59 +136,76 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
     errors.push('the button says "' + session.button + '" but the screen it opens is headed "'
       + form.title + '"');
   }
-  /*
-   * The one that matters. If this ever fails because somebody prefilled the
-   * boxes "helpfully", read the note at the top of this file before changing
-   * the test.
-   */
-  if (form.filled.length) {
-    errors.push('the correction form pre-filled ' + form.filled.join(', ')
-      + ' — an empty box is what makes "leave the other cells alone" true');
-  }
-  if (!form.captions.length) {
-    errors.push('nothing on the form says what is currently recorded');
-  }
-  // Every value the session screen showed has to be offered on the form, and
-  // with the same text — two readings of one cell are how a hint starts lying.
+
+  // Every value the session screen showed has to be in its box.
   session.panel.forEach((row) => {
     if (row.label === 'Completed') return;   // not a field you type into
-    if (!form.captions.some(c => c.shows === row.value)) {
+    if (!Object.values(form.boxes).some(v => String(v) === row.value)) {
       errors.push('the workbook holds ' + row.label + ' = ' + row.value
-        + ' but the form does not offer it');
+        + ' but no box on the form is showing it');
     }
   });
-  form.captions.forEach((c) => {
-    if (c.height < 43) errors.push('the "' + c.field + '" line is only ' + c.height + 'px to tap');
-  });
-  if (!/blank/i.test(form.footer)) {
-    errors.push('the form does not say what leaving a box blank does: ' + form.footer);
+  if (form.empty.length) {
+    errors.push('opened with ' + form.empty.join(', ') + ' empty — a form you came back to correct '
+      + 'should show what is there');
+  }
+  /*
+   * Nothing has been touched yet, so there is nothing to write. The button
+   * says so rather than offering a save that would do nothing.
+   */
+  if (!form.saveDisabled) {
+    errors.push('the save button is live before anything has been changed');
+  }
+  if (form.marked) {
+    errors.push(form.marked + ' field(s) marked as changed on a form nobody has touched');
+  }
+  if (!/blank|change/i.test(form.footer)) {
+    errors.push('the form does not say what saving will write: ' + form.footer);
   }
 
   // ---------------------------------------------------------------- 3
   console.log('');
-  console.log('TAPPING ONE PUTS IT IN, AND ONLY IT');
+  console.log('CHANGING ONE SAYS SO, BEFORE YOU PRESS ANYTHING');
 
-  const tapped = await page.evaluate(async () => {
-    const cap = [...document.querySelectorAll('.field-now')]
-      .find(n => n.dataset.useRecorded === 'actualDuration');
-    if (!cap) return { error: 'no offer beside the duration' };
-    cap.click();
+  const typed = await page.evaluate(async () => {
+    const box = document.getElementById('log-actualDuration');
+    /*
+     * Tapping a filled box selects it, so typing replaces rather than appends.
+     * On a phone the alternative is tap, move the cursor, delete two digits,
+     * type two — for a box you opened this screen specifically to overwrite.
+     */
+    box.focus();
+    await new Promise(r => setTimeout(r, 120));
+    const selectsAll = box.selectionStart === 0 && box.selectionEnd === box.value.length;
+
+    box.value = '65';
+    box.dispatchEvent(new Event('input', { bubbles: true }));
     await new Promise(r => setTimeout(r, 250));
-    const boxes = {};
-    document.querySelectorAll('#logBody input[data-field]').forEach(n => { boxes[n.dataset.field] = n.value; });
-    return { boxes: boxes, offered: cap.dataset.now };
+
+    const save = document.getElementById('saveLogButton');
+    return {
+      selectsAll: selectsAll,
+      save: save.textContent,
+      disabled: save.disabled,
+      marked: [...document.querySelectorAll('#logBody .field.is-changed [data-field]')]
+        .map(n => n.dataset.field)
+    };
   });
 
-  if (tapped.error) { errors.push(tapped.error); }
-  else {
-    const others = Object.entries(tapped.boxes)
-      .filter(([k, v]) => k !== 'actualDuration' && String(v).trim() !== '');
-    line('duration now holds', '"' + tapped.boxes.actualDuration + '"');
-    line('other boxes still empty', others.length ? 'NO — ' + others.map(o => o[0]).join(', ') : 'yes');
-    if (tapped.boxes.actualDuration !== tapped.offered) {
-      errors.push('tapping the offer did not put it in the box');
-    }
-    if (others.length) errors.push('tapping one offer filled boxes it had no business filling');
+  line('tapping a filled box selects it', typed.selectsAll);
+  line('the save button now says', '"' + typed.save + '"');
+  line('fields marked as changed', typed.marked.join(', ') || 'none');
+
+  if (!typed.selectsAll) {
+    errors.push('tapping a filled box does not select it, so correcting means deleting first');
+  }
+  if (typed.disabled) errors.push('the save button is still dead after a change was made');
+  if (!/1 change/.test(typed.save)) {
+    errors.push('the save button does not say how much it will write: ' + typed.save);
+  }
+  if (String(typed.marked) !== String(['actualDuration'])) {
+    errors.push('the changed field is marked as ' + (typed.marked.join(', ') || 'nothing')
+      + ' — it should be the duration and nothing else');
   }
 
   // ---------------------------------------------------------------- 4
@@ -190,9 +213,6 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
   console.log('CORRECTING ONE NUMBER WRITES ONE CELL');
 
   const saved = await page.evaluate(async () => {
-    const box = document.getElementById('log-actualDuration');
-    box.value = '65';
-    box.dispatchEvent(new Event('input', { bubbles: true }));
     document.getElementById('saveLogButton').click();
     await new Promise(r => setTimeout(r, 1600));
 
@@ -225,7 +245,7 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
 
   // ---------------------------------------------------------------- 5
   console.log('');
-  console.log('AND NOTHING IS OFFERED THAT IS NOT THERE');
+  console.log('A SESSION NEVER LOGGED IS THE ORDINARY FORM');
 
   /*
    * The other half of the same rule. A session with nothing recorded must get
@@ -250,13 +270,14 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
     return {
       screen: (document.querySelector('.screen.active') || {}).id,
       title: document.getElementById('logTitle').textContent,
-      offers: document.querySelectorAll('.field-now').length,
+      save: document.getElementById('saveLogButton').textContent,
+      saveDisabled: document.getElementById('saveLogButton').disabled,
       filled: Object.entries(boxes).filter(([, v]) => String(v).trim() !== '').map(([k]) => k)
     };
   });
 
   line('a session not yet logged reads', '"' + untouched.title + '"');
-  line('offers on it', untouched.offers);
+  line('its save button says', '"' + untouched.save + '"');
 
   if (untouched.screen !== 'logScreen') {
     errors.push('could not reach the log form for a session that has not been logged');
@@ -264,11 +285,16 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
   if (!/how did it go/i.test(untouched.title)) {
     errors.push('a session with nothing recorded is headed as though it had been: ' + untouched.title);
   }
-  if (untouched.offers) {
-    errors.push(untouched.offers + ' "now:" line(s) on a session that has never been logged');
-  }
   if (untouched.filled.length) {
     errors.push('a fresh log form arrived with ' + untouched.filled.join(', ') + ' already filled in');
+  }
+  // Nothing is recorded, so there is nothing to count changes against: the
+  // button is the ordinary one it has always been.
+  if (untouched.saveDisabled) {
+    errors.push('the save button is dead on a session that has never been logged');
+  }
+  if (/change/i.test(untouched.save)) {
+    errors.push('a first log counts changes rather than just saving: ' + untouched.save);
   }
 
   console.log('');
