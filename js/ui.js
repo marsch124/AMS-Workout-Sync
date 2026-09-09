@@ -4603,8 +4603,44 @@ const AmsUi = (function () {
                 + 'is being trusted. Two identical extras on one day share their pictures; the app cannot '
                 + 'tell those apart anyway, and refuses to write the second.</p>')
 
-            + section('Offline, and how syncing works',
-                '<p><strong>What this phone holds.</strong> Sessions you log wait here until they are written to Dropbox, alongside the connection itself and a cached copy of the workbook. The app asks the phone to treat that storage as worth keeping, which is the standard protection against the system tidying it away — but the workbook in Dropbox is always the real record, so syncing soon after logging is still the habit that makes everything else unimportant.</p>'
+            + section('Syncing, and working offline',
+                /*
+                 * The reading half of this was missing entirely, and it is the
+                 * half he asked about: everything below the first block is
+                 * about getting logging *out* to Dropbox, and nothing said how
+                 * a change made in Excel gets *in*. "I would like to change
+                 * next week — how do I make sure it is synced?" is the
+                 * question, and the answer is "just save it", which is worth
+                 * saying outright rather than leaving to be inferred.
+                 */
+                '<p><strong>Changing your plan in Excel.</strong> Edit next week, or any week, save it to '
+                + 'Dropbox, and that is the whole of it — there is nothing to press in the app. It reads the '
+                + 'workbook again by itself and your changes are there.</p>'
+
+                + '<p>It reads the <em>whole</em> file each time, never a part of it: an .xlsx is a single '
+                + 'zip, so there is no such thing as fetching only next week. That happens at five moments '
+                + '— when you open the app; when you come back to it having been somewhere else; whenever '
+                + 'anything syncs, which starts by fetching the current copy before it writes into it; when '
+                + 'you press the sync button, which re-reads even with nothing waiting to go up; and when a '
+                + 'signal comes back after being without one.</p>'
+
+                + '<p>Coming back to the app re-reads at most <strong>once a minute</strong>. Switching to '
+                + 'the timer app and back three times during a set of intervals would otherwise be three '
+                + 'downloads of the whole workbook, which is your data allowance, your battery, and '
+                + 'eventually Dropbox declining to answer.</p>'
+
+                + '<p><strong>Your edit is never the thing that gets overwritten.</strong> Syncing fetches '
+                + 'the copy that is in Dropbox at that moment and adds to <em>that</em>, rather than uploading '
+                + 'a copy the phone has been holding — so logging that went in while you were editing lands on '
+                + 'top of your new version, not instead of it. What you may and may not change while something '
+                + 'is still waiting to go up is set out under <em>Changing the plan in Excel</em>; the short '
+                + 'version is that changing numbers and text is free, and inserting or deleting rows is the '
+                + 'one thing to sync before doing.</p>'
+
+                + '<p>The number on the sync button is how many entries are waiting. At nothing, everything '
+                + 'you have logged is already in your workbook and you can edit it however you like.</p>'
+
+                + '<p><strong>What this phone holds.</strong> Sessions you log wait here until they are written to Dropbox, alongside the connection itself and a cached copy of the workbook. The app asks the phone to treat that storage as worth keeping, which is the standard protection against the system tidying it away — but the workbook in Dropbox is always the real record, so syncing soon after logging is still the habit that makes everything else unimportant.</p>'
                 + '<p>Logging never waits for a network. An entry is saved on the phone and shown immediately; '
                 + 'syncing then downloads the workbook <em>as it stands now</em>, replays the queue onto that '
                 + 'copy, and uploads.</p>'
@@ -4632,6 +4668,10 @@ const AmsUi = (function () {
                 + 'A minutes column written as hours is the usual cause.</p>'
                 + '<p><strong>No sessions appear</strong> — Sheet setup: the date and sport columns both need '
                 + 'to be mapped.</p>'
+                + '<p><strong>A change you made in Excel is not showing</strong> — press the sync button, or '
+                + 'close the app and open it again. It re-reads the whole workbook on opening, and on coming '
+                + 'back to it after a minute away. If it still does not appear, check the file it is reading '
+                + 'is the one you edited: Settings → Workbook.</p>'
                 + '<p><strong>Something is stuck on “waiting to sync”</strong> — Settings → Syncing → Sync now. '
                 + 'If it refuses, the workbook probably changed in Dropbox; syncing again resolves it.</p>'
                 + '<p><strong>An update has not arrived</strong> — close the app fully and reopen it. It caches '

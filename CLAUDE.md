@@ -354,6 +354,25 @@ was indeed free.
   line, the wash, tapping a day, and every decision behind the pink. Martin
   asked for this depth explicitly. New UI on either card belongs in it.
 
+**v1.57.0 — how the plan reaches the app, written down.** No screen moved. The
+guide's syncing section only ever described the *write* direction — logging
+going out to Dropbox — and said nothing about how a change made in Excel comes
+*in*, which is what he asked. It now names the five moments the workbook is
+re-read (open, foreground, any sync, the sync button, a signal returning), says
+outright that it is the **whole file every time** (an .xlsx is one zip; there
+is no fetching only next week), and gives the **60-second foreground floor**
+(`REFRESH_FLOOR` in app.js) a reason a reader can see. *A change you made in
+Excel is not showing* joins "If something looks wrong".
+
+- The section is renamed `Syncing, and working offline` — it now covers both
+  directions, and the old title only promised one.
+- 🪤 The editing rules were **not** restated here. `Changing the plan in Excel`
+  already has them and is stricter: numbers and text are free, **rows are the
+  sharp edge** (weekly totals sum fixed ranges, and an unsynced entry points at
+  a row number), so sync before restructuring. The new block points at it
+  rather than paraphrasing it — a second, looser copy of a safety rule is worse
+  than no copy.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The

@@ -8,13 +8,25 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.56.0';
+    const CURRENT = '1.57.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.57.0',
+            date: '2026-09-09',
+            headline: 'How your plan reaches the app',
+            items: [
+                'Nothing on any screen has moved. The guide now answers a question it never did: **you changed next week in Excel \u2014 how does the app find out?**',
+                '**It reads the whole workbook again, by itself.** Save the file to Dropbox and that is the whole of it; there is nothing to press. An .xlsx is one zip, so there is no such thing as fetching only next week \u2014 it takes the lot, every time.',
+                'It does that at five moments, and the guide now names them: opening the app, coming back to it, any sync (which fetches the current copy before it writes into it), the sync button even with nothing waiting, and a signal returning after being without one.',
+                '**Coming back to the app re-reads at most once a minute.** Switching to the timer app and back three times during a set of intervals would otherwise be three downloads of the whole workbook \u2014 your data, your battery, and eventually Dropbox declining to answer.',
+                'Also said plainly: your edit is never the thing that gets overwritten, because syncing adds to the copy that is in Dropbox at that moment rather than uploading one the phone has been holding. And *a change you made in Excel is not showing* is now in the list of things that can look wrong, with what to do about it.',
+            ]
+        },
         {
             version: '1.56.0',
             date: '2026-09-08',
