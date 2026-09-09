@@ -80,7 +80,7 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
   });
   console.log('');
   console.log('AFTER LOGGING');
-  line('Log again / Missed / Move', [after.log, after.missed, after.move].map(x => x?'yes':'no').join(' / '));
+  line('adjust / Missed / Move', [after.log, after.missed, after.move].map(x => x?'yes':'no').join(' / '));
   line('card is tappable', after.tappable && after.workout ? 'yes' : 'NO');
   console.log('   ...' + after.text);
   if (after.log || after.missed || after.move) errs.push('buttons still present after logging');
@@ -102,7 +102,17 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
   line('offers', (detail.log || '(nothing)').trim() + (detail.logHidden ? ' (HIDDEN)' : '')
       + ' / ' + (detail.missed||'').trim() + ' / ' + (detail.move ? 'Move' : 'no move'));
   if (!detail.log || detail.logHidden) errs.push('no way to log again from the session screen');
-  if (detail.log.trim() !== 'Log again') errs.push('expected "Log again", got "' + detail.log + '"');
+  /*
+   * The button has to offer changing what is recorded rather than repeating
+   * it. Asserted by meaning: the exact wording moved once already, when "Log
+   * again" turned out to read as "log another workout".
+   */
+  if (!/adjust|change|correct|edit/i.test(detail.log)) {
+    errs.push('a logged session offers no way to change what is recorded, it says "' + detail.log + '"');
+  }
+  if (/again/i.test(detail.log)) {
+    errs.push('"' + detail.log + '" reads as logging a second workout');
+  }
   if (!detail.move) errs.push('no way to move from the session screen');
   if (detail.screen !== 'workoutScreen') errs.push('tapping a logged card did not open the session');
 

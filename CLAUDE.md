@@ -448,6 +448,26 @@ retype the session.
   the two are within 0.8–1.25× of each other, because "neither dominates" is
   the whole point and a half-undone version would still be on one line.
 
+**v1.61.0 — "Log again" was the whole problem.** He came back from his phone
+saying he did not understand what the v1.59.0 screen was *for*. It was not the
+screen: it was the button that opened it.
+
+- 🚨 **"Log again" reads as "log another workout."** His words: "in my ears, as
+  a non-native English person, *log again* feels as if I would like to log
+  another workout, and that's never a use case." It is now **"Adjust logged
+  data"** — his phrasing, kept as he gave it. A label that reads clearly to the
+  person using the app beats one that reads well to whoever wrote it, and
+  CLAUDE.md already said to believe him about his own screen.
+- The form it opens is headed the same words, so pressing one label and landing
+  under another is not possible. `tests/correcting.js` asserts they match.
+- 🪤 **Two tests pinned the literal string** (`as-planned.js`, `logging.js`) and
+  broke on the rename. Both now ask for the *meaning* — the button must offer
+  adjusting/changing and must not say "again" — so the next wording change does
+  not cost two false failures. Assert what a label means, not what it says.
+- The lesson generalises: v1.59.0 looked like a feature nobody needed, and the
+  feature was fine. Before redesigning something he says is pointless, check
+  what the door into it is called.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The

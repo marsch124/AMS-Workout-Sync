@@ -73,8 +73,17 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
   session.panel.forEach(r => line('  workbook holds', r.label + ' = ' + r.value));
 
   if (session.screen !== 'workoutScreen') errors.push('tapping a done session did not open it');
-  if (!/again/i.test(session.button || '')) {
-    errors.push('the button on a recorded session does not say it would be logging again: '
+  /*
+   * It used to say "Log again", which he read as *log another workout* — "and
+   * that's never a use case". The button changes what is already recorded; a
+   * label that can be read as starting a second one is worse than no label.
+   */
+  if (/again/i.test(session.button || '')) {
+    errors.push('the button says "' + session.button + '" — "again" reads as logging a second '
+      + 'workout, which is not what it does');
+  }
+  if (!/adjust|change|correct|edit/i.test(session.button || '')) {
+    errors.push('the button on a recorded session does not say it changes what is there: '
       + session.button);
   }
   if (session.panel.length < 3) {
@@ -109,8 +118,17 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
   line('boxes carrying a value', form.filled.length ? form.filled.join(', ') : 'none');
   form.captions.forEach(c => line('  offered beside ' + c.field, '"' + c.shows + '" (' + c.height + 'px)'));
 
-  if (!/change|recorded/i.test(form.title)) {
+  if (/how did it go/i.test(form.title)) {
     errors.push('the form still asks "how did it go" when the session is already recorded: ' + form.title);
+  }
+  /*
+   * The button and the screen it opens must say the same thing. Pressing one
+   * label and landing under another is a small doubt at exactly the moment
+   * there should be none, and it is how the two drift apart over time.
+   */
+  if (form.title.trim().toLowerCase() !== (session.button || '').trim().toLowerCase()) {
+    errors.push('the button says "' + session.button + '" but the screen it opens is headed "'
+      + form.title + '"');
   }
   /*
    * The one that matters. If this ever fails because somebody prefilled the

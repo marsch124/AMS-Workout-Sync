@@ -227,8 +227,16 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
 
   if (offered.unlogged && !offered.unlogged.shown) errors.push('not offered on a session that is still to do');
   if (offered.logged && offered.logged.shown) errors.push('still offered on a session already recorded');
-  if (offered.logged && offered.logged.logSays && !/again/i.test(offered.logged.logSays)) {
-    errors.push('a recorded session does not offer to be logged again');
+  /*
+   * What matters is that a recorded session still has a way in to change what
+   * is there — not the words on it. It used to say "Log again", which he read
+   * as offering to log a *second* workout; the label is now "Adjust logged
+   * data" and could change again, so this asks for the meaning.
+   */
+  if (offered.logged && offered.logged.logSays
+      && !/adjust|change|correct|edit/i.test(offered.logged.logSays)) {
+    errors.push('a recorded session offers no way to change what was logged: '
+      + offered.logged.logSays);
   }
   if (offered.noLength && offered.noLength.shown) {
     errors.push('offered on a session the plan gives no length to, so it would write nothing');

@@ -2093,12 +2093,19 @@ const AmsUi = (function () {
         const isRest = workout.discipline.id === 'rest';
         logButton.hidden = isRest;
         missedButton.hidden = isRest;
-        // "Log again" only makes sense if something was actually logged — a
-        // session marked missed has nothing to repeat, though it can still be
-        // logged if it turns out you did it after all.
+        /*
+         * "Log again" was wrong, and wrong in the way that matters: it reads as
+         * *log another one*. Reported in those words — "in my ears it feels as
+         * if I would like to log another workout, and that's never a use case"
+         * — and once said it is obvious. The button does not repeat anything,
+         * it changes what is already there, so it says so.
+         *
+         * His phrasing, kept as he gave it. A label that reads clearly to the
+         * person using the app beats one that reads well to whoever wrote it.
+         */
         const status = statusOf(workout);
         const isLogged = !!(status && status.kind === 'logged');
-        logButton.textContent = isLogged ? 'Log again' : 'Log details';
+        logButton.textContent = isLogged ? 'Adjust logged data' : 'Log details';
 
         /*
          * Offered on anything with a planned length that has not already been
@@ -2896,9 +2903,10 @@ const AmsUi = (function () {
          * either way — only the job has changed, so only the title does.
          */
         const alreadyRecorded = AmsSync.isRecorded(workout);
-        // Present tense, and short enough for one line on a phone: "Change what
-        // was recorded" wrapped to two and pushed the whole form down.
-        $('logTitle').textContent = alreadyRecorded ? 'Change what is recorded' : 'How did it go?';
+        // The same words as the button that opened it. Pressing "Adjust logged
+        // data" and arriving somewhere headed differently is a small doubt at
+        // exactly the moment you want none.
+        $('logTitle').textContent = alreadyRecorded ? 'Adjust logged data' : 'How did it go?';
 
         if (!groups.all.length) {
             $('logBody').innerHTML = emptyState('icon-plan', 'Nowhere to write',
@@ -4550,8 +4558,8 @@ const AmsUi = (function () {
 
                 + '<p><strong>Getting a number wrong.</strong> Open the session again — from Today, or '
                 + 'from Plan under <em>Done</em> — and it shows you everything the workbook currently '
-                + 'holds for it. <strong>Log again</strong> opens the same form, headed <em>Change what '
-                + 'is recorded</em>, with the current value offered beside each box.</p>'
+                + 'holds for it. <strong>Adjust logged data</strong> opens the same form you logged it '
+                + 'with, under the same heading, with the current value offered beside each box.</p>'
                 + '<p>The boxes start empty on purpose, and that is the useful part: a box you leave '
                 + 'blank leaves its cell exactly as it was. So to turn a 72 into a 65 you type 65 in the '
                 + 'duration and save, and the distance, the heart rate and the effort are not touched, '

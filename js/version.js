@@ -8,13 +8,23 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.60.0';
+    const CURRENT = '1.61.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.61.0',
+            date: '2026-09-09',
+            headline: 'Adjust logged data',
+            items: [
+                '**The button that said \u201cLog again\u201d now says \u201cAdjust logged data\u201d.** Your words, and your point: *log again* reads as though you were about to log a second workout, which is never what you want. It changes what is already recorded \u2014 so now it says that.',
+                'The screen it opens is headed the same way, so pressing one thing and landing on another is no longer possible.',
+                'Nothing about what it does has changed. It was only ever the name that was wrong, and the name was why the whole screen looked as though it solved nothing.',
+            ]
+        },
         {
             version: '1.60.0',
             date: '2026-09-09',
