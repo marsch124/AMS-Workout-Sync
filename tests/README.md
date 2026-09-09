@@ -39,6 +39,7 @@ node tests/extras-identity.js
 node tests/conflict.js
 node tests/waiting.js
 node tests/extra-bars.js
+node tests/correcting.js
 
 node tests/voice.js          # no browser, no server — pure parser
 node tests/trends.js         # no browser, no server — pure arithmetic
@@ -319,6 +320,21 @@ against the biggest *planned* day lets a two-hour hike draw a bar taller than
 the column that holds it, so the test measures it with a 2h extra in a week
 whose biggest day is 65m. The same rule on the Plan tab is guarded in
 `plan-overview.js`, where a long extra must not flatten the block.
+
+**`correcting.js`** — coming back to a log to fix a number you got wrong.
+Mostly one assertion, and it is a negative one: **the boxes stay empty**. An
+empty box means "leave that cell exactly as it is", which is the entire reason
+it is safe to correct one number out of five, and prefilling the boxes with
+what is recorded is the obvious improvement that silently retires it — every
+save becomes a rewrite of every cell, and a stale value nobody looked at goes
+back into the sheet as though it had been confirmed. The current value is shown
+*beside* the box instead and goes in only when tapped. Also: the form says
+which job it is, every value the session screen shows is offered on the form
+with the same text (two readings of one cell being how a hint starts lying),
+correcting the duration would write that cell and the completed marker and
+nothing else, and a session with nothing recorded gets the original question
+and no offers at all. Uses `season-underway.xlsx`, whose past sessions carry
+four different values apiece.
 
 **`conflict.js`** — what happens when the workbook changed in Dropbox while the
 phone still had logging waiting. Dropbox is stubbed, because the real thing

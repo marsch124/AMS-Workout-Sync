@@ -2818,6 +2818,28 @@ const AmsUi = (function () {
 
     /* ---------- the log form ---------- */
 
+    /*
+     * What is already recorded for one field, as text, or '' for nothing.
+     *
+     * Read from exactly where `loggedSummary()` reads — the cell's own display
+     * text once synced, the queued value while it waits — so the hint under a
+     * box and the panel on the session screen cannot drift apart. A hint that
+     * quietly disagrees with the screen you came from is worse than no hint,
+     * and computing the same thing twice is how that happens.
+     */
+    function recordedValue(workout, fieldId) {
+        if (!workout) return '';
+        if (workout.pending) {
+            const values = workout.pending.values || {};
+            // A session marked missed has no numbers to carry forward.
+            if (values.missed) return '';
+            const queued = values[fieldId];
+            return queued === undefined || queued === null ? '' : String(queued);
+        }
+        const cell = (workout.results || {})[fieldId];
+        return cell && cell.text ? String(cell.text) : '';
+    }
+
     async function openLog(key) {
         const workout = key ? AmsSync.byKey(key) : currentWorkout;
         if (!workout) return;
@@ -2847,6 +2869,17 @@ const AmsUi = (function () {
         } catch (err) { /* captions are a nicety, not a requirement */ }
 
         $('logEyebrow').textContent = workout.discipline.label + ' · ' + shortDay(workout.date);
+
+        /*
+         * "How did it go?" is the right question the first time and the wrong
+         * one the second: coming back to fix a mistyped number, it reads as an
+         * invitation to enter the whole session again. It is the same form
+         * either way — only the job has changed, so only the title does.
+         */
+        const alreadyRecorded = AmsSync.isRecorded(workout);
+        // Present tense, and short enough for one line on a phone: "Change what
+        // was recorded" wrapped to two and pushed the whole form down.
+        $('logTitle').textContent = alreadyRecorded ? 'Change what is recorded' : 'How did it go?';
 
         if (!groups.all.length) {
             $('logBody').innerHTML = emptyState('icon-plan', 'Nowhere to write',
@@ -2879,15 +2912,46 @@ const AmsUi = (function () {
                 + (unit ? ' <span class="field-unit">(' + esc(unit) + ')</span>' : '') + '</label>';
 
             if (field.id === 'notes') {
+                const noted = recordedValue(workout, field.id);
                 return '<div class="field">' + label
                     + '<textarea id="log-' + field.id + '" data-field="' + field.id
-                    + '" placeholder="How it felt, conditions, anything worth remembering">' + esc(value) + '</textarea></div>';
+                    + '" placeholder="How it felt, conditions, anything worth remembering">' + esc(value) + '</textarea>'
+                    + (noted && noted !== String(value)
+                        ? '<button type="button" class="field-now" data-use-recorded="' + esc(field.id) + '"'
+                            + ' data-now="' + esc(noted) + '">'
+                            + 'now: <strong>' + esc(noted) + '</strong><span class="field-now-use">use</span>'
+                            + '</button>'
+                        : '')
+                    + '</div>';
             }
 
             const config = inputConfig(field, workout);
             const hints = [];
             if (config.hint) hints.push(config.hint);
             if (destinations[field.id]) hints.push('→ ' + destinations[field.id]);
+
+            /*
+             * What the workbook holds for this field right now, offered rather
+             * than filled in.
+             *
+             * Filling the boxes would be the obvious thing and it is the wrong
+             * one: an empty box means "leave that cell exactly as it is", and
+             * that is what makes it safe to correct one number without
+             * touching the other four. Prefilling turns every save into a
+             * rewrite of every cell and quietly retires the guarantee. So the
+             * value is shown beside the box and put in only if it is tapped.
+             *
+             * Only when it differs from what the box already holds — with a
+             * queued entry the two are the same value and repeating it says
+             * nothing.
+             */
+            const recorded = recordedValue(workout, field.id);
+            const nowLine = recorded && recorded !== String(value)
+                ? '<button type="button" class="field-now" data-use-recorded="' + esc(field.id) + '"'
+                    + ' data-now="' + esc(recorded) + '">'
+                    + 'now: <strong>' + esc(recorded) + '</strong><span class="field-now-use">use</span>'
+                    + '</button>'
+                : '';
 
             const input = '<input id="log-' + field.id + '" data-field="' + field.id + '"'
                 + ' type="' + config.type + '"' + (config.mode ? ' inputmode="' + config.mode + '"' : '')
@@ -2906,6 +2970,7 @@ const AmsUi = (function () {
 
             return '<div class="field">' + label + body
                 + (hints.length ? '<p class="field-hint">' + esc(hints.join('  ')) + '</p>' : '')
+                + nowLine
                 + '</div>';
         }).join('');
 
@@ -2936,7 +3001,9 @@ const AmsUi = (function () {
             + '<input type="hidden" id="log-distanceUnit" value="' + esc(distanceUnit) + '">'
             + photoBlock(workout)
             + '<p class="hint-inline">Saved into <strong>' + esc(workout.sheet) + '</strong> row ' + workout.row
-            + '. Leave anything blank and that cell is left exactly as it is.</p>';
+            + '. ' + (alreadyRecorded
+                ? 'Only what you fill in is written — everything left blank stays exactly as it is.'
+                : 'Leave anything blank and that cell is left exactly as it is.') + '</p>';
 
         paintPhotos();
 
@@ -4449,6 +4516,19 @@ const AmsUi = (function () {
                 + 'your sheet has is one tap away, and once you ask for the full set it keeps showing it. '
                 + 'Anything left blank leaves that cell exactly as it was.</p>'
 
+                + '<p><strong>Getting a number wrong.</strong> Open the session again — from Today, or '
+                + 'from Plan under <em>Done</em> — and it shows you everything the workbook currently '
+                + 'holds for it. <strong>Log again</strong> opens the same form, headed <em>Change what '
+                + 'is recorded</em>, with the current value offered beside each box.</p>'
+                + '<p>The boxes start empty on purpose, and that is the useful part: a box you leave '
+                + 'blank leaves its cell exactly as it was. So to turn a 72 into a 65 you type 65 in the '
+                + 'duration and save, and the distance, the heart rate and the effort are not touched, '
+                + 'let alone rewritten with what was already there. Tap <em>use</em> beside a value if '
+                + 'you want it in the box to edit rather than replace.</p>'
+                + '<p>The one thing this cannot do is <strong>empty</strong> a cell, because blank '
+                + 'already means \u201cleave it alone\u201d. A number put in the wrong field has to be '
+                + 'cleared in Excel.</p>'
+
                 + '<p><strong>Perceived effort</strong> is a number from 1 to 10 and the app says what '
                 + 'each one means as you type it, in the space beside the box: 1 is barely moving, 4 is '
                 + 'steady and still talking in whole sentences, 7 is hard and down to single words, 10 is '
@@ -5827,6 +5907,18 @@ const AmsUi = (function () {
                     field.value = usePlanned.dataset.usePlanned;
                     field.dispatchEvent(new Event('input', { bubbles: true }));
                     markFormDirty('logScreen');
+                }
+                return;
+            }
+
+            const useRecorded = event.target.closest('[data-use-recorded]');
+            if (useRecorded) {
+                const field = $('log-' + useRecorded.dataset.useRecorded);
+                if (field) {
+                    field.value = useRecorded.dataset.now;
+                    field.dispatchEvent(new Event('input', { bubbles: true }));
+                    markFormDirty('logScreen');
+                    field.focus();
                 }
                 return;
             }

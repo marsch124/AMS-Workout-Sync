@@ -8,13 +8,26 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.58.0';
+    const CURRENT = '1.59.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.59.0',
+            date: '2026-09-09',
+            headline: 'Changing a number you got wrong',
+            items: [
+                '**You entered 72 and it should have been 65.** Open the session again \u2014 from Today, or from Plan under *Done* \u2014 and press **Log again**. The form is now headed *Change what is recorded*, and every value already in your workbook is shown beside its box.',
+                '**The boxes stay empty, and that is the point.** A box you leave blank leaves its cell exactly as it was. So you type 65 into Duration, save, and the distance, heart rate and effort are not touched \u2014 not even rewritten with what was already there. One cell changes.',
+                'Tap **use** beside a value to put it in the box, for when you want to edit it rather than replace it.',
+                'Before this the form opened completely blank under \u201cHow did it go?\u201d, with no sight of what you had come to change and every appearance of asking you to type the whole session in again.',
+                '**What it still cannot do is empty a cell**, because a blank box already means \u201cleave it alone\u201d. A number put into the wrong field has to be cleared in Excel. That one needs its own answer and will get one.',
+                'Thirty-two tests now run against this app, up from thirty-one.',
+            ]
+        },
         {
             version: '1.58.0',
             date: '2026-09-09',

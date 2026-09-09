@@ -399,6 +399,35 @@ the second is why it read as broken rather than flaky.
   keyboard, **the second tap starts a new attempt** (the dead-button
   regression), and leaving the form stops it.
 
+**v1.59.0 — changing a number you got wrong.** "Maybe I entered the wrong
+numbers." The route already existed — the session screen shows what is recorded
+and offers *Log again* — but it opened a blank form headed "How did it go?",
+which showed nothing of what he had come to change and read as a request to
+retype the session.
+
+- 🚨 **The boxes stay empty. Do not "helpfully" prefill them.** A blank box
+  means "leave that cell exactly as it is", and that is the whole reason
+  correcting one number out of five is safe. Prefilling turns every save into a
+  rewrite of every cell, and a stale value nobody looked at goes back into the
+  sheet as though it had been confirmed — the same failure `as-planned.js`
+  guards on the one-tap button, arriving by another door. `tests/correcting.js`
+  fails if anyone fills them in, and says so.
+- The current value is offered *beside* the box (`.field-now`, `recordedValue()`)
+  and goes in only when tapped. `recordedValue()` reads from exactly where
+  `loggedSummary()` reads — the cell's own display text once synced, the queued
+  value while it waits — so the hint and the session screen cannot drift apart
+  (the v1.53.0 `driftOf()` lesson). The test compares the captions against the
+  panel rather than against a second reading of the cells.
+- Only shown when it differs from what the box already holds: with a queued
+  entry the box already carries that value and repeating it says nothing.
+- Title: "How did it go?" → **"Change what is recorded"** when already recorded.
+  Present tense and short deliberately — "Change what *was* recorded" wrapped to
+  two lines at 390px and pushed the form down. Measured, not guessed.
+- 🪤 **It still cannot empty a cell**, because blank already means "leave it
+  alone". A number in the wrong field has to be cleared in Excel. Named in the
+  guide and the changelog rather than left to be discovered; it needs its own
+  answer (an explicit marker, not an empty box) and did not get one here.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The
@@ -492,7 +521,7 @@ node tests/failure-paths.js          # and the rest
 Repo tests: `failure-paths`, `column-collision`, `foreign-extras-sheet`,
 `edited-workbook`, `calendar-export`, `session-share`, `progress`, `logging`,
 `move-log`, `leaving-a-form`, `week-wash`, `august-audit`, `rest-day`,
-`photos`, `extra-photos`, `share-app`, `screen-wording`, `plan-overview`, `as-planned`, `voice` (no browser), `say-it`, `road`, `trends` (no browser), `load` (no browser), `is-it-working`, `new-writes`, `rough-input` (no browser), `extras-identity`, `conflict`, `waiting`, `extra-bars` — **31 of them**. What each
+`photos`, `extra-photos`, `share-app`, `screen-wording`, `plan-overview`, `as-planned`, `voice` (no browser), `say-it`, `road`, `trends` (no browser), `load` (no browser), `is-it-working`, `new-writes`, `rough-input` (no browser), `extras-identity`, `conflict`, `waiting`, `extra-bars`, `correcting` — **32 of them**. What each
 one covers is written up in `tests/README.md`; keep it current, the run list
 included. Fixtures are synthetic and gitignored — **no real
 training data in this repository**.

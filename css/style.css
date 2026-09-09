@@ -492,6 +492,60 @@ body {
     line-height: 1.4;
 }
 
+/*
+ * What the workbook already holds for this field, when you have come back to
+ * change it.
+ *
+ * Deliberately not in the box. An empty box means "leave that cell exactly as
+ * it is", which is what makes it safe to correct one number out of five, and
+ * prefilling would quietly retire that. So the value sits beside the box and
+ * goes in only if you tap it.
+ *
+ * Drawn as a line rather than a button for the same reason `.compliance-line`
+ * is: it is a fact about the session first and a control second, and a second
+ * button under every field would turn a short form into a busy one. The 44px
+ * minimum is kept, because it is still a tap target.
+ */
+.field-now {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    /* 44px, the same floor the august audit holds every other small control
+       to. It only appears on a form you have come back to, so it costs nothing
+       on the common path. */
+    width: 100%;
+    min-height: 44px;
+    padding: 0.35rem 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    font-size: 0.76rem;
+    color: var(--color-text-secondary);
+}
+
+.field-now strong {
+    color: var(--color-text);
+    font-weight: 600;
+}
+
+/* The word that says the line does something. Quiet until it is looked for. */
+.field-now-use {
+    margin-left: auto;
+    flex-shrink: 0;
+    padding: 0.1rem 0.5rem;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--accent);
+}
+
+.field-now:active .field-now-use {
+    background: var(--color-surface-2);
+}
+
 .field-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
