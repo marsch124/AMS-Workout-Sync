@@ -119,6 +119,109 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
   if (added.onSession !== 1) errors.push('the photo did not attach to the session it was added from');
   if (added.thumbs !== 1) errors.push('the strip did not redraw with the new photo');
 
+  // ---------------------------------------------------------------- 1b
+  console.log('');
+  console.log('AND SHOWING IT ON THE CARD, NOT JUST A COUNT');
+
+  /*
+   * Reported from his phone: the extras on Today showed their pictures and the
+   * planned swim above them showed "1". The card had a camera-and-a-number
+   * where the picture should be, and — the part that made it invisible rather
+   * than merely small — nothing ever filled a thumbnail drawn by renderToday
+   * or renderPlan, because only extrasBlock() asked for the second pass.
+   *
+   * So this checks both halves: the marks are in the card's HTML, and they
+   * have actual pictures in them a moment later. A test that only counted the
+   * elements would have passed on the version he was complaining about.
+   */
+  const marks = await page.evaluate(async () => {
+    const workout = AmsSync.getState().plan.find(w => AmsPhotos.countFor(w) > 0);
+    const before = AmsPhotos.countFor(workout);
+
+    // Read now, while step 1 still has the session screen open. Measured after
+    // the tab change it reports 0, and "smaller than nothing" is not the
+    // comparison this is making.
+    const openStrip = document.querySelector('#workoutBody .photo-thumb');
+    const stripSize = openStrip ? Math.round(openStrip.getBoundingClientRect().width) : 0;
+
+    // Six more, so the cap can be seen doing its job. Taken off again at the
+    // end of this step: the later steps count what is in the store, and a
+    // measurement is not worth changing the fixture underneath them.
+    const borrowed = [];
+    for (let i = 0; i < 6; i++) {
+      await AmsPhotos.add(workout, await window.__photo(400, 300, 40));
+    }
+    AmsPhotos.forWorkout(workout).slice(before).forEach(p => borrowed.push(p.id));
+
+    // The tab, not renderPlan() alone: a card measured on a screen that is not
+    // showing reports 0px, which reads as a failure of the size rather than of
+    // the test. And "All", because a logged session is filed under Done and
+    // whichever segment happens to be open may not be that one.
+    document.querySelector('.tab[data-tab="plan"]').click();
+    await new Promise(r => setTimeout(r, 400));
+    const all = [...document.querySelectorAll('.segment')].find(s => /^all$/i.test(s.textContent.trim()));
+    if (all) all.click();
+    await new Promise(r => setTimeout(r, 600));
+
+    const card = [...document.querySelectorAll('#planBody [data-workout]')]
+      .find(n => n.dataset.workout === workout.key && n.offsetParent !== null);
+    const answer = (extra) => {
+      // Whatever happens, put the store back the way it was found.
+      return Promise.all(borrowed.map(id => AmsPhotos.remove(id))).then(() => extra);
+    };
+    if (!card) return answer({ error: 'that session is not on the Plan tab' });
+
+    const row = card.querySelector('.photo-marks');
+    if (!row) return answer({ error: 'no pictures on the card, only a count' });
+
+    const thumbs = [...row.querySelectorAll('.photo-thumb')];
+    const more = row.querySelector('.photo-more');
+    const box = thumbs[0].getBoundingClientRect();
+
+    return answer({
+      total: AmsPhotos.countFor(workout),
+      drawn: thumbs.length,
+      painted: thumbs.filter(t => t.querySelector('img').getAttribute('src')).length,
+      overflow: more ? more.textContent : '',
+      size: Math.round(box.width),
+      onOneRow: thumbs.every(t => Math.round(t.getBoundingClientRect().top) === Math.round(box.top)),
+      stripSize: stripSize,
+      cameraPill: document.querySelectorAll('.pill-photo').length
+    });
+  });
+
+  if (marks.error) { errors.push(marks.error); }
+  else {
+    line('pictures on that session', marks.total);
+    line('drawn on the card', marks.drawn + ' at ' + marks.size + 'px, then "' + marks.overflow + '"');
+    line('actually showing a picture', marks.painted + ' of ' + marks.drawn);
+
+    if (marks.painted !== marks.drawn) {
+      errors.push('the card drew ' + marks.drawn + ' thumbnails and filled ' + marks.painted
+        + ' — a frame with no picture in it is what he reported');
+    }
+    if (marks.drawn !== 4 || marks.overflow !== '+3') {
+      errors.push('the cap did not hold: ' + marks.drawn + ' drawn and "' + marks.overflow
+        + '" for ' + marks.total + ' pictures');
+    }
+    if (!marks.onOneRow) {
+      errors.push('the marks wrapped onto a second row — a card in a list gets one');
+    }
+    // He asked for it smaller than the strip on the session screen. Compared
+    // against the real one rather than a number typed in here, so a change to
+    // either size has to keep the relationship rather than pass by luck.
+    if (!(marks.size < marks.stripSize)) {
+      errors.push('the marks are ' + marks.size + 'px against the strip\u2019s ' + marks.stripSize
+        + ' — they were meant to be smaller');
+    }
+    if (marks.size < 44) {
+      errors.push('a mark is ' + marks.size + 'px, under the 44 a thumb needs');
+    }
+    if (marks.cameraPill) {
+      errors.push('the camera-and-a-number pill is still on the card beside the pictures it counts');
+    }
+  }
+
   // ---------------------------------------------------------------- 2
   console.log('');
   console.log('WHEN THE ROWS SHIFT UNDER IT');

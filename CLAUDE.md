@@ -605,6 +605,38 @@ most space on it.
   6.0:1 dark, 4.6:1 light. The subtlety is the green; do not also take it out
   of the edge.
 
+**v1.67.0 — the photograph on the card.** Reported from his phone with two
+screenshots: the extras on Today showed their pictures and the planned swim
+above them showed a camera and a "1". Two faults, and the second is why it read
+as nothing at all rather than as something small.
+
+- 🚨 **Nothing painted a thumbnail drawn by `renderToday()` or `renderPlan()`.**
+  Photographs are drawn as empty frames and filled in afterwards, and only
+  `extrasBlock()` ever asked for that second pass — which is precisely why the
+  extras were the ones he could see. `schedulePaintPhotos()` now belongs to
+  whatever *draws* a thumbnail rather than to whatever renders a screen, so a
+  new caller cannot forget it. The flag keeps a 409-row Plan list to one timer.
+- `photoPill()` → **`photoMarks()`**: the pictures themselves at `3.4rem`
+  (54px, two thirds of the 86px strip — he said smaller was fine), capped at
+  `MARKS_SHOWN` (4) with a `+N` tile. The cap is what answers the original
+  worry, written into the old comment, that a strip of thumbnails in a list
+  would turn the plan into a gallery: hiding them was the wrong answer to a
+  real problem. One row, never wrapped.
+- 🪤 **`[data-photo-open]` had to be hoisted above the `[data-workout]` card**
+  in the delegated listener, or a tap on a thumbnail inside a tappable card
+  opens the session instead of the picture — the same collision `data-share-done`
+  has, one handler above it.
+- The `+N` tile is deliberately **not** a button: everything behind it is one
+  tap away through the card, and a control shaped like a photograph that is not
+  one is worse than a label.
+- The camera pill and `#icon-camera` are gone — a count beside the pictures it
+  counts is noise.
+- `tests/photos.js` step 1b. Two traps in writing it, both worth knowing for
+  the next one: a card measured on a screen that is not showing reports **0px**
+  (click the tab, and the *All* segment, since a logged session is filed under
+  Done); and the six photographs it adds to exercise the cap are **removed
+  again**, because the later steps count what is in the store.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The

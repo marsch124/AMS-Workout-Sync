@@ -8,13 +8,24 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.66.0';
+    const CURRENT = '1.67.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.67.0',
+            date: '2026-09-10',
+            headline: 'The photograph on the session, not a number',
+            items: [
+                '**A session you have photographed now shows the pictures on its card**, on Today and in the Plan list. It showed a small camera and a "1" while the extra activities below it showed theirs, which is what you spotted.',
+                'They are smaller than the ones on the session\u2019s own screen \u2014 about two thirds \u2014 because a card in a list is not a gallery. Tap one to see it full size.',
+                '**Four at most, then a +3.** A morning that produced a dozen photographs costs the card one row rather than three, so a long list stays a list.',
+                'There were two faults behind this, and the second is why it looked like nothing at all rather than something small: the card carried a count instead of the pictures, **and** nothing ever filled in a thumbnail drawn on Today or Plan. Only the extras block asked for that second pass, which is exactly why the extras were the ones you could see.',
+            ]
+        },
         {
             version: '1.66.0',
             date: '2026-09-10',

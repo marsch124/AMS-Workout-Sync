@@ -2054,6 +2054,47 @@ body[data-tab="settings"] { --accent: var(--tab-settings); --accent-ink: #16202a
     cursor: pointer;
 }
 
+/*
+ * The same thumbnail at two thirds the size, for a card in a list rather than
+ * the session's own screen. He asked to see the picture there and said it
+ * could be smaller than the existing ones; 3.4rem is 54px, under the 86px of
+ * the strip and still over the 44px the audit wants under a thumb, so it needs
+ * no halo of its own.
+ *
+ * No wrap. The strip on a session screen wraps because that screen is where
+ * every picture belongs; a card in a list gets one row and a "+3", or a
+ * session photographed all morning would set the height of a row in the Plan.
+ */
+.photo-marks {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.7rem;
+}
+
+.photo-thumb.is-mark {
+    width: 3.4rem;
+    height: 3.4rem;
+}
+
+/*
+ * Sized and bordered like the tiles it follows so the row reads as one run of
+ * pictures, but flat and unlit: it is a count, and nothing about it should
+ * suggest a fifth photograph is behind it.
+ */
+.photo-more {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 3.4rem;
+    height: 3.4rem;
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-secondary);
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+}
+
 .photo-thumb img {
     width: 100%;
     height: 100%;
@@ -2142,18 +2183,6 @@ body[data-tab="settings"] { --accent: var(--tab-settings); --accent-ink: #16202a
 /* The tab bar sits above everything else and would otherwise show through
    the backdrop at the foot of the screen. */
 body.is-viewing-photo .tab-bar { display: none; }
-
-/* A camera and a number, sized to sit in a pill without lifting its line. */
-.pill-photo {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.22em;
-}
-
-.pill-photo .icon {
-    width: 0.95em;
-    height: 0.95em;
-}
 
 /* A button that reads as a link, for "see all" beside a heading. */
 .link-button {

@@ -258,16 +258,49 @@ const AmsUi = (function () {
     }
 
     /*
-     * A count on the card, so a session with a picture on it can be found
-     * without opening every one. It is only ever a number and a camera: the
-     * thumbnails themselves belong on the session's own screen, and a strip of
-     * them in a list would turn the plan into a gallery.
+     * The pictures themselves on the card, small.
+     *
+     * This was a camera and a number, on the argument that thumbnails belonged
+     * on the session's own screen and that a strip of them in a list would
+     * turn the plan into a gallery. Martin asked for the picture: the extras
+     * beneath it showed theirs and the planned session showed a "1", and "of
+     * course we want to see a photo even there".
+     *
+     * The gallery worry was real, and the cap answers it rather than hiding
+     * them: at most MARKS_SHOWN, then one tile saying how many more. A session
+     * with a dozen pictures costs a card one row, not three, which is what
+     * makes this safe in the 409-row Plan list as well as on Today.
+     *
+     * They are the same `.photo-thumb` buttons drawn on the session screen and
+     * on an extra, so a tap opens the picture full size exactly as it does
+     * there, and `paintPhotos()` fills them without knowing this caller
+     * exists. Small enough to be a mark rather than a gallery — he said it
+     * could be smaller than the existing thumbnails, and it is, by a third.
      */
-    function photoPill(workout) {
-        const n = AmsPhotos.countFor(workout);
-        if (!n) return '';
-        return '<span class="pill pill-photo">'
-            + '<svg class="icon"><use href="#icon-camera"></use></svg>' + n + '</span>';
+    const MARKS_SHOWN = 4;
+
+    function photoMarks(workout) {
+        const photos = AmsPhotos.forWorkout(workout);
+        if (!photos.length) return '';
+
+        schedulePaintPhotos();
+
+        const shown = photos.slice(0, MARKS_SHOWN);
+        const rest = photos.length - shown.length;
+
+        return '<div class="photo-marks">'
+            + shown.map((photo) =>
+                '<button type="button" class="photo-thumb is-mark" data-photo-open="' + esc(photo.id) + '"'
+                + ' aria-label="Photo taken ' + esc(shortDay(new Date(photo.addedAt))) + '">'
+                + '<img data-photo-img="' + esc(photo.id) + '" alt="">'
+                + '</button>').join('')
+            /*
+             * The overflow tile is not a button. Everything it could open is
+             * already one tap away through the card itself, and a control that
+             * looks like a photograph and is not one is worse than a label.
+             */
+            + (rest ? '<span class="photo-more">+' + rest + '</span>' : '')
+            + '</div>';
     }
 
     function workoutCard(workout, options) {
@@ -284,7 +317,6 @@ const AmsUi = (function () {
             pills.push('<span class="pill">' + esc(workout.planned.intensity) + '</span>');
         }
         pills.push(statusPill(workout));
-        pills.push(photoPill(workout));
         if (opts.showDate) {
             pills.unshift('<span class="pill">' + esc(shortDay(workout.date)) + '</span>');
         }
@@ -300,6 +332,12 @@ const AmsUi = (function () {
             +   '</div>'
             + '</div>'
             + (pills.length ? '<div class="workout-card-meta">' + pills.join('') + '</div>' : '')
+            /*
+             * Below the pills rather than among them: a photograph is not a
+             * fact about the session the way its length and its state are, and
+             * a picture on a pill's baseline lifts the whole row.
+             */
+            + photoMarks(workout)
             + '</div>';
     }
 
@@ -422,9 +460,14 @@ const AmsUi = (function () {
                 +   (workout.planned && workout.planned.distanceRaw
                         ? '<span class="pill">' + esc(formatDistance(workout.planned.distanceRaw, state2.mapping)) + '</span>' : '')
                 +   statusPill(workout)
-                +   photoPill(workout)
                 + '</div>'
                 + '<div style="margin-top:0.9rem">' + sectionsHtml(workout) + '</div>'
+                /*
+                 * After the session's own text, not among the pills: on this
+                 * card the picture reads as evidence of the "Recorded" line
+                 * directly beneath it, which is the same thing it is.
+                 */
+                + photoMarks(workout)
                 + (workout.discipline.id === 'rest'
                     ? '<p class="hint-inline">Nothing to log — the adaptation happens now.</p>'
                     : answered
@@ -1735,7 +1778,7 @@ const AmsUi = (function () {
         const rows = pending.concat(saved);
         const everything = (state.pendingExtras || []).length + (state.extras || []).length;
 
-        setTimeout(paintPhotos, 0);
+        schedulePaintPhotos();
 
         /*
          * A full-width button under two lines of explanation gave the least
@@ -2472,6 +2515,25 @@ const AmsUi = (function () {
                 : '<p class="hint-inline">Kept on this phone. The workbook holds numbers, '
                     + 'not pictures, so a photo is not written to it.</p>')
             + '</div>';
+    }
+
+    /*
+     * Ask for a paint once, however many thumbnails were just drawn.
+     *
+     * The screens that show photographs build their HTML as one synchronous
+     * string and fill the pictures in afterwards, so something has to make
+     * that second pass happen. Leaving it to each renderer is what let the
+     * planned sessions go unpainted for a release while the extras beneath
+     * them showed theirs: `extrasBlock()` remembered and `renderToday()` did
+     * not. Anything that draws a thumbnail now asks for the paint itself, and
+     * the flag keeps a 409-row Plan list to one timer rather than 409.
+     */
+    let paintQueued = false;
+
+    function schedulePaintPhotos() {
+        if (paintQueued) return;
+        paintQueued = true;
+        setTimeout(() => { paintQueued = false; paintPhotos(); }, 0);
     }
 
     /* Fill in whatever thumbnails are on screen right now. Called after any
@@ -6195,6 +6257,14 @@ const AmsUi = (function () {
             const shareDoneButton = event.target.closest('[data-share-done]');
             if (shareDoneButton) { shareDone(AmsSync.byKey(shareDoneButton.dataset.shareDone)); return; }
 
+            /*
+             * Above the card, or a thumbnail on a tappable card would open the
+             * session instead of the picture — the same collision the
+             * send-done button above has.
+             */
+            const photoOpenFirst = event.target.closest('[data-photo-open]');
+            if (photoOpenFirst) { openPhoto(photoOpenFirst.dataset.photoOpen); return; }
+
             const card = event.target.closest('[data-workout]');
             if (card && !event.target.closest('[data-log]') && !event.target.closest('[data-missed]')
                 && !event.target.closest('[data-move]') && !event.target.closest('[data-swap]')
@@ -6224,9 +6294,6 @@ const AmsUi = (function () {
                 }
                 return;
             }
-
-            const photoOpen = event.target.closest('[data-photo-open]');
-            if (photoOpen) { openPhoto(photoOpen.dataset.photoOpen); return; }
 
             if (event.target.closest('[data-photo-close]')) { closePhoto(); return; }
             if (event.target.closest('[data-photo-share]')) { shareViewedPhoto(); return; }

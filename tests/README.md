@@ -162,7 +162,7 @@ bytes that went in; it is shown against the session it was taken against and
 never against a row whose sport has changed under it; one that can no longer be
 placed is still counted and still exported; `AmsDb.reset()` does not take them;
 and the zip the app builds reads back entry for entry, byte for byte. The
-pictures are drawn on a canvas rather than shipped as fixtures.
+pictures are drawn on a canvas rather than shipped as fixtures. Since v1.67.0 it also checks the pictures reach the *card*, not just the session screen: four at 54px and a `+3` for the rest, each one holding an actual image rather than an empty frame. That last part is the whole point — the fault he reported was a thumbnail nobody ever filled in, and a test that only counted the elements would have passed on the version he was complaining about.
 
 **`extra-photos.js`** — photographs on the things the plan did not ask for,
 where the difficulty is identity. An extra is a queue entry while it waits and
