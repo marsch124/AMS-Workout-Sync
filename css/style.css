@@ -234,6 +234,30 @@ body {
     background: var(--sport, var(--accent));
 }
 
+/*
+ * Done, and missed, said by the whole card rather than by a pill on it.
+ *
+ * The pill was already there and was already right — it was just small. Nine
+ * cards down a list, finding out which are behind you meant reading nine
+ * pills. The border answers that from a glance and the pill keeps the detail.
+ *
+ * Colour matches the pill exactly (`.pill.done`, `.pill.missed`), so the two
+ * marks on one card can never disagree about what they mean. The wash is kept
+ * very light: it has to survive being read beside the sport's own colour bar
+ * down the left edge, not compete with it.
+ */
+.workout-card.is-done {
+    border-color: var(--color-success);
+    box-shadow: inset 0 0 0 1px var(--color-success);
+    background: color-mix(in srgb, var(--color-success) 5%, var(--color-surface));
+}
+
+.workout-card.is-missed-card {
+    border-color: var(--color-danger-text);
+    box-shadow: inset 0 0 0 1px var(--color-danger-text);
+    background: color-mix(in srgb, var(--color-danger-text) 5%, var(--color-surface));
+}
+
 .workout-card-head {
     display: flex;
     align-items: center;

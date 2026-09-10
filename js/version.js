@@ -8,13 +8,24 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.62.0';
+    const CURRENT = '1.63.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.63.0',
+            date: '2026-09-10',
+            headline: 'Done, from across the room',
+            items: [
+                '**A session you have done now has a green border round the whole card**, and a faint green wash behind it. One glance down a list and you can see what is behind you \u2014 no hunting for the small *Logged* tag on each one.',
+                '**A session you marked missed is bordered in red**, the same colour as its tag. Without it, missed looked exactly like still-to-do, which is the confusion this was meant to end.',
+                'Still to do stays as it was: plain. The difference is what gets read, so only two of the three are marked.',
+                'The tags have not gone anywhere. They still say *Logged*, *Missed*, or *Waiting to sync* \u2014 the border answers "is it done", the tag carries the rest.',
+            ]
+        },
         {
             version: '1.62.0',
             date: '2026-09-09',

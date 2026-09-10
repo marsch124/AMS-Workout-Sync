@@ -215,6 +215,28 @@ const AmsUi = (function () {
         return '<span class="pill ' + cls + '">' + esc(status.label) + '</span>';
     }
 
+    /*
+     * The card's own answer to "is this done?", worn as a border.
+     *
+     * The status pill said it already — but a pill is small, and reading a
+     * fortnight of them means finding and reading each one in turn. His words:
+     * "I would like to have a border around all performed workouts so that,
+     * when I take a glance at the details, it says Logged, but it's too
+     * small." A border is visible from across the room; the pill stays, and
+     * still carries the detail the border cannot (waiting to sync, and why).
+     *
+     * A missed session is bordered too, in the colour of the pill that names
+     * it. Bordering only the done ones would leave missed looking exactly like
+     * still-to-do, which is the confusion this is meant to end.
+     */
+    function statusClass(workout) {
+        const status = statusOf(workout);
+        if (!status) return '';
+        if (status.kind === 'logged') return ' is-done';
+        if (status.kind === 'missed') return ' is-missed-card';
+        return '';
+    }
+
     function sportStyle(workout) {
         return 'style="--sport: ' + workout.discipline.color + '"';
     }
@@ -251,7 +273,8 @@ const AmsUi = (function () {
             pills.unshift('<span class="pill">' + esc(shortDay(workout.date)) + '</span>');
         }
 
-        return '<div class="card workout-card card-tappable" data-workout="' + esc(workout.key) + '" ' + sportStyle(workout) + '>'
+        return '<div class="card workout-card card-tappable' + statusClass(workout) + '"'
+            + ' data-workout="' + esc(workout.key) + '" ' + sportStyle(workout) + '>'
             + '<div class="workout-card-head">'
             +   '<div class="sport-badge"><svg class="icon"><use href="#icon-' + esc(workout.discipline.icon) + '"></use></svg></div>'
             +   '<div class="workout-card-titles">'
@@ -365,7 +388,8 @@ const AmsUi = (function () {
             const settled = statusOf(workout);
             const answered = !!(settled && (settled.kind === 'logged' || settled.kind === 'missed'));
 
-            return '<div class="card workout-card' + (answered ? ' card-tappable' : '') + '"'
+            return '<div class="card workout-card' + (answered ? ' card-tappable' : '')
+                + statusClass(workout) + '"'
                 + (answered ? ' data-workout="' + esc(workout.key) + '"' : '') + ' '
                 + sportStyle(workout) + '>'
                 + '<div class="workout-card-head">'

@@ -86,6 +86,53 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
   if (after.log || after.missed || after.move) errs.push('buttons still present after logging');
   if (!after.tappable || !after.workout) errs.push('logged card is not tappable — no way back to correct it');
 
+  /*
+   * A done session is bordered, and a session still to do is not.
+   *
+   * The status pill said it already and was right — it was just small. His
+   * words: "when I take a glance at the details it says Logged, but it's too
+   * small. I would like a border as well." So the whole card answers it, and
+   * the pill stays for the detail a border cannot carry.
+   *
+   * Both halves are asserted. Bordering the done one is no use if the one
+   * still to do is bordered too, and it is the *difference* that gets read at
+   * a glance rather than either card on its own.
+   */
+  const glance = await p.evaluate(() => {
+    const cards = [...document.querySelectorAll('#todayBody .workout-card')];
+    const edge = (c) => getComputedStyle(c).borderTopColor;
+    const done = cards.filter(c => c.classList.contains('is-done'));
+    const todo = cards.filter(c => !c.classList.contains('is-done')
+      && !c.classList.contains('is-missed-card'));
+    return {
+      cards: cards.length,
+      done: done.length,
+      todo: todo.length,
+      doneEdge: done.length ? edge(done[0]) : null,
+      todoEdge: todo.length ? edge(todo[0]) : null,
+      // the border must not have replaced the pill
+      doneKeepsPill: done.length
+        ? !!done[0].querySelector('.pill.done, .pill.pending') : false
+    };
+  });
+
+  console.log('');
+  console.log('DONE AND STILL-TO-DO, TOLD APART AT A GLANCE');
+  line('cards on Today', glance.cards + ' — ' + glance.done + ' done, ' + glance.todo + ' to do');
+  line('the done one is edged', glance.doneEdge);
+  line('the one still to do', glance.todoEdge);
+  line('the done card keeps its pill', glance.doneKeepsPill);
+
+  if (!glance.done) errs.push('the session just logged is not marked as done on its card');
+  if (!glance.todo) errs.push('the fixture left nothing still to do, so there is nothing to tell apart');
+  if (glance.done && glance.todo && glance.doneEdge === glance.todoEdge) {
+    errs.push('a done session and one still to do are drawn with the same border ('
+      + glance.doneEdge + ') — the difference is the whole point');
+  }
+  if (glance.done && !glance.doneKeepsPill) {
+    errs.push('the border replaced the status pill rather than joining it');
+  }
+
   // And that tapping really does reach the session, where the actions live.
   await p.click('#todayBody .workout-card');
   await p.waitForTimeout(600);

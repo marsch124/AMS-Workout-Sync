@@ -498,6 +498,27 @@ everything to be pre-filled, obviously." He was right.
   rather than to change it. When he says he does not understand something, the
   screen is wrong — not the explanation.
 
+**v1.63.0 — done, from across the room.** His words: "when I take a glance at
+the details it says Logged, but it's too small. I would like a border as
+well." The status pill was right and just small; reading a fortnight of them
+meant finding and reading each one.
+
+- `statusClass()` puts `.is-done` / `.is-missed-card` on the card, and is used
+  by **both** card renderers (the list card and the Today card) so the two
+  cannot drift.
+- Border and wash take their colour from `--color-success` /
+  `--color-danger-text` — the same tokens `.pill.done` and `.pill.missed` use,
+  so the two marks on one card can never disagree. The wash is 5%: it has to
+  survive being read beside the sport's own colour bar down the left edge.
+- **Missed is bordered too.** Bordering only the done ones would leave missed
+  looking exactly like still-to-do. Still-to-do stays plain, because the
+  *difference* is what gets read.
+- `tests/logging.js` asserts both halves — the done card is edged, the one
+  still to do is not, and the two edge colours differ. Bordering everything
+  would pass a test that only looked at the done one.
+- The pill stays: the border answers "is it done", the pill carries "waiting to
+  sync" and why. The test checks the border joined it rather than replaced it.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The
