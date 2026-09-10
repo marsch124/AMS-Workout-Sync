@@ -1052,11 +1052,19 @@ body.detail-open .tab-bar { display: none; }
  * has no baseline worth aligning anything to. Getting that backwards is the
  * mistake `.settings-row` was making before v1.45.0.
  *
- * Pink is `--sport-extra`, which is already this app's word for "outside the
- * plan" — the extras bars in the week strip, the pink on the block card, the
- * row on an opened day. Below the week card it is the only pink on Today. That
- * is what has to carry discovery once the label is a heading two inches away:
- * at 34px the shape says "add" and only the colour says "add what".
+ * Green is `--accent`, and it is the quieter choice on purpose: it is the
+ * colour of every other control in this app, so a green + reads as one more
+ * ordinary button rather than as something announcing itself. It was pink
+ * (`--sport-extra`) for one release, on the argument that at 34px only colour
+ * could say "add *what*" — but pink is this app's word for extras as *data*,
+ * the bars in the week strip and the row on an opened day, and a button is not
+ * data. The heading two inches away says what it adds; the colour only has to
+ * say it can be pressed. It also stops the row disagreeing with itself: the
+ * count link beside it was already `--accent`.
+ *
+ * Not `--color-success`. v1.63.0 and v1.64.0 spent two releases teaching that
+ * green plus a tick means "you have done this", and a completion mark on an
+ * empty add button would be a lie told in the app's own vocabulary.
  */
 .extras-add {
     align-self: center;
@@ -1064,9 +1072,17 @@ body.detail-open .tab-bar { display: none; }
     width: 2.15rem;
     height: 2.15rem;
     margin-left: auto;          /* the right-hand end of the row, as he asked */
-    border-color: var(--sport-extra);
-    background: color-mix(in srgb, var(--sport-extra) 10%, var(--color-surface));
-    color: var(--sport-extra);
+    /*
+ * The edge is full-strength accent, not a mix faded towards the border
+ * colour. Softening it read well in the dark theme and fell to 2.6:1 on
+ * white, under the 3:1 an interactive control's own outline needs — and
+ * the audit's probe on this button measures its tap target, not its
+ * contrast, so nothing here would have caught it. The subtlety is the
+ * green; it does not also have to come out of the edge.
+ */
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 10%, var(--color-surface));
+    color: var(--accent);
 }
 
 .extras-add .icon { width: 1rem; height: 1rem; }

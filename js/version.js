@@ -8,13 +8,23 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.65.0';
+    const CURRENT = '1.66.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.66.0',
+            date: '2026-09-10',
+            headline: 'The + is green',
+            items: [
+                '**The extra activities + is green rather than pink**, which is quieter: green is the colour of every other button in the app, so it now reads as one more ordinary control instead of as something asking for attention.',
+                'Pink stays where it means something \u2014 the bars for extras in the week strip, the same pink on the eight-week card, the row on an opened day. That is the colour saying "this happened outside the plan". A button is not one of those things.',
+                'The count beside it was already green, so the two ends of that line now agree.',
+            ]
+        },
         {
             version: '1.65.0',
             date: '2026-09-10',

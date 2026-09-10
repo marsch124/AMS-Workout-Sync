@@ -585,6 +585,26 @@ most space on it.
   `[data-extra]` button, no hint line after the row, the heading names the
   feature, the aria-label is a sentence) and `tests/august-audit.js`.
 
+**v1.66.0 — the + is green.** "Make it green so that it is even more subtle."
+
+- 🚨 **Pink means extras as *data*, not as a control.** The bars in the week
+  strip, the pink on the block card, the row on an opened day — that is the
+  colour saying "outside the plan". v1.65.0 put the same pink on the *button*,
+  arguing that at 34px only colour could say "add what". The heading beside it
+  already says that. `--accent` is the app's word for "you may press this", and
+  the count link at the other end of the row was already using it, so the row
+  had been disagreeing with itself.
+- **Not `--color-success`.** v1.63.0 and v1.64.0 spent two releases teaching
+  that green plus a tick means *you have done this*. A completion colour on an
+  empty add button is a lie told in the app's own vocabulary.
+- 🪤 The border is **full-strength** `--accent`, not a mix faded towards
+  `--color-border`. Fading it looked right in the dark theme and fell to 2.6:1
+  on white, under the 3:1 an interactive control's outline needs — and
+  `august-audit`'s probe on this button measures its **tap target, not its
+  contrast**, so nothing in the suite would have caught it. Full strength is
+  6.0:1 dark, 4.6:1 light. The subtlety is the green; do not also take it out
+  of the edge.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The
