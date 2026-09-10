@@ -8,13 +8,26 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.63.0';
+    const CURRENT = '1.64.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.64.0',
+            date: '2026-09-10',
+            headline: 'A tick, and a message home',
+            items: [
+                '**A green tick in the corner of every session you have done.** The border and the tag both reported it; neither of them celebrated it. This one does.',
+                '**The border is thicker and the colour stronger**, as asked.',
+                '**Send it to somebody.** The moment a session is logged, the card offers to send it \u2014 straight into Messages, or wherever else your phone offers.',
+                '**It sends what you did, not the training brief.** *Just finished today\u2019s run \u2014 45m, 8.2 km*, and the name of the session. The intensity, the purpose and the interval set stay behind; those are for a training partner, not for the person at home.',
+                '**Your photographs go with it.** Before you send, the line under the button says how many are attached \u2014 or that this phone will not carry them \u2014 so a message that arrives without the picture you meant to send cannot happen quietly.',
+                'The share button on the session itself now leads with the same thing once the session is done, with the full brief still underneath it.',
+            ]
+        },
         {
             version: '1.63.0',
             date: '2026-09-10',

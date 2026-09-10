@@ -112,7 +112,10 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
       todoEdge: todo.length ? edge(todo[0]) : null,
       // the border must not have replaced the pill
       doneKeepsPill: done.length
-        ? !!done[0].querySelector('.pill.done, .pill.pending') : false
+        ? !!done[0].querySelector('.pill.done, .pill.pending') : false,
+      // and the tick is only ever on a session that was actually done
+      ticksOnDone: done.filter(c => c.querySelector('.done-tick')).length,
+      ticksElsewhere: todo.filter(c => c.querySelector('.done-tick')).length
     };
   });
 
@@ -131,6 +134,17 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
   }
   if (glance.done && !glance.doneKeepsPill) {
     errs.push('the border replaced the status pill rather than joining it');
+  }
+  line('ticks on done / on still-to-do', glance.ticksOnDone + ' / ' + glance.ticksElsewhere);
+  if (glance.ticksOnDone !== glance.done) {
+    errs.push('a completed session has no tick on it');
+  }
+  /*
+   * A mark that appears on everything congratulates you for nothing, so this
+   * matters as much as putting it on the done one.
+   */
+  if (glance.ticksElsewhere) {
+    errs.push(glance.ticksElsewhere + ' session(s) still to do are already ticked');
   }
 
   // And that tapping really does reach the session, where the actions live.

@@ -519,6 +519,40 @@ meant finding and reading each one.
 - The pill stays: the border answers "is it done", the pill carries "waiting to
   sync" and why. The test checks the border joined it rather than replaced it.
 
+**v1.64.0 — a tick, and a message home.** Three things from one message.
+
+- **The done border is thicker and stronger** (2px + 1px inset ring, wash 5% →
+  11%). He asked for both by eye; drawn, measured, shown.
+- **A tick** (`doneTick()`, `.done-tick`) in the corner of a completed session,
+  put there because that is where he drew it in a screenshot. Only on
+  `kind === 'logged'` — 🚨 a mark that appears on everything congratulates you
+  for nothing, and `tests/logging.js` asserts the still-to-do cards carry none.
+  `.workout-card.is-done .workout-card-titles` gains right padding so a long
+  title wraps before it rather than running under it.
+- **Send it to somebody**, on the card the moment a session is logged.
+  - 🚨 `doneShareText()` sends **what he did**, not `sessionShareText()`'s
+    brief. The brief — intensity, purpose, warm-up, the interval set — is right
+    for a training partner and wrong for his wife, which is who this is for.
+    Heart rate and effort are left out for the same reason. `tests/send-done.js`
+    fails if `Purpose:` or `Intensity:` ever appear in it, which is what falling
+    back to the old text would look like.
+  - 🪤 **The photographs must be read before the sheet opens.** On iOS a share
+    sheet only opens during the tap that asked for it, so `shareDone()` awaits
+    `sessionPhotoFiles()` and *then* opens `openChoice`; the option's own tap is
+    the fresh gesture that calls `navigator.share`. That is also why the sheet
+    exists for what looks like a single action — and it earns the tap, because
+    the sub-line can then say how many photos are going, or that this phone
+    will not carry them. A message arriving without the picture is the failure
+    nobody notices.
+  - The Today card's button is caught **before** the `[data-workout]` handler in
+    the delegated listener, or pressing it would also open the session beneath.
+  - The session screen's share sheet leads with the same option once the
+    session is done; the full brief stays under it as "Send the whole session".
+  - It sits on a card that deliberately shrank to one line when it was logged
+    (v1.40.0). That decision removed three offers to *decide* the session again;
+    this is not one of those, and it is kept small — `tests/send-done.js`
+    asserts it stays under 75% of the card's width.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The
@@ -612,7 +646,7 @@ node tests/failure-paths.js          # and the rest
 Repo tests: `failure-paths`, `column-collision`, `foreign-extras-sheet`,
 `edited-workbook`, `calendar-export`, `session-share`, `progress`, `logging`,
 `move-log`, `leaving-a-form`, `week-wash`, `august-audit`, `rest-day`,
-`photos`, `extra-photos`, `share-app`, `screen-wording`, `plan-overview`, `as-planned`, `voice` (no browser), `say-it`, `road`, `trends` (no browser), `load` (no browser), `is-it-working`, `new-writes`, `rough-input` (no browser), `extras-identity`, `conflict`, `waiting`, `extra-bars`, `correcting` — **32 of them**. What each
+`photos`, `extra-photos`, `share-app`, `screen-wording`, `plan-overview`, `as-planned`, `voice` (no browser), `say-it`, `road`, `trends` (no browser), `load` (no browser), `is-it-working`, `new-writes`, `rough-input` (no browser), `extras-identity`, `conflict`, `waiting`, `extra-bars`, `correcting`, `send-done` — **33 of them**. What each
 one covers is written up in `tests/README.md`; keep it current, the run list
 included. Fixtures are synthetic and gitignored — **no real
 training data in this repository**.

@@ -237,6 +237,22 @@ const AmsUi = (function () {
         return '';
     }
 
+    /*
+     * The tick on a session you have done.
+     *
+     * The border says done and the pill says done; neither of them says *well
+     * done*. Asked for in those terms — "to celebrate that I have done a
+     * workout" — and drawn in the corner of a screenshot, which is where it
+     * is. Only on a completed session: a mark that appears on everything
+     * congratulates you for nothing.
+     */
+    function doneTick(workout) {
+        const status = statusOf(workout);
+        if (!status || status.kind !== 'logged') return '';
+        return '<span class="done-tick" aria-hidden="true">'
+            + '<svg class="icon"><use href="#icon-check"></use></svg></span>';
+    }
+
     function sportStyle(workout) {
         return 'style="--sport: ' + workout.discipline.color + '"';
     }
@@ -275,6 +291,7 @@ const AmsUi = (function () {
 
         return '<div class="card workout-card card-tappable' + statusClass(workout) + '"'
             + ' data-workout="' + esc(workout.key) + '" ' + sportStyle(workout) + '>'
+            + doneTick(workout)
             + '<div class="workout-card-head">'
             +   '<div class="sport-badge"><svg class="icon"><use href="#icon-' + esc(workout.discipline.icon) + '"></use></svg></div>'
             +   '<div class="workout-card-titles">'
@@ -392,6 +409,7 @@ const AmsUi = (function () {
                 + statusClass(workout) + '"'
                 + (answered ? ' data-workout="' + esc(workout.key) + '"' : '') + ' '
                 + sportStyle(workout) + '>'
+                + doneTick(workout)
                 + '<div class="workout-card-head">'
                 +   '<div class="sport-badge"><svg class="icon"><use href="#icon-' + esc(workout.discipline.icon) + '"></use></svg></div>'
                 +   '<div class="workout-card-titles">'
@@ -413,6 +431,22 @@ const AmsUi = (function () {
                         ? '<p class="hint-inline">'
                             + (settled.kind === 'missed' ? 'Marked missed.' : 'Recorded.')
                             + ' Tap to see it or change it.</p>'
+                            /*
+                             * The moment it is done is the moment anybody
+                             * wants to tell somebody, so the offer is here
+                             * rather than only behind the share button on the
+                             * session screen. Small and secondary: the card
+                             * shrank to a line when it was logged on purpose,
+                             * and this must not undo that. It is not another
+                             * decision about the session — those were the
+                             * three that were removed — it is the one thing
+                             * left to do with it.
+                             */
+                            + (settled.kind === 'logged'
+                                ? '<button type="button" class="btn btn-small send-done"'
+                                    + ' data-share-done="' + esc(workout.key) + '">'
+                                    + 'Send it to somebody</button>'
+                                : '')
                         : (planned
                             /*
                              * The commonest answer gets the biggest button and
@@ -1318,6 +1352,95 @@ const AmsUi = (function () {
         await shareText(text, { title: 'Training session' });
     }
 
+    /*
+     * What you actually did, in a sentence somebody who is not training would
+     * want to read.
+     *
+     * `sessionShareText()` sends the *brief* — intensity, purpose, the warm-up
+     * and the interval set — which is the right thing to forward to a training
+     * partner and entirely the wrong thing to send your wife. She wants to
+     * know you are back and how it went, not what Z2 means.
+     *
+     * Heart rate and effort are deliberately left out for the same reason.
+     * They are between him and the workbook.
+     */
+    function doneFigures(workout) {
+        const mapping = AmsSync.getState().mapping || {};
+        const queued = workout.pending && workout.pending.values;
+        const out = [];
+
+        const cell = workout.results && workout.results.actualDuration;
+        const seconds = queued
+            ? AmsPlan.parseDuration(queued.actualDuration)
+            : (cell && typeof cell.number === 'number'
+                ? AmsPlan.durationFromCell(cell.number, (mapping.units || {}).duration || 'hours')
+                : null);
+        if (seconds) out.push(AmsPlan.formatDuration(seconds));
+
+        const distance = queued
+            ? (queued.actualDistance ? parseFloat(String(queued.actualDistance).replace(',', '.')) : null)
+            : (workout.results && workout.results.actualDistance
+                && typeof workout.results.actualDistance.number === 'number'
+                ? workout.results.actualDistance.number : null);
+        if (distance) out.push(formatDistance(distance, mapping));
+
+        return out;
+    }
+
+    function doneShareText(workout) {
+        const figures = doneFigures(workout).join(', ');
+        const sport = workout.discipline.label.toLowerCase();
+        const lines = [];
+
+        lines.push(workout.dayKey === AmsSync.todayKey()
+            ? 'Just finished today\u2019s ' + sport + (figures ? ' \u2014 ' + figures : '') + '.'
+            : longDay(workout.date) + '\u2019s ' + sport + ' is done'
+                + (figures ? ' \u2014 ' + figures : '') + '.');
+
+        if (workout.title) lines.push(workout.title);
+        return lines.join('\n');
+    }
+
+    async function sendDone(workout, files) {
+        const text = doneShareText(workout);
+        if (canSendFiles(files)) {
+            try {
+                await navigator.share({ files: files, text: text, title: 'Training' });
+                return;
+            } catch (err) {
+                if (err && err.name === 'AbortError') return;
+                toast('The photos would not attach, so it went as words.', 'bad');
+            }
+        }
+        await shareText(text, { title: 'Training' });
+    }
+
+    /*
+     * Opening a sheet for what is really one action buys two things worth the
+     * tap. The pictures have to be read out of the database before the share
+     * sheet opens — on iOS a sheet only opens during the tap that asked for
+     * it, so the awaiting cannot happen inside the button — and having read
+     * them, the line under the option can say how many are going, or that this
+     * phone will not carry them. A message that quietly arrives without the
+     * photograph you meant to send is the failure nobody notices.
+     */
+    async function shareDone(workout) {
+        if (!workout) return;
+        const files = await sessionPhotoFiles(workout);
+        const figures = doneFigures(workout).join(', ');
+
+        openChoice('Send it to somebody', [
+            { label: 'Send what you did',
+              sub: [figures || 'the session',
+                    files.length
+                        ? (canSendFiles(files)
+                            ? 'with ' + files.length + ' photo' + (files.length === 1 ? '' : 's')
+                            : 'photos cannot be attached here')
+                        : null].filter(Boolean).join(' \u00b7 '),
+              act: () => sendDone(workout, files) }
+        ]);
+    }
+
     async function shareSession(workout) {
         if (!workout) return;
         const calendar = sessionCalendar(workout);
@@ -1336,15 +1459,33 @@ const AmsUi = (function () {
                 : null
         ].filter(Boolean).join(' · ');
 
-        openChoice(workout.discipline.label + ' on ' + shortDay(workout.date), [
-            { label: 'Send as a message', sub: messageSub,
+        /*
+         * On a session already done, "what you did" comes first and the brief
+         * second. Both are still here — a training partner wants the interval
+         * set, and the person at home wants to know you are back — but only
+         * one of them is what you reach for after a session.
+         */
+        const done = statusOf(workout);
+        const doneOption = done && done.kind === 'logged'
+            ? [{ label: 'Send what you did',
+                 sub: [doneFigures(workout).join(', ') || 'the session',
+                       files.length
+                           ? (withPhotos
+                               ? files.length + ' photo' + (files.length === 1 ? '' : 's')
+                               : 'photos cannot be attached here')
+                           : null].filter(Boolean).join(' \u00b7 '),
+                 act: () => sendDone(workout, files) }]
+            : [];
+
+        openChoice(workout.discipline.label + ' on ' + shortDay(workout.date), doneOption.concat([
+            { label: 'Send the whole session', sub: messageSub,
               act: () => shareSessionMessage(workout, files) },
             { label: 'Add to the calendar',
               sub: planned
                   ? String(CALENDAR_START_HOUR).padStart(2, '0') + ':00, ' + planned
                   : 'all day',
               act: () => shareCalendar(calendar) }
-        ]);
+        ]));
     }
 
     /*
@@ -6019,6 +6160,9 @@ const AmsUi = (function () {
         });
 
         document.body.addEventListener('click', (event) => {
+            const shareDoneButton = event.target.closest('[data-share-done]');
+            if (shareDoneButton) { shareDone(AmsSync.byKey(shareDoneButton.dataset.shareDone)); return; }
+
             const card = event.target.closest('[data-workout]');
             if (card && !event.target.closest('[data-log]') && !event.target.closest('[data-missed]')
                 && !event.target.closest('[data-move]') && !event.target.closest('[data-swap]')
