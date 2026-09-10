@@ -553,6 +553,38 @@ meant finding and reading each one.
     this is not one of those, and it is kept small — `tests/send-done.js`
     asserts it stays under 75% of the card's width.
 
+**v1.65.0 — the extras button, out of the way.** "Much, much smaller, just on
+the right side somewhere, maybe a round button as well… very unintrusive
+because I don't use it that much. It's like a bonus more." A full-width green
+button under two lines of grey text gave the least-pressed control on Today the
+most space on it.
+
+- It is a 34px circle at the right-hand end of a **permanent** `.day-heading`
+  reading *Extra activities* (`.extras-heading` / `.extras-add`, `#icon-plus`).
+  34 drawn, 50 tappable via the halo `august-audit` now probes. The block goes
+  from 111px of vertical space to about 60 at 390px.
+- 🚨 **The heading is what makes a 34px circle findable**, and it is drawn on
+  days with nothing under it — which it was not before. A bare plus is a puzzle
+  three weeks later; a plus at the end of a line naming the feature is not, and
+  *Extra activities* is already its name in Settings and as its own screen's
+  title (v1.45.0). If he ever says he cannot find it, the one-line answer is to
+  delete `margin-left: auto` so the button sits against its own label — but not
+  before, because "on the right side" is what he asked for by name.
+- 🪤 **The explanatory paragraph was moved, not deleted.** A grey line of text
+  directly above a control is the exact shape v1.45.0 found he had been
+  misreading as that control's label, five times in five places. Its sentence
+  now opens the extra form, where somebody is actually asking what an extra is.
+  Shrinking the button and leaving the caption would have rebuilt that bug at a
+  smaller size.
+- The *see them all* link is now one rule rather than two: a count
+  (`N logged`) in the heading whenever anything has ever been logged. It used to
+  sit in the heading on days with extras, differently worded inside the
+  paragraph on days without, and nowhere at all on the day when everything ever
+  logged happened to be today's.
+- Guarded in `tests/screen-wording.js` (width, right-edge gap, no full-width
+  `[data-extra]` button, no hint line after the row, the heading names the
+  feature, the aria-label is a sentence) and `tests/august-audit.js`.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The

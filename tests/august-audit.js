@@ -137,6 +137,12 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
   };
   await probe(lp, '.week-card-head-main', 'legend toggle', '.week-card-head-main');
   await probe(lp, '.week-share', 'share button', '.week-share');
+  /*
+   * The extras add is 34px of drawn circle by design — he asked for "much,
+   * much smaller" — so it is exactly the case this section exists for: the
+   * halo, not the ink, has to reach 44.
+   */
+  await probe(lp, '.extras-add', 'extras add button', '.extras-add');
   await lp.click('.tab[data-tab="plan"]'); await lp.waitForTimeout(500);
   await probe(lp, '.segment', 'plan segment', '.segment');
   await lp.click('.tab[data-tab="settings"]'); await lp.waitForTimeout(500);

@@ -547,6 +547,76 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(44) + v);
     }
   }
 
+  // ----------------------------------------------------------------
+  console.log('');
+  console.log('THE EXTRAS ADD IS SMALL, AND ON THE RIGHT');
+
+  /*
+   * "I'd like the Log an Extra Activity button to be much, much smaller, just
+   * on the right side somewhere, maybe a round button as well. It should be
+   * very unintrusive because I don't use it that much."
+   *
+   * It was a full-width button under a two-line paragraph — the loudest thing
+   * at the bottom of Today, for the thing he does least. Each half of what he
+   * asked for is checked, because a change that only did one of them would
+   * look done: small but centred, or on the right but still full width.
+   */
+  const extras = await page.evaluate(async () => {
+    document.querySelector('.tab[data-tab="today"]').click();
+    await new Promise(r => setTimeout(r, 700));
+    const add = document.querySelector('#todayBody .extras-add');
+    const row = document.querySelector('#todayBody .extras-heading');
+    if (!add || !row) return { error: 'no extras row on Today' };
+    const a = add.getBoundingClientRect();
+    const r = row.getBoundingClientRect();
+    return {
+      width: Math.round(a.width),
+      height: Math.round(a.height),
+      round: getComputedStyle(add).borderRadius,
+      gapFromRightEdge: Math.round(r.right - a.right),
+      heading: (row.querySelector('h2') || {}).textContent,
+      // the shapes it must no longer be
+      fullWidthButton: document.querySelectorAll('#todayBody .btn-block[data-extra]').length,
+      hintAfterRow: !!(row.nextElementSibling
+        && row.nextElementSibling.classList.contains('hint-inline')),
+      // and it must still be reachable by a screen reader
+      spokenAs: add.getAttribute('aria-label')
+    };
+  });
+
+  if (extras.error) { errors.push(extras.error); }
+  else {
+    line('the add is', extras.width + 'x' + extras.height + 'px, radius ' + extras.round);
+    line('from the right edge of the row', extras.gapFromRightEdge + 'px');
+    line('the heading beside it', '"' + extras.heading + '"');
+    line('spoken as', '"' + extras.spokenAs + '"');
+
+    if (extras.width > 40) {
+      errors.push('the extras add is ' + extras.width + 'px wide — it was meant to get much smaller');
+    }
+    if (extras.gapFromRightEdge > 20) {
+      errors.push('the extras add is ' + extras.gapFromRightEdge + 'px from the right edge, so it is '
+        + 'not on the right side');
+    }
+    if (extras.fullWidthButton) {
+      errors.push('the full-width extras button is still on Today');
+    }
+    if (extras.hintAfterRow) {
+      errors.push('the explanatory paragraph came back under the row — a grey line above a control '
+        + 'is what v1.45.0 found he reads as that control\u2019s label');
+    }
+    /*
+     * The label is the heading, not the button, so losing the heading would
+     * leave a bare circle nobody can name three weeks later.
+     */
+    if (!/extra/i.test(extras.heading || '')) {
+      errors.push('nothing beside the add says what it adds: ' + extras.heading);
+    }
+    if (!/extra/i.test(extras.spokenAs || '')) {
+      errors.push('the add has no useful spoken label: ' + extras.spokenAs);
+    }
+  }
+
   console.log('');
   console.log('errors: ' + (errors.length ? '\n  - ' + errors.join('\n  - ') : 'none'));
   await browser.close();

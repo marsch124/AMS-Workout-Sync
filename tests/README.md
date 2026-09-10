@@ -190,7 +190,11 @@ them down: a label that stops matching what it opens, a line that reads as a
 caption for the buttons under it, an explanation hidden in a placeholder that
 disappears the moment it is answered. Runs at a **phone-sized viewport** on
 purpose — on a desktop one, five photographs and a button sit on one line and
-the wrapping it checks would pass without ever being exercised.
+the wrapping it checks would pass without ever being exercised. Since v1.65.0
+it also measures the extra-activities add: 34px wide and hard against the right
+of its heading row, with nothing full-width left behind it and no grey line of
+text under it. Both halves matter — a smaller button with the old caption still
+above it would be the v1.45.0 misread at a smaller size.
 
 **`plan-overview.js`** — the eight-week card at the top of the Plan tab. Mostly
 one assertion, made several ways: **the weeks share one height scale**. A

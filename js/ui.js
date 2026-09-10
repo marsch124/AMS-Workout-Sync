@@ -1737,23 +1737,54 @@ const AmsUi = (function () {
 
         setTimeout(paintPhotos, 0);
 
-        return (rows.length
-            ? '<div class="day-heading"><h2>Also today</h2>'
-                + (everything > rows.length
-                    ? '<span><button type="button" class="link-button" data-extras-all>'
-                        + 'See all ' + everything + '</button></span>'
-                    : '')
-                + '</div>'
-                + rows.map((e) => extraCard(e)).join('')
-            : '')
-            + '<button class="btn btn-block" data-extra="1" style="margin-top:0.6rem">'
-            + '＋ Log an extra activity</button>'
-            + '<p class="hint-inline">A walk, a meditation, an unplanned run — anything the plan did not ask for.'
-            + (everything && !rows.length
-                ? ' <button type="button" class="link-button" data-extras-all>See the '
-                    + everything + ' you have logged</button>.'
+        /*
+         * A full-width button under two lines of explanation gave the least
+         * used thing on this screen the most space on it. His words: "much,
+         * much smaller, just on the right side somewhere, maybe a round button
+         * as well… I don't use it that much. It's like a bonus more."
+         *
+         * So the block is one heading row: the section's name on the left, and
+         * the add at the right-hand end of it. Measured at 390px, 111px of
+         * vertical space becomes about 60, and the control itself goes from
+         * 358×49 to 34×34.
+         *
+         * The heading is drawn every day, including the many with nothing
+         * under it, and that is what keeps a 34px circle findable three weeks
+         * later — a bare plus means "add something", a plus at the end of a
+         * line reading "Extra activities" means one thing. Those are also the
+         * words the feature carries in Settings and as its own screen's title
+         * (v1.45.0), so the door and the room share a name.
+         *
+         * The explanatory paragraph is not shrunk, it is moved. A grey line of
+         * text directly above a control is the exact shape v1.45.0 found he
+         * had been misreading as that control's label, five times in five
+         * places. Its sentence now opens the extra form, where somebody is
+         * actually asking what an extra is.
+         */
+        return '<div class="day-heading extras-heading"><h2>Extra activities</h2>'
+            /*
+             * One rule where there were two: this link used to sit in the
+             * heading on days with extras and, differently worded, inside the
+             * paragraph on days without — and appeared nowhere at all on the
+             * day when everything ever logged happened to be today's. A count
+             * rather than an instruction, because a fact that doubles as a
+             * door is quieter and still says something.
+             */
+            + (everything
+                ? '<span><button type="button" class="link-button" data-extras-all'
+                    + ' aria-label="See all ' + everything + ' extra activities">'
+                    + everything + ' logged</button></span>'
                 : '')
-            + '</p>';
+            /*
+             * The label is on the heading beside it, so the button carries
+             * only the glyph — and an aria-label, because a screen reader must
+             * not be told merely "plus".
+             */
+            + '<button type="button" class="icon-button extras-add" data-extra="1"'
+            + ' aria-label="Log an extra activity" title="Log an extra activity">'
+            + '<svg class="icon"><use href="#icon-plus"></use></svg></button>'
+            + '</div>'
+            + rows.map((e) => extraCard(e)).join('');
     }
 
     /*
@@ -3687,7 +3718,8 @@ const AmsUi = (function () {
             + esc(a.label) + '</option>').join('');
 
         $('extraBody').innerHTML =
-            '<div class="prose"><p>Recorded on its own <strong>Extras</strong> sheet, never in the training '
+            '<div class="prose"><p>A walk, a meditation, an unplanned run — anything the plan did '
+            + 'not ask for. Recorded on its own <strong>Extras</strong> sheet, never in the training '
             + 'plan — so your planned-versus-actual figures keep meaning what they say.</p></div>'
 
             + '<div class="field"><label for="extraActivity">What was it</label>'

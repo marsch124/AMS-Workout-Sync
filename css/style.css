@@ -1032,6 +1032,61 @@ body.detail-open .tab-bar { display: none; }
     line-height: 1.2;
 }
 
+/* ---------- extras: one quiet row on Today ---------- */
+
+/*
+ * What was here was a full-width button plus a two-line paragraph — the
+ * loudest thing at the bottom of Today, for the thing he does least. It is one
+ * heading row now: about 60px where there were 111, and a 34px control where
+ * there was a 358px one.
+ */
+.extras-heading { margin: 1.15rem 0 0.5rem; }
+
+/*
+ * `.icon-button` supplies the circle, the border, the grid centring and the
+ * press. Only size, colour and placement are new — a second kind of round
+ * button would be a second answer to a question this app has already settled.
+ *
+ * `align-self`, not `align-items` on the row: `.day-heading` is baseline
+ * aligned and its title and count must keep sharing that baseline. A circle
+ * has no baseline worth aligning anything to. Getting that backwards is the
+ * mistake `.settings-row` was making before v1.45.0.
+ *
+ * Pink is `--sport-extra`, which is already this app's word for "outside the
+ * plan" — the extras bars in the week strip, the pink on the block card, the
+ * row on an opened day. Below the week card it is the only pink on Today. That
+ * is what has to carry discovery once the label is a heading two inches away:
+ * at 34px the shape says "add" and only the colour says "add what".
+ */
+.extras-add {
+    align-self: center;
+    position: relative;
+    width: 2.15rem;
+    height: 2.15rem;
+    margin-left: auto;          /* the right-hand end of the row, as he asked */
+    border-color: var(--sport-extra);
+    background: color-mix(in srgb, var(--sport-extra) 10%, var(--color-surface));
+    color: var(--sport-extra);
+}
+
+.extras-add .icon { width: 1rem; height: 1rem; }
+
+/*
+ * 34px drawn is under the 44 the august audit enforces, so a transparent halo
+ * makes up the difference without moving a visible pixel. This one may grow
+ * sideways as well as up, unlike the halos further up this file: it has no
+ * neighbour to steal a tap from, with the count link at the other end of the
+ * row and only the body's gutter to its right.
+ */
+.extras-add::after {
+    content: '';
+    position: absolute;
+    top: -8px;
+    bottom: -8px;
+    left: -8px;
+    right: -8px;
+}
+
 /* ---------- the guide ---------- */
 
 .guide-section {

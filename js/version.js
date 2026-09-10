@@ -8,13 +8,25 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.64.0';
+    const CURRENT = '1.65.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.65.0',
+            date: '2026-09-10',
+            headline: 'The extra activities button, out of the way',
+            items: [
+                '**Logging something extra is a small round + at the end of the *Extra activities* heading**, low on the Today page. It was a full-width green button under two lines of explanation \u2014 the most space on the screen given to the thing you press least. Your words: much, much smaller, on the right, and unintrusive, because it is a bonus.',
+                'It is 34 pixels drawn and still a full-sized target to your thumb, so nothing got harder to hit.',
+                '**The heading is there every day now, even when nothing is logged under it.** That is deliberate: a lone + would be a puzzle in three weeks\u2019 time, and a + at the end of a line reading *Extra activities* is not.',
+                'The paragraph explaining what an extra activity is has not gone \u2014 it moved to the top of the form you open, which is where somebody is actually asking the question.',
+                'Days that already have extras keep their pink count beside the heading, and it now says the same thing every day rather than changing its words depending on what was logged.',
+            ]
+        },
         {
             version: '1.64.0',
             date: '2026-09-10',
