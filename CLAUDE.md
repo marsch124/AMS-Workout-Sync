@@ -637,6 +637,31 @@ as nothing at all rather than as something small.
   Done); and the six photographs it adds to exercise the cap are **removed
   again**, because the later steps count what is in the store.
 
+**v1.68.0 — a yellow frame on an extra.** "Put a yellow frame around the extra
+activities logged and presented on the Today screen, the same frame as the
+green one for swim."
+
+- 🚨 **Green and red are states; yellow is a kind.** `.is-done` and
+  `.is-missed-card` report what happened to a *planned* session. An extra has
+  no state to report — it is always done, which is the same reason its bar in
+  the week strip is always solid (v1.56.0). So `.is-extra-card` reports what it
+  *is*, and the activity's own colour stays on the left edge reporting which
+  activity. Two marks, two meanings, exactly as the border and the pill divide
+  the work on a session.
+- The case that justifies it is **a run logged as an extra**: green bar, and a
+  green frame round it would read as a planned session completed.
+  `tests/logging.js` logs exactly that and asserts three distinct edges — done,
+  still-to-do, extra — and that the frame is *not* the activity's own colour,
+  which would collapse the two meanings back into one.
+- **No tick.** Every extra is done, so a tick on all of them congratulates you
+  for nothing — the v1.64.0 rule reaching the same conclusion by another door.
+- `--extra-edge`: `#eab308` dark, `#a16207` light. 🪤 `#eab308` on white is
+  **1.9:1** and vanishes as an edge; the light variant is the same hue with
+  more ink, at 4.9:1 against the 3:1 a border needs. Do not brighten it back.
+- Not pink. `--sport-extra` is the colour of extras as *marks on a drawing* —
+  bars in the week strip, the row on an opened day — where it is the only thing
+  saying which. A frame sits on a card that already names the activity twice.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The

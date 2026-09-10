@@ -1753,7 +1753,13 @@ const AmsUi = (function () {
         const activity = AmsExtras.activity(extra.activity);
         const pending = !!extra.pending;
 
-        return '<div class="card workout-card" style="--sport: ' + activity.color + '">'
+        /*
+         * Framed like a done session and in the extras' own yellow. No tick:
+         * the tick means "you did what the plan asked", and an extra is
+         * always done, so one on every card would congratulate you for
+         * nothing — the v1.64.0 rule, arriving by another door.
+         */
+        return '<div class="card workout-card is-extra-card" style="--sport: ' + activity.color + '">'
             + '<div class="workout-card-titles">'
             + '<p class="workout-card-sport">' + esc(AmsExtras.labelOf(extra)) + '</p>'
             + (extra.what ? '<p class="workout-card-title">' + esc(extra.what) + '</p>' : '')

@@ -8,13 +8,24 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.67.0';
+    const CURRENT = '1.68.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.68.0',
+            date: '2026-09-10',
+            headline: 'A yellow frame on an extra activity',
+            items: [
+                '**Anything logged outside the plan now has a yellow frame round it**, the same frame a completed session has in green.',
+                '**Yellow rather than green on purpose.** Green means *you did what the plan asked* and red means *missed* \u2014 an extra has neither of those to say, because an extra is always done. The yellow says what it is instead.',
+                'It matters most on a **run logged as an extra**: that card carries the run\u2019s green stripe down its left edge, and a green frame round it would read as a planned run you completed. The stripe still says which activity; the frame says it was not in the plan.',
+                'No tick on an extra. Every extra is done, so a tick on all of them would say nothing.',
+            ]
+        },
         {
             version: '1.67.0',
             date: '2026-09-10',

@@ -50,6 +50,12 @@
        from all of them at a glance, in a column 11 pixels wide. */
     --sport-extra: #f472b6;
 
+    /* The frame round anything logged outside the plan. Yellow because he
+       asked for yellow, and because green is taken: a run logged as an extra
+       carries a green bar already, and a green frame round it would make it
+       look like a planned session he completed. */
+    --extra-edge: #eab308;
+
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     --tabbar-height: 3.35rem;
@@ -83,6 +89,9 @@
            labels a row on the opened day, so it carries text. 6.0:1 on white.
            Do not brighten it back towards the dark theme's pink. */
         --sport-extra: #be185d;
+        /* #eab308 is 1.9:1 on white — invisible as an edge. Same hue with more
+           ink in it: 4.9:1, well past the 3:1 a border needs. */
+        --extra-edge: #a16207;
         --color-danger-text: #c81e1e;
     }
 }
@@ -263,6 +272,26 @@ body {
     border-color: var(--color-danger-text);
     box-shadow: inset 0 0 0 1px var(--color-danger-text);
     background: color-mix(in srgb, var(--color-danger-text) 11%, var(--color-surface));
+}
+
+/*
+ * An extra, framed like the two above and in a colour neither of them uses.
+ *
+ * Green and red are *states* — done and missed. An extra has no state to
+ * report: it is always done, which is why its bar in the week strip is always
+ * solid (v1.56.0). So this frame reports a *kind* instead, and the activity's
+ * own colour stays on the left edge reporting which activity. Two marks, two
+ * meanings, exactly as the border and the pill divide the work on a session.
+ *
+ * The one place it matters most is a run logged as an extra: green bar, and
+ * a green frame would say "a planned session you completed", which is the one
+ * thing it is not.
+ */
+.workout-card.is-extra-card {
+    border-width: 2px;
+    border-color: var(--extra-edge);
+    box-shadow: inset 0 0 0 1px var(--extra-edge);
+    background: color-mix(in srgb, var(--extra-edge) 11%, var(--color-surface));
 }
 
 /*

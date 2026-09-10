@@ -98,18 +98,37 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
    * still to do is bordered too, and it is the *difference* that gets read at
    * a glance rather than either card on its own.
    */
-  const glance = await p.evaluate(() => {
+  const glance = await p.evaluate(async () => {
+    /*
+     * An extra as well, because the third edge is the one that has to differ
+     * from both: green means done and red means missed, which are states an
+     * extra does not have. Yellow reports a kind instead. A run logged as an
+     * extra is the case that matters — it carries the run's green bar, and a
+     * green frame round it would read as a planned session completed.
+     */
+    await AmsSync.logExtra({ activity: 'run', minutes: 31,
+      date: AmsSync.todayKey(), notes: '' });
+    AmsUi.renderToday();
+    await new Promise(r => setTimeout(r, 400));
+
     const cards = [...document.querySelectorAll('#todayBody .workout-card')];
     const edge = (c) => getComputedStyle(c).borderTopColor;
     const done = cards.filter(c => c.classList.contains('is-done'));
+    const extra = cards.filter(c => c.classList.contains('is-extra-card'));
     const todo = cards.filter(c => !c.classList.contains('is-done')
-      && !c.classList.contains('is-missed-card'));
+      && !c.classList.contains('is-missed-card')
+      && !c.classList.contains('is-extra-card'));
     return {
       cards: cards.length,
       done: done.length,
       todo: todo.length,
+      extras: extra.length,
       doneEdge: done.length ? edge(done[0]) : null,
       todoEdge: todo.length ? edge(todo[0]) : null,
+      extraEdge: extra.length ? edge(extra[0]) : null,
+      extraBar: extra.length ? getComputedStyle(extra[0]).getPropertyValue('--sport').trim() : null,
+      // an extra is always done, so a tick on one congratulates you for nothing
+      ticksOnExtras: extra.filter(c => c.querySelector('.done-tick')).length,
       // the border must not have replaced the pill
       doneKeepsPill: done.length
         ? !!done[0].querySelector('.pill.done, .pill.pending') : false,
@@ -124,6 +143,7 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
   line('cards on Today', glance.cards + ' — ' + glance.done + ' done, ' + glance.todo + ' to do');
   line('the done one is edged', glance.doneEdge);
   line('the one still to do', glance.todoEdge);
+  line('an extra activity', glance.extraEdge + ', over a ' + glance.extraBar + ' bar');
   line('the done card keeps its pill', glance.doneKeepsPill);
 
   if (!glance.done) errs.push('the session just logged is not marked as done on its card');
@@ -134,6 +154,24 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
   }
   if (glance.done && !glance.doneKeepsPill) {
     errs.push('the border replaced the status pill rather than joining it');
+  }
+  if (!glance.extras) {
+    errs.push('an extra activity on Today is not framed at all');
+  }
+  if (glance.extraEdge === glance.doneEdge) {
+    errs.push('an extra is edged the same as a completed session (' + glance.extraEdge
+      + ') — an extra run would read as a planned run you did');
+  }
+  if (glance.extraEdge === glance.todoEdge) {
+    errs.push('an extra is edged the same as a session still to do (' + glance.extraEdge + ')');
+  }
+  if (glance.extraBar === glance.extraEdge) {
+    errs.push('the extra frame took the activity\u2019s own colour, so the card no longer says '
+      + 'which activity separately from saying it is an extra');
+  }
+  if (glance.ticksOnExtras) {
+    errs.push(glance.ticksOnExtras + ' extra activities carry the done tick — every extra is done, '
+      + 'so a tick on one says nothing');
   }
   line('ticks on done / on still-to-do', glance.ticksOnDone + ' / ' + glance.ticksElsewhere);
   if (glance.ticksOnDone !== glance.done) {

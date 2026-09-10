@@ -108,7 +108,7 @@ It also checks that the one shared pace column asks each sport its own
 question — km/h on a bike, min/km on a run, per 100m on a swim — and that the
 field stays text rather than number, so a rider recording `168 W` can still
 type it. That check needs `paced.xlsx`: `plain.xlsx` has no pace column, so
-the same check run there would pass by finding nothing.
+the same check run there would pass by finding nothing. Since v1.68.0 the same step logs an extra as well and demands **three** distinct edges — done, still-to-do, and extra — plus that the extra's frame is not the activity's own colour. A run logged as an extra is the case that makes the rule: it carries a green bar, so a green frame would read as a planned run completed.
 
 **`move-log.js`** — the one thing this app remembers that the workbook does
 not. Rescheduling overwrites the date, so the sheet forgets the move; the app
