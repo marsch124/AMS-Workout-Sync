@@ -8,7 +8,10 @@ step, no framework, no server. Live at
 
 ## Where things stand
 
-Nothing outstanding. Shipped and confirmed working on his phone up to **v1.37.0**;
+**Nothing outstanding.** Everything below is on `main` and published, up to
+**v1.70.0** (his colours, everywhere — merged and published at his request on
+2026-09-12, the grass green confirmed "absolutely fantastic"). Confirmed
+working on his phone up to **v1.37.0** by report, and by his eye since;
 v1.38.0 then fixed all four findings of a full audit (persist() at boot, the
 reset confirm counts the queue, darker light-mode sport palette, 44px tap halos
 — guarded permanently by `tests/august-audit.js`). The audit itself is published
