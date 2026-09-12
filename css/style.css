@@ -33,8 +33,10 @@
 
     /*
      * One colour per discipline: his palette, given as a picture (v1.70.0)
-     * and used as given, in both themes. Blue swim, yellow bike, lime run,
-     * orange strength, purple mobility. The same five values paint a bar in
+     * and used as given, in both themes. Blue swim, yellow bike, grass-green
+     * run (his picture's lime was "a bit too fluorescent" on the screen, so
+     * it is the same green with a third less colour in it), orange strength,
+     * purple mobility. The same five values paint a bar in
      * the week strip, a dot in the key, the stripe down a card, the badge
      * behind an icon, in daylight and at night.
      *
@@ -47,7 +49,7 @@
      */
     --sport-swim: #4f87f8;
     --sport-bike: #f7cb44;
-    --sport-run: #a3fa55;
+    --sport-run: #85ce6c;
     --sport-strength: #f2a33a;
     --sport-mobility: #8650fe;
     /* Anything the plan calls something else. Cyan because it is the one

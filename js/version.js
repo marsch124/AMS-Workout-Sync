@@ -20,7 +20,7 @@ const AmsVersion = (function () {
             date: '2026-09-12',
             headline: 'Your colours, everywhere',
             items: [
-                '**Every sport now wears the colour from your picture**, on every screen and in both the light and the dark theme: blue swim, yellow bike, green run, orange strength, purple mobility. The week strip, the eight-week block on Plan, the key, the stripe down each card, the badge behind each icon, the Progress charts \u2014 all one set.',
+                '**Every sport now wears the colour from your picture**, on every screen and in both the light and the dark theme: blue swim, yellow bike, grass-green run (a shade calmer than the picture\u2019s, as you asked), orange strength, purple mobility. The week strip, the eight-week block on Plan, the key, the stripe down each card, the badge behind each icon, the Progress charts \u2014 all one set.',
                 '**Mobility and strength are two colours again** \u2014 purple and orange \u2014 because that is what the picture says.',
                 '**Extra activities are light pink**, as asked: their bars in the week strip and on the Plan block, the row on an opened day, and the frame and tick round an extra on Today and under Done. The frame used to be yellow, and yellow now belongs to the bike.',
                 '**Words in a sport\u2019s colour are a shade darker on a light screen.** The picture\u2019s yellow is right for a bar and unreadable as a word on white, so wherever a colour has to carry text \u2014 the sport\u2019s name on a card, the label on an opened day \u2014 it is the same colour with more ink in it. At night the two are the same. Measured: every one of them reads at better than 5 to 1 in daylight.',

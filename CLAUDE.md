@@ -700,7 +700,11 @@ looks for *what have I done*.
 light ground (blue swim, yellow bike, lime run, orange strength, purple
 mobility) and one line, extras light pink. Sampled from the picture and used
 as given, in **both** themes — the picture was drawn on a light ground, so the
-light theme is the one it has to match.
+light theme is the one it has to match. The one exception is run: the
+picture's `#a3fa55` was "a bit too extreme… fluorescent" once he saw it drawn,
+and he asked for grass green, "not dark, still rather light". It is
+`#85ce6c` — the same hue and lightness in OKLCH with the chroma cut from 0.21
+to 0.15. Do not lift it back towards the picture.
 
 - 🚨 **Fill and ink are two different things now, and only the fill is the
   palette.** The bright yellow is 1.55:1 on white; the audit needs 4.5:1 for
