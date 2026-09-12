@@ -1,5 +1,5 @@
 /*
- * The pink bars: everything done outside the plan, drawn in the week strip.
+ * The dotted bars: everything done outside the plan, drawn in the week strip.
  *
  * The week card already said "· 40m extra" in its figures, which is a sentence
  * you have to read. The drawing above it showed nothing at all, so a week in
@@ -9,7 +9,8 @@
  *
  *   1. an extra draws a bar on its own day, whatever else is on that day —
  *      training, nothing, or a planned rest;
- *   2. the pink is a colour no discipline uses, because colour is how the
+ *   2. the bar is the activity's own colour with a dotted fill (grey for an
+ *      activity that is not a sport), because colour is how the
  *      strip says which sport and this one has to say "not one of them";
  *   3. the height scale takes the extras in. Scaling against the biggest
  *      *planned* day would let a two-hour hike draw a bar taller than the
@@ -61,9 +62,9 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
     days: AmsSync.weekDays().map(d => d.extras.length)
   }));
   line('bars in the strip', before.bars);
-  line('pink ones', before.extras);
+  line('dotted ones', before.extras);
   if (!before.bars) errors.push('the week strip drew nothing at all');
-  if (before.extras) errors.push('a pink bar appeared with no extra logged');
+  if (before.extras) errors.push('a dotted bar appeared with no extra logged');
   if (before.days.some(n => n !== 0)) errors.push('weekDays() invented extras');
 
   // ---------------------------------------------------------------- 2
@@ -108,7 +109,7 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
 
   const extrasPerDay = logged.byDay.map(d => d.extra);
   if (String(extrasPerDay) !== String([1, 1, 1, 0, 1, 0, 0])) {
-    errors.push('the pink bars did not land on the days they were logged on: ' + extrasPerDay);
+    errors.push('the extra bars did not land on the days they were logged on: ' + extrasPerDay);
   }
   if (!logged.byDay[4].rest) errors.push('a walk on the rest day took the rest line away with it');
   if (logged.byDay[2].planned !== 2) errors.push('the extra displaced the sessions planned that day');
@@ -119,27 +120,43 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
 
   // ---------------------------------------------------------------- 3
   console.log('');
-  console.log('THE COLOUR BELONGS TO NOTHING ELSE');
+  console.log('THE COLOUR IS THE ACTIVITY\u2019S, AND THE DOTS SAY EXTRA');
 
+  /*
+   * Since v1.71.0 an extra is drawn in its activity's colour and marked as
+   * outside the plan by a dotted fill; an activity that is not one of the
+   * sports is grey. So: yoga must carry mobility's colour, the walk and the
+   * hike the rest grey, meditation grey too (it used to be `--sport-other`,
+   * which is the colour of a planned row the app cannot read — an extra is
+   * never that); every extra bar must be dotted and no planned bar may be.
+   */
   const colours = await page.evaluate(() => {
-    const of = (name) => getComputedStyle(document.documentElement)
-      .getPropertyValue(name).trim();
-    const sports = ['swim', 'bike', 'run', 'strength', 'mobility', 'other', 'rest', 'race']
-      .map(id => [id, of('--sport-' + id)]);
-    const bar = document.querySelector('.week-bar-seg.is-extra');
+    const dotted = (b) => /radial-gradient/.test(getComputedStyle(b).backgroundImage);
+    const extras = [...document.querySelectorAll('.week-bar-seg.is-extra')].map(b => ({
+      title: b.title.split(' \u00b7 ')[0],
+      sport: getComputedStyle(b).getPropertyValue('--sport').trim(),
+      dotted: dotted(b),
+      painted: getComputedStyle(b).backgroundColor
+    }));
+    // The inline `--sport: var(--sport-rest)` comes back resolved, so the
+    // tokens are read the same way for the comparison.
+    const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
     return {
-      painted: bar ? getComputedStyle(bar).backgroundColor : null,
-      extra: of('--sport-extra'),
-      sports: sports
+      extras: extras,
+      tokens: { rest: token('--sport-rest'), mobility: token('--sport-mobility') },
+      plannedDotted: [...document.querySelectorAll('.week-bar-seg:not(.is-extra)')].filter(dotted).length,
+      painted: extras.length ? extras[0].painted : null
     };
   });
-  line('the extras are painted', colours.painted);
-  colours.sports.forEach(([id, hex]) => {
-    if (hex.toLowerCase() === colours.extra.toLowerCase()) {
-      errors.push('the extra colour is the same as ' + id + ': ' + hex);
-    }
+  colours.extras.forEach(e => line(e.title, e.sport + (e.dotted ? ', dotted' : ', NOT DOTTED')));
+  const expect = { walk: colours.tokens.rest, hike: colours.tokens.rest,
+    meditation: colours.tokens.rest, yoga: colours.tokens.mobility };
+  colours.extras.forEach(e => {
+    const want = expect[e.title.toLowerCase()];
+    if (want && e.sport.toLowerCase() !== want.toLowerCase()) errors.push(e.title + ' is drawn in ' + e.sport + ', expected ' + want);
+    if (!e.dotted) errors.push(e.title + ' is not dotted — nothing says it was outside the plan');
   });
-  line('shared with a discipline', 'no');
+  if (colours.plannedDotted) errors.push(colours.plannedDotted + ' planned bar(s) drawn dotted');
   if (!colours.painted || /rgba\(0, 0, 0, 0\)/.test(colours.painted)) {
     errors.push('the extra bar was drawn with no fill at all');
   }
@@ -183,7 +200,7 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
     await new Promise(r => setTimeout(r, 300));
     const rows = [...document.querySelectorAll('.week-legend-shapes li')].map(li => li.innerText.trim());
     const swatch = document.querySelector('.week-legend-swatch .week-bar-seg.is-extra');
-    const painted = swatch ? getComputedStyle(swatch).backgroundColor : null;
+    const painted = swatch ? /radial-gradient/.test(getComputedStyle(swatch).backgroundImage) : null;
     document.querySelector('.week-card-head-main[data-legend]').click();
     await new Promise(r => setTimeout(r, 250));
 
@@ -202,15 +219,16 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
   line('the opened Monday says', key.opened);
 
   if (!key.rows.some(r => /extra/i.test(r))) {
-    errors.push('the key explains every mark in the strip except the pink one');
+    errors.push('the key explains every mark in the strip except the dotted one');
   }
-  if (key.painted !== colours.painted) {
-    errors.push('the key draws the extra in a different colour from the strip: '
-      + key.painted + ' against ' + colours.painted);
+  // The key's swatch is the shape alone, in the text colour like the other
+  // shapes, so what it must share with the strip is the dots, not a colour.
+  if (key.painted !== true) {
+    errors.push('the key draws the extra without the dots the strip uses');
   }
   if (key.extraRows !== 1) errors.push('opening a day with only an extra on it showed no extra');
   if (/Nothing planned/.test(key.opened || '')) {
-    errors.push('tapping a pink bar answered "Nothing planned"');
+    errors.push('tapping a dotted bar answered "Nothing planned"');
   }
   if (!/50m|Walk/i.test(key.opened || '')) {
     errors.push('the opened day does not name the walk or its length: ' + key.opened);
@@ -238,7 +256,8 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
       extrasInThisWeek: thisWeek ? thisWeek.querySelectorAll('.block-bar.is-extra').length : 0,
       extrasElsewhere: rows.filter(w => !w.classList.contains('is-now'))
         .reduce((n, w) => n + w.querySelectorAll('.block-bar.is-extra').length, 0),
-      painted: bar ? getComputedStyle(bar).backgroundColor : null,
+      dotted: bar ? /radial-gradient/.test(getComputedStyle(bar).backgroundImage) : null,
+      sport: bar ? getComputedStyle(bar).getPropertyValue('--sport').trim() : null,
       // Nothing may be drawn taller than the row that holds it.
       overflowing: row ? [...thisWeek.querySelectorAll('.block-bar')]
         .filter(b => b.getBoundingClientRect().height
@@ -251,8 +270,8 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
   if (block.error) { errors.push(block.error); }
   else {
     line('weeks drawn', block.rows);
-    line('pink bars in this week', block.extrasInThisWeek);
-    line('pink bars in the other rows', block.extrasElsewhere);
+    line('extra bars in this week', block.extrasInThisWeek);
+    line('extra bars in the other rows', block.extrasElsewhere);
     line('painted', block.painted);
     line('the foot says', block.foot);
 
@@ -262,15 +281,18 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
     if (block.extrasElsewhere) {
       errors.push('an extra was drawn in a week it does not belong to');
     }
-    if (block.painted !== colours.painted) {
-      errors.push('the block card paints extras differently from the week strip: '
-        + block.painted + ' against ' + colours.painted);
+    line('the block draws its extra', (block.sport || '?') + (block.dotted ? ', dotted' : ', NOT DOTTED'));
+    if (!block.dotted) {
+      errors.push('the block card draws an extra without the dots the week strip uses');
+    }
+    if (block.sport && !colours.extras.some(e => e.sport === block.sport)) {
+      errors.push('the block card paints an extra in a colour no extra on the strip has: ' + block.sport);
     }
     if (block.overflowing) {
       errors.push(block.overflowing + ' bar(s) drawn taller than the week row holding them');
     }
-    if (!/pink/i.test(block.foot)) {
-      errors.push('the block card draws pink bars and does not say what they are: ' + block.foot);
+    if (!/dotted/i.test(block.foot)) {
+      errors.push('the block card draws dotted bars and does not say what they are: ' + block.foot);
     }
     if (!block.restLines) errors.push('the block card lost its rest lines');
   }
@@ -295,9 +317,9 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
       bars: document.querySelectorAll('.week-bar-seg.is-extra').length
     };
   });
-  line('pink bars once the queue is emptied', quiet.bars);
+  line('extra bars once the queue is emptied', quiet.bars);
   line('key rows now', quiet.rows.length);
-  if (quiet.bars) errors.push('a pink bar outlived the extra it was drawn for');
+  if (quiet.bars) errors.push('an extra bar outlived the extra it was drawn for');
   if (quiet.rows.some(r => /extra/i.test(r))) {
     errors.push('the key still explains a mark the week no longer has');
   }

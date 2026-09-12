@@ -47,6 +47,14 @@ const AmsExtras = (function () {
      * `kind` decides two things: whether the metric fields are worth showing,
      * and what "Counts as training" starts at. Both remain yours to override —
      * a four-hour hike is load whatever this list says.
+     *
+     * Colour: an activity that is one of the plan's sports (or yoga, which is
+     * mobility work) carries that sport's colour; everything else is grey.
+     * His rule, from v1.71.0: an extra is drawn in its activity's colour with
+     * a dotted fill saying "outside the plan", and "if the workout is not
+     * colour-coded, just make it grey". Nothing here uses `--sport-other` —
+     * that is the colour of a *planned* row whose sport the app cannot read,
+     * and an extra is never that.
      */
     const DEFAULT_ACTIVITIES = [
         { id: 'swim', label: 'Swim', kind: 'training', icon: 'swim', color: 'var(--sport-swim)' },
@@ -55,12 +63,12 @@ const AmsExtras = (function () {
         { id: 'strength', label: 'Strength', kind: 'training', icon: 'strength', color: 'var(--sport-strength)' },
         { id: 'mobility', label: 'Mobility', kind: 'restorative', icon: 'mobility', color: 'var(--sport-mobility)' },
         { id: 'yoga', label: 'Yoga', kind: 'restorative', icon: 'mobility', color: 'var(--sport-mobility)' },
-        { id: 'meditation', label: 'Meditation', kind: 'restorative', icon: 'check', color: 'var(--sport-other)' },
-        { id: 'breathing', label: 'Breathing', kind: 'restorative', icon: 'check', color: 'var(--sport-other)' },
+        { id: 'meditation', label: 'Meditation', kind: 'restorative', icon: 'check', color: 'var(--sport-rest)' },
+        { id: 'breathing', label: 'Breathing', kind: 'restorative', icon: 'check', color: 'var(--sport-rest)' },
         { id: 'walk', label: 'Walk', kind: 'everyday', icon: 'run', color: 'var(--sport-rest)' },
         { id: 'hike', label: 'Hike', kind: 'everyday', icon: 'run', color: 'var(--sport-rest)' },
         { id: 'ski', label: 'Ski', kind: 'everyday', icon: 'run', color: 'var(--sport-rest)' },
-        { id: 'other', label: 'Something else', kind: 'everyday', icon: 'other', color: 'var(--sport-other)' }
+        { id: 'other', label: 'Something else', kind: 'everyday', icon: 'other', color: 'var(--sport-rest)' }
     ];
 
     /*
@@ -76,7 +84,7 @@ const AmsExtras = (function () {
     /* Colours and icons are matched from the defaults where an id is known, so
        a renamed or added activity still looks like it belongs. */
     const KIND_LOOK = {
-        training:   { icon: 'other', color: 'var(--sport-other)' },
+        training:   { icon: 'other', color: 'var(--sport-rest)' },
         restorative:{ icon: 'check', color: 'var(--sport-mobility)' },
         everyday:   { icon: 'run',   color: 'var(--sport-rest)' }
     };

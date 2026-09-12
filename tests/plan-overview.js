@@ -265,7 +265,7 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(44) + v);
       .filter(w => !w.classList.contains('block-letters'))
       .map(w => ({
         label: w.querySelector('.block-week-label').textContent,
-        // Planned bars only: the pink one is new ink and would mask the very
+        // Planned bars only: the dotted one is new ink and would mask the very
         // flattening this is looking for.
         ink: Math.round([...w.querySelectorAll('.block-bar:not(.is-extra)')]
           .reduce((n, b) => n + b.getBoundingClientRect().height, 0))
@@ -303,7 +303,7 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(44) + v);
   const order = (rows) => rows.slice().sort((a, b) => a.ink - b.ink).map(r => r.label).join(' < ');
   line('weeks by ink, before', order(survived.before));
   line('weeks by ink, after', order(survived.after));
-  line('pink bars drawn', survived.pink);
+  line('dotted extra bars drawn', survived.pink);
 
   if (!survived.pink) errors.push('the block card did not draw the extra at all');
   if (survived.overflowing) {

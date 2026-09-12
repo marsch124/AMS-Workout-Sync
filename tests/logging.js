@@ -102,9 +102,10 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
     /*
      * An extra as well, because the third edge is the one that has to differ
      * from both: green means done and red means missed, which are states an
-     * extra does not have. Pink reports a kind instead. A run logged as an
-     * extra is the case that matters — it carries the run's green bar, and a
-     * green frame round it would read as a planned session completed.
+     * extra does not have. Since v1.71.0 the extra's frame is the activity's
+     * own colour and says "extra" by being *dotted*. A run logged as an extra
+     * is the case that matters — green bar, green frame — so what is guarded
+     * is the line: dotted on the extra, solid on the planned one.
      */
     await AmsSync.logExtra({ activity: 'run', minutes: 31,
       date: AmsSync.todayKey(), notes: '' });
@@ -126,14 +127,16 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
       doneEdge: done.length ? edge(done[0]) : null,
       todoEdge: todo.length ? edge(todo[0]) : null,
       extraEdge: extra.length ? edge(extra[0]) : null,
+      doneStyle: done.length ? getComputedStyle(done[0]).borderTopStyle : null,
+      extraStyle: extra.length ? getComputedStyle(extra[0]).borderTopStyle : null,
       extraBar: extra.length ? getComputedStyle(extra[0]).getPropertyValue('--sport').trim() : null,
       /*
        * The tick was left off extras at first, on the v1.64.0 rule that a mark
        * appearing on everything congratulates you for nothing. He asked for it
        * anyway, knowing that: "I think the extras are done by default, but I
        * still would like this nice round ring with a checkbox in." So what is
-       * guarded now is the colour — a green tick on an extra run would undo
-       * what the pink frame is there to prevent.
+       * guarded now is that it is there, and drawn in the activity's colour
+       * rather than the success green of a planned session.
        */
       ticksOnExtras: extra.filter(c => c.querySelector('.done-tick')).length,
       extraTickColour: extra.length && extra[0].querySelector('.done-tick')
@@ -154,7 +157,8 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
   line('cards on Today', glance.cards + ' — ' + glance.done + ' done, ' + glance.todo + ' to do');
   line('the done one is edged', glance.doneEdge);
   line('the one still to do', glance.todoEdge);
-  line('an extra activity', glance.extraEdge + ', over a ' + glance.extraBar + ' bar');
+  line('an extra activity', glance.extraStyle + ' ' + glance.extraEdge + ', over a ' + glance.extraBar + ' bar');
+  line('the done one\u2019s line', glance.doneStyle);
   line('the done card keeps its pill', glance.doneKeepsPill);
 
   if (!glance.done) errs.push('the session just logged is not marked as done on its card');
@@ -176,9 +180,12 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
   if (glance.extraEdge === glance.todoEdge) {
     errs.push('an extra is edged the same as a session still to do (' + glance.extraEdge + ')');
   }
-  if (glance.extraBar === glance.extraEdge) {
-    errs.push('the extra frame took the activity\u2019s own colour, so the card no longer says '
-      + 'which activity separately from saying it is an extra');
+  if (glance.extras && glance.extraStyle !== 'dotted') {
+    errs.push('the extra frame is ' + glance.extraStyle + ', not dotted — with the frame in the '
+      + 'activity\u2019s own colour, the dots are the only thing saying it was not in the plan');
+  }
+  if (glance.done && glance.doneStyle === 'dotted') {
+    errs.push('a completed planned session is framed dotted, which is the mark of an extra');
   }
   line('the tick on an extra', glance.extraTickColour
     + (glance.doneTickColour ? ' against ' + glance.doneTickColour + ' on a planned one' : ''));

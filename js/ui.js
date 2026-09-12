@@ -581,12 +581,15 @@ const AmsUi = (function () {
      * free, whether Friday is genuinely clear — which is the thing you plan
      * around and which no amount of "2h 34m to go" conveys.
      *
-     * Extras get a bar of the same kind, in a pink no sport uses. Colour is
-     * how this drawing says which sport, so a colour of its own is how it says
-     * "not a sport at all, and not in the plan" — the one thing about an extra
-     * that has to survive being glanced at. They are drawn solid because an
-     * extra is only ever recorded: there is no such thing as an outstanding
-     * one, so hollow would have nothing to mean.
+     * Extras get a bar of the same kind, in the activity's own colour with a
+     * dotted fill. Colour says which (an unplanned run is run-green, a hike is
+     * grey because a hike is not one of the plan's sports) and the dots say
+     * "not in the plan" — the one thing about an extra that has to survive
+     * being glanced at. Until v1.71.0 they were one pink for every activity,
+     * on the argument that the plan does not care what an extra was; he did,
+     * and asked for "the colour to be correct" with the dots to mark it. They
+     * are never hollow because an extra is only ever recorded: there is no
+     * such thing as an outstanding one, so hollow would have nothing to mean.
      */
     function weekStrip() {
         const days = AmsSync.weekDays();
@@ -628,7 +631,7 @@ const AmsUi = (function () {
                 const height = Math.max(9, Math.round(extra.seconds / tallest * 100));
                 const length = AmsPlan.formatDuration(extra.seconds);
                 return '<span class="week-bar-seg is-extra"'
-                    + ' style="height:' + height + '%"'
+                    + ' style="height:' + height + '%; --sport: ' + extra.color + '"'
                     + ' title="' + esc(extra.label + (length ? ' · ' + length : '')
                         + ' · outside the plan') + '"></span>';
             }).join('');
@@ -662,7 +665,7 @@ const AmsUi = (function () {
      * The sessions of whichever day was tapped, shown without leaving Today.
      *
      * The extras are listed under the same roof, because they are drawn in the
-     * strip above: a pink bar you can tap that then opens a panel saying
+     * strip above: a dotted bar you can tap that then opens a panel saying
      * "Nothing planned" is a worse answer than no panel at all.
      */
     function expandedDayBlock() {
@@ -673,7 +676,7 @@ const AmsUi = (function () {
         const date = AmsPlan.parseDayKey(expandedDay);
 
         const extraRows = extras.map((extra) =>
-            '<div class="week-expanded-row is-extra">'
+            '<div class="week-expanded-row is-extra" style="--sport: ' + extra.color + '">'
             + '<span class="week-expanded-sport">Extra</span>'
             + '<span class="week-expanded-what">' + esc(extra.label) + '</span>'
             + '<span class="week-expanded-meta">'
@@ -1754,8 +1757,8 @@ const AmsUi = (function () {
         const pending = !!extra.pending;
 
         /*
-         * Framed like a done session and in the extras' own pink, with the
-         * same tick. It was left off at first on the v1.64.0 rule — a mark
+         * Framed like a done session, but with a dotted frame in the
+         * activity's own colour and the same tick. It was left off at first on the v1.64.0 rule — a mark
          * that appears on everything congratulates you for nothing, and every
          * extra is done. He knows that and wants it anyway: "I think the
          * extras are done by default, but I still would like this nice round
@@ -1763,11 +1766,13 @@ const AmsUi = (function () {
          * the part that is pleased about the work rather than the part that
          * reports it.
          *
-         * Pink, not green. Green is what a completed *planned* session is
-         * marked with, and a green tick on an extra run would undo exactly
-         * what the pink frame is there to prevent. The frame was yellow until
-         * v1.70.0, when yellow became the bike's colour — the same argument,
-         * now against a bike ride logged as an extra.
+         * The frame and tick are the activity's colour, told apart from a
+         * completed planned session by the frame being *dotted* — the same
+         * mark the bars carry. An extra run is framed in run-green dots where
+         * a planned run he did is framed in the solid success green; a hike is
+         * grey. Yellow (v1.68.0) and pink (v1.70.0) both existed to keep a
+         * frame from claiming the activity's colour; the dots do that job now,
+         * which is what let the colour be right.
          */
         return '<div class="card workout-card is-extra-card" style="--sport: ' + activity.color + '">'
             + '<span class="done-tick is-extra" aria-hidden="true">'
@@ -2094,7 +2099,8 @@ const AmsUi = (function () {
      * are short beside the week either side of it — scaling each row to its
      * own tallest session would flatten exactly the shape this is drawn for.
      *
-     * The extras are drawn here as they are on Today, in the same pink, and
+     * The extras are drawn here as they are on Today, dotted and in the
+     * activity's colour, and
      * they are measured on the same scale as everything else — which here is
      * the longest single *session* in the eight weeks rather than the biggest
      * day, because these rows put a bar per session in a two-rem column and
@@ -2147,7 +2153,8 @@ const AmsUi = (function () {
 
                 const extraBars = day.extras.map((extra) => {
                     const height = Math.max(14, Math.round(extra.seconds / tallest * 100));
-                    return '<span class="block-bar is-extra" style="height:' + height + '%"'
+                    return '<span class="block-bar is-extra"'
+                        + ' style="height:' + height + '%; --sport: ' + extra.color + '"'
                         + ' title="' + esc(extra.label + ' · outside the plan') + '"></span>';
                 }).join('');
 
@@ -2190,9 +2197,9 @@ const AmsUi = (function () {
             + 'Taller is longer; solid is done.'
             // Named only on a block that contains one, as the week key is.
             // Six of these eight rows are weeks nothing can have happened in
-            // yet, so most of the time there is no pink to explain.
+            // yet, so most of the time there are no dots to explain.
             + (weeks.some((week) => week.extras)
-                ? ' Pink is something you did outside the plan.' : '')
+                ? ' Dotted is something you did outside the plan.' : '')
             + '</p>'
             + '</div>';
     }
@@ -4762,7 +4769,7 @@ const AmsUi = (function () {
                 '<p><strong>Today</strong> — what is planned for today, broken into warm-up, intervals, '
                 + 'technique and cool-down, plus anything you did that was not planned. The week card at the '
                 + 'top draws the whole week as seven columns: a bar per session, its height the length of '
-                + 'it, its colour the sport, and anything you did outside the plan in pink beside them. '
+                + 'it, its colour the sport, and anything you did outside the plan dotted beside them. '
                 + 'There is a section on that drawing further down. The share button on '
                 + 'the week card asks which week you mean, and whether to send it as a message or add '
                 + 'it to a calendar. A message goes as plain text — a message anyone can read, no app and '
@@ -4779,11 +4786,11 @@ const AmsUi = (function () {
                 + 'the line under the button says which it is going to be before you tap it.</p>'
                 + '<p><strong>Plan</strong> — opens with <em>the block at a glance</em>: eight weeks as '
                 + 'eight rows, a column per day and a bar per session, drawn exactly as the week strip '
-                + 'on Today is, pink extras included. It is there to answer what a list cannot — where '
+                + 'on Today is, dotted extras included. It is there to answer what a list cannot — where '
                 + 'the volume rises, where '
                 + 'the recovery weeks fall, which week is the big one. Every week is measured against '
                 + 'one height rather than against itself, which is what makes an easy week look like an '
-                + 'easy week. Only the last week and this one can hold anything pink, since the other '
+                + 'easy week. Only the last week and this one can hold anything dotted, since the other '
                 + 'six have not happened yet. Below it, the whole schedule in four lists. '
                 + '<em>Upcoming</em> is what is '
                 + 'still to do, and leads with anything from before today that was never recorded. '
@@ -4867,18 +4874,19 @@ const AmsUi = (function () {
                 + 'nothing and nothing planned are different things, and only one of them is an '
                 + 'instruction.</p>'
 
-                + '<p><strong>Pink is everything you did outside the plan.</strong> A walk, a hike, a '
+                + '<p><strong>Dotted is everything you did outside the plan.</strong> A walk, a hike, a '
                 + 'yoga session, an unplanned run — each gets a bar of exactly the same kind, on its own '
-                + 'day, beside the sessions the plan asked for. Before this, the drawing said nothing '
-                + 'about them at all: a week with an hour’s walking in it looked exactly like a week '
-                + 'without one, and the only sign was the word “extra” in the line of figures underneath.</p>'
+                + 'day, beside the sessions the plan asked for, filled with dots. Before this, the drawing '
+                + 'said nothing about them at all: a week with an hour’s walking in it looked exactly '
+                + 'like a week without one, and the only sign was the word “extra” in the line of figures '
+                + 'underneath.</p>'
 
-                + '<p>Pink because no sport uses it. Colour is how this drawing tells you swim from bike '
-                + 'from run, so a colour of its own is how it tells you <em>this was not in the plan at '
-                + 'all</em> — which is the first thing worth knowing about it. For the same reason every '
-                + 'extra is the same pink whatever the activity was: a walk and an unplanned run are '
-                + 'different things to you and the same thing to the plan, and it is the plan this '
-                + 'drawing is about. What each one actually was is a tap away.</p>'
+                + '<p>The colour is the activity’s own, so an unplanned run is run-green and yoga is '
+                + 'mobility’s purple, and the dots are what say <em>this was not in the plan</em>. An '
+                + 'activity that is not one of the plan’s sports — a walk, a hike, a ski day, twenty '
+                + 'minutes of meditation — is grey, because there is no sport for it to be. For a while '
+                + 'every extra was one pink whatever it was; the dots do that job now, and the colour is '
+                + 'free to be right. What each one actually was is a tap away.</p>'
 
                 + '<p><strong>They are always solid</strong>, like anything recorded. There is no such '
                 + 'thing as an extra still to do — you either went for the walk or you did not — so '
@@ -4897,7 +4905,7 @@ const AmsUi = (function () {
                 + 'reason to draw it small, not to leave the day looking empty.</p>'
 
                 + '<p><strong>A rest day you went for a walk on keeps its rest line</strong> and gets the '
-                + 'pink bar as well. This is deliberately not the rule for a session <em>moved</em> onto '
+                + 'dotted bar as well. This is deliberately not the rule for a session <em>moved</em> onto '
                 + 'a rest day, which ends the rest day — because the plan now asks for something there. '
                 + 'A walk does not change what the plan asked for. Both things are true at once, so both '
                 + 'marks are drawn.</p>'
@@ -4905,7 +4913,7 @@ const AmsUi = (function () {
                 + '<p><strong>Tap a day</strong> and what is on it opens underneath the strip: each '
                 + 'session with its length, and any extras listed after them. Tap the words '
                 + '<em>This week</em> and the key opens instead, naming every mark the week actually '
-                + 'contains — the sports in it, the rest line if there is a rest day, the pink if there '
+                + 'contains — the sports in it, the rest line if there is a rest day, the dots if there '
                 + 'is anything outside the plan. A key that named marks the week does not have is a key '
                 + 'you learn to read past.</p>'
 
@@ -4925,8 +4933,8 @@ const AmsUi = (function () {
                 + 'either side, and scaling each row to itself would flatten exactly the shape the '
                 + 'drawing exists to show. And that shared height is the longest single session in the '
                 + 'eight weeks rather than the biggest day, because these rows are a third the size and '
-                + 'comparing one bar with one bar is all that fits. Extras are drawn there in the same '
-                + 'pink, on the same scale as everything else. Only last week and this week can hold one, '
+                + 'comparing one bar with one bar is all that fits. Extras are drawn there the same way, '
+                + 'dotted and in their colour, on the same scale as everything else. Only last week and this week can hold one, '
                 + 'since the other six have not happened yet.</p>')
 
             + section('How it reads your plan',
@@ -5164,10 +5172,10 @@ const AmsUi = (function () {
                 + 'folding it in would make the one number the plan exists to produce meaningless.</p>'
                 + '<p><strong>Kept out of that number is not the same as kept out of sight.</strong> '
                 + 'Every extra is drawn on the week card on Today, and on the eight-week block at the top '
-                + 'of the Plan tab, as a bar in pink beside the sessions the plan asked for — same shape, '
+                + 'of the Plan tab, as a dotted bar beside the sessions the plan asked for — same shape, '
                 + 'same scale, so an hour on foot looks like an hour. Twenty minutes on the mat is twenty '
                 + 'minutes you spent, whatever the compliance figure is entitled to count. '
-                + 'How that drawing works, and why the pink is one colour for every activity, is under '
+                + 'How that drawing works, and why the dots rather than a colour of their own, is under '
                 + '<em>The week, drawn</em> above.</p>'
                 + '<p><strong>Everything you have logged this way</strong> is listed newest first under '
                 + 'Settings → Extra activities → <em>Everything extra you logged</em>, and behind "See all" on '

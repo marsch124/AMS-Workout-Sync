@@ -1246,6 +1246,9 @@ const AmsSync = (function () {
         return (state.pendingExtras || []).concat(state.extras || []).map((extra) => ({
             dayKey: extra.date || extra.dayKey || '',
             label: AmsExtras.labelOf(extra),
+            // The activity's own colour, so the drawings can say *which* as
+            // well as *outside the plan* — the dots say the second part.
+            color: AmsExtras.activity(extra.activity).color,
             minutes: typeof extra.minutes === 'number' ? extra.minutes : null,
             seconds: typeof extra.minutes === 'number' ? extra.minutes * 60 : 0
         }));

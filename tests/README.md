@@ -108,7 +108,7 @@ It also checks that the one shared pace column asks each sport its own
 question — km/h on a bike, min/km on a run, per 100m on a swim — and that the
 field stays text rather than number, so a rider recording `168 W` can still
 type it. That check needs `paced.xlsx`: `plain.xlsx` has no pace column, so
-the same check run there would pass by finding nothing. Since v1.68.0 the same step logs an extra as well and demands **three** distinct edges — done, still-to-do, and extra — plus that the extra's frame is not the activity's own colour. A run logged as an extra is the case that makes the rule: it carries a green bar, so a green frame would read as a planned run completed.
+the same check run there would pass by finding nothing. Since v1.68.0 the same step logs an extra as well and demands **three** distinct edges — done, still-to-do, and extra. Since v1.71.0 the extra's frame *is* the activity's own colour and says "extra" by being **dotted**, so the step asserts the line style instead: dotted on the extra, never on a completed planned session. A run logged as an extra is the case that makes the rule: green bar, green frame, and only the dots tell it from a planned run completed.
 
 **`move-log.js`** — the one thing this app remembers that the workbook does
 not. Rescheduling overwrites the date, so the sheet forgets the move; the app
@@ -317,12 +317,13 @@ written, a replay is not — and, because his sheet already has extras in it fro
 before, checks that rows without a reference are still recognised the old way
 and that the column gains its heading when something new is appended.
 
-**`extra-bars.js`** — the pink bars: everything logged outside the plan, drawn
+**`extra-bars.js`** — the dotted bars: everything logged outside the plan, drawn
 in the week strip on Today and in the eight-week block on Plan. The week card
 already said "· 40m extra" in its figures, which is a sentence you have to
 read, while the drawing above it showed nothing at all. Four things have to
-stay true: an extra draws a bar on its own day whatever else is there; the pink
-belongs to no discipline, because colour is how that drawing says which sport;
+stay true: an extra draws a bar on its own day whatever else is there; it is
+the activity's own colour with a dotted fill (grey where the activity is not a
+sport), because colour says which sport and the dots say not in the plan;
 a rest day walked on keeps its rest line; and — the one that could go wrong
 without looking wrong — **the height scale takes the extras in**. Scaling
 against the biggest *planned* day lets a two-hour hike draw a bar taller than

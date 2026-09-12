@@ -8,13 +8,24 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.70.0';
+    const CURRENT = '1.71.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.71.0',
+            date: '2026-09-12',
+            headline: 'Extras in their own colour, with dots',
+            items: [
+                '**An extra activity is now drawn in its activity\u2019s own colour** \u2014 an unplanned run is run-green, a ride is bike-yellow, a strength session is strength\u2019s colour, yoga is mobility\u2019s purple. The pink is gone.',
+                '**And it is dotted.** The bar in the week strip, the bar on the eight-week block and the frame round the card on Today all carry a dotted fill or a dotted line, and that is what says *this was not in the plan* now that the colour no longer does. You drew it; this is that drawing.',
+                '**Anything that is not one of the plan\u2019s sports is grey** \u2014 a walk, a hike, a ski day, meditation, breathing, and anything you add to the list that is not swim, bike, run, strength or mobility. Grey and dotted, as you asked.',
+                'The key on the week card shows the dotted shape beside *Extra activity, outside the plan*, in the same neutral colour as the other shapes, since the colour of an extra is now whatever the activity is. The tick on an extra matches its frame.',
+            ]
+        },
         {
             version: '1.70.0',
             date: '2026-09-12',

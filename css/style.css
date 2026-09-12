@@ -52,24 +52,17 @@
     --sport-run: #85ce6c;
     --sport-strength: #f2a33a;
     --sport-mobility: #8650fe;
-    /* Anything the plan calls something else. Cyan because it is the one
-       clear hue the five above leave free that is not the extras' pink. */
+    /* A planned row whose sport the app cannot read. Cyan because it is the
+       one clear hue the five above leave free. Extras never use it: an extra
+       that is not one of the sports is grey (`--sport-rest`). */
     --sport-other: #22d3ee;
     --sport-rest: #64748b;   /* deliberately quiet — a rest day is not a session */
     --sport-race: #ef4444;
-    /* Anything done outside the plan. Not a discipline — a walk and an
-       unplanned run are both this — so it is deliberately outside the range
-       the sports occupy. Light pink, by his request, and the same in both
-       themes: its whole job is to be told apart from all of the sports at a
-       glance, in a column 11 pixels wide. */
-    --sport-extra: #f9a8d4;
-
-    /* The frame round anything logged outside the plan, and the tick on it.
-       The extras' own pink, so a card and a bar say "outside the plan" in one
-       word. It used to be yellow, and yellow now means bike: a yellow frame
-       round a bike ride logged as an extra would have read as a planned ride
-       completed, which is exactly the confusion the frame exists to prevent. */
-    --extra-edge: #f9a8d4;
+    /* Anything done outside the plan has no colour of its own any more: it is
+       drawn in its activity's colour (grey for an activity that is not one of
+       the sports) with a dotted fill, and the dots are what say "outside the
+       plan". See `.week-bar-seg.is-extra`. One pink for every extra (v1.56.0
+       to v1.70.0) was his to keep, and he chose the colour being right. */
 
     /*
      * Text and edges drawn in a sport's colour clamp its lightness (OKLCH) so
@@ -104,11 +97,6 @@
            the august audit fails the moment one does not). */
         --ink-floor: 0;
         --ink-ceiling: 0.52;
-        /* The frame is a border and the tick carries a white check, and
-           #f9a8d4 on white is 1.8:1 — invisible as an edge. Same hue with
-           more ink: 4.6:1, past the 3:1 a border needs. The bars keep the
-           light pink; a bar is a shape, a frame is a line. */
-        --extra-edge: #db2777;
         --color-danger-text: #c81e1e;
     }
 }
@@ -308,23 +296,27 @@ body {
 }
 
 /*
- * An extra, framed like the two above and in a colour neither of them uses.
+ * An extra, framed like the two above — but dotted, and in the activity's
+ * own colour.
  *
  * Green and red are *states* — done and missed. An extra has no state to
- * report: it is always done, which is why its bar in the week strip is always
- * solid (v1.56.0). So this frame reports a *kind* instead, and the activity's
- * own colour stays on the left edge reporting which activity. Two marks, two
- * meanings, exactly as the border and the pill divide the work on a session.
+ * report: it is always done, which is why its bar in the week strip is never
+ * hollow (v1.56.0). This frame reports a *kind*, and it does so by its line
+ * rather than by its colour: dotted, the same mark the bars carry. That is
+ * what lets the colour be the activity's — a run logged as an extra is framed
+ * in run-green dots, where a planned run he did is framed in the solid
+ * success green. Two releases (yellow, then pink) kept the frame off the
+ * activity's colour for exactly this case; the dots do that job now.
  *
- * The one place it matters most is a run logged as an extra: green bar, and
- * a green frame would say "a planned session you completed", which is the one
- * thing it is not.
+ * The ink rather than the fill: a 2px dotted line of the bike's yellow on
+ * white would not be there. No inset ring — a solid ring inside a dotted
+ * border would make it a solid frame again.
  */
 .workout-card.is-extra-card {
     border-width: 2px;
-    border-color: var(--extra-edge);
-    box-shadow: inset 0 0 0 1px var(--extra-edge);
-    background: color-mix(in srgb, var(--extra-edge) 11%, var(--color-surface));
+    border-style: dotted;
+    border-color: var(--sport-ink);
+    background: color-mix(in srgb, var(--sport, var(--accent)) 9%, var(--color-surface));
 }
 
 /*
@@ -350,13 +342,14 @@ body {
 }
 
 /*
- * The same tick on an extra, in the extras' own yellow. Green would say "a
- * planned session you completed", which is the one thing the yellow frame on
- * that card exists to deny.
+ * The same tick on an extra, in the activity's colour to match its frame. On
+ * an extra run that is a green near the success green of a planned one; the
+ * dotted frame beside it is what tells the two cards apart, and the tick is
+ * the part that is pleased about the work rather than the part reporting it.
  */
 .done-tick.is-extra {
-    background: var(--extra-edge);
-    box-shadow: 0 1px 4px color-mix(in srgb, var(--extra-edge) 45%, transparent);
+    background: var(--sport-ink);
+    box-shadow: 0 1px 4px color-mix(in srgb, var(--sport-ink) 45%, transparent);
 }
 
 .done-tick .icon { width: 1rem; height: 1rem; }
@@ -1128,12 +1121,14 @@ body.detail-open .tab-bar { display: none; }
  * Green is `--accent`, and it is the quieter choice on purpose: it is the
  * colour of every other control in this app, so a green + reads as one more
  * ordinary button rather than as something announcing itself. It was pink
- * (`--sport-extra`) for one release, on the argument that at 34px only colour
- * could say "add *what*" — but pink is this app's word for extras as *data*,
- * the bars in the week strip and the row on an opened day, and a button is not
- * data. The heading two inches away says what it adds; the colour only has to
- * say it can be pressed. It also stops the row disagreeing with itself: the
- * count link beside it was already `--accent`.
+ * for one release (v1.65.0, when pink was the extras' colour), on the argument
+ * that at 34px only colour could say "add *what*" — but that pink was the
+ * app's word for extras as *data*, the bars in the week strip and the row on
+ * an opened day, and a button is not data. (Since v1.71.0 extras have no
+ * colour of their own at all, which settles it.) The heading two inches away
+ * says what it adds; the colour only has to say it can be pressed. It also
+ * stops the row disagreeing with itself: the count link beside it was already
+ * `--accent`.
  *
  * Not `--color-success`. v1.63.0 and v1.64.0 spent two releases teaching that
  * green plus a tick means "you have done this", and a completion mark on an
@@ -1514,13 +1509,21 @@ body.detail-open .tab-bar { display: none; }
 }
 
 /*
- * Something done outside the plan. Solid, because an extra is only ever
- * recorded — there is no outstanding one for hollow to mean — and in its own
- * colour rather than the activity's, because what the strip has to say about
- * it first is that the plan did not ask for it.
+ * Something done outside the plan: the activity's colour, filled with dots.
+ * He drew it — a tinted bar with darker dots on it — and the dots are the
+ * whole message: never hollow (an extra is only ever recorded, so there is no
+ * outstanding one for hollow to mean), never plain solid (that is a planned
+ * session he did). The dots are in the ink, which at night is the fill itself
+ * and in daylight the same hue dark enough to be seen on a pale tint, so the
+ * pattern reads on white for a yellow ride as well as for a grey hike. A 4px
+ * grid puts two or three columns of dots on an 11px bar, which is enough to
+ * read as a pattern and not as dirt.
  */
 .week-bar-seg.is-extra {
-    background: var(--sport-extra);
+    background-color: color-mix(in srgb, var(--sport, var(--accent)) 40%, var(--color-surface));
+    background-image: radial-gradient(circle, var(--sport-ink) 1.1px, transparent 1.6px);
+    background-size: 4px 4px;
+    background-position: 1px 1px;
 }
 
 .week-bar-seg.is-missed {
@@ -1807,7 +1810,9 @@ body.detail-open .tab-bar { display: none; }
     -webkit-box-orient: vertical;
 }
 
-.week-expanded-row.is-extra { --sport: var(--sport-extra); }
+/* The row keeps the activity's colour and says "extra" the way the bar does:
+   its edge is dotted. */
+.week-expanded-row.is-extra { border-left-style: dotted; }
 
 .week-expanded-meta {
     flex-shrink: 0;
@@ -2569,11 +2574,15 @@ body.is-viewing-photo .tab-bar { display: none; }
 
 .block-bar.is-missed { background: var(--sport, var(--accent)); opacity: 0.35; }
 
-/* Outside the plan, in the same pink as Today and for the same reason: colour
-   is how these rows say which sport, so a colour of its own is how they say
-   "not one of them". Solid, because an extra is only ever recorded. */
+/* Outside the plan, dotted as on Today and for the same reason. These bars
+   are 3–7px wide, so the grid is tighter and the dots smaller; at this size
+   it reads as a texture rather than as dots, which is still not solid and
+   still not hollow. */
 .block-bar.is-extra {
-    background: var(--sport-extra);
+    background-color: color-mix(in srgb, var(--sport, var(--accent)) 40%, var(--color-surface));
+    background-image: radial-gradient(circle, var(--sport-ink) 0.75px, transparent 1.15px);
+    background-size: 3px 3px;
+    background-position: 0.5px 0.5px;
     box-shadow: none;
 }
 

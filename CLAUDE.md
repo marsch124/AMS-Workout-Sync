@@ -9,8 +9,9 @@ step, no framework, no server. Live at
 ## Where things stand
 
 **Nothing outstanding.** Everything below is on `main` and published, up to
-**v1.70.0** (his colours, everywhere — merged and published at his request on
-2026-09-12, the grass green confirmed "absolutely fantastic"). Confirmed
+**v1.71.0** (extras dotted in their own colour; v1.70.0's palette merged and
+published at his request on 2026-09-12, the grass green confirmed "absolutely
+fantastic"). Confirmed
 working on his phone up to **v1.37.0** by report, and by his eye since;
 v1.38.0 then fixed all four findings of a full audit (persist() at boot, the
 reset confirm counts the queue, darker light-mode sport palette, 44px tap halos
@@ -740,6 +741,37 @@ to 0.15. Do not lift it back towards the picture.
 - Not touched: `--accent`, success/warning/danger, the teal ground. The picture
   showed sports, and the warning orange is close to strength's orange; if he
   ever says the pending pill looks like a strength label, that is the place.
+
+**v1.71.0 — extras in their own colour, dotted.** He changed his mind on the
+pink the same day: "I would like the color to be correct — the run should be
+green, the strength workout should be gold, the bike should be yellow, and so
+on. In order to indicate that this is an extra workout, make the bar
+polkadotted. If the workout is not color-coded, just make it gray." With a
+drawing of the dotted bar.
+
+- 🚨 **The dots now do the job the pink did.** From v1.56.0 the argument was
+  that colour says *which sport*, so an extra needed a colour of its own to
+  say *not in the plan*. Now the *fill pattern* says it: `.week-bar-seg.is-extra`
+  and `.block-bar.is-extra` are a 40% tint of the activity's colour with a
+  `radial-gradient` dot grid in `--sport-ink`; the extra card's frame is
+  `border-style: dotted` in the ink, no inset ring; the opened-day row's edge
+  is dotted. Solid = planned and done, hollow = planned and not, dotted =
+  not planned. `tests/logging.js` guards the line style (dotted on the extra,
+  never on a done card) where it used to guard the colour, and
+  `tests/extra-bars.js` asserts each fixture extra's colour (walk/hike/
+  meditation grey, yoga mobility) and that no planned bar is dotted.
+- **"Not colour-coded" means grey**: `DEFAULT_ACTIVITIES` meditation,
+  breathing and "Something else", and `KIND_LOOK.training`, moved from
+  `--sport-other` to `--sport-rest`. `--sport-other` is now only the colour of
+  a *planned* row whose sport the app cannot read. An extra's colour travels
+  as `color` on `allExtras()` entries, so both drawings and the opened day
+  read it from one place.
+- `--sport-extra` and `--extra-edge` are **gone**. Nothing may have a colour
+  that means "extra" again; that would put two systems on one bar.
+- "Gold" for strength in his message is read as strength's existing
+  `#f2a33a`, which he had already confirmed; the palette was not changed.
+- The key's extra swatch is drawn in the text colour like the other shapes,
+  because the colour of an extra is now whatever its activity is.
 
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
