@@ -8,13 +8,24 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.68.0';
+    const CURRENT = '1.69.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.69.0',
+            date: '2026-09-12',
+            headline: 'Extras under Done, and a tick of their own',
+            items: [
+                '**Extra activities now appear on the Plan tab under Done**, filed under the day they happened, beside the planned sessions from that day. You went looking for Wednesday\u2019s walk there and it was not there \u2014 it never had been. The Plan tab only ever listed the workbook\u2019s own rows, so an extra was on Today for one day and after that only on its own screen.',
+                'They are on **All** as well, and deliberately not on Upcoming or Missed: an extra is neither, because it is logged the moment you create it.',
+                '**The yellow ring with a tick is on extras too**, as you asked. Yellow rather than green, so an extra run still cannot be mistaken for a planned run you completed.',
+                'In a list they show their photographs small, the way a planned session does. Adding one still happens on Today or on the extras screen.',
+            ]
+        },
         {
             version: '1.68.0',
             date: '2026-09-10',

@@ -662,6 +662,38 @@ green one for swim."
   bars in the week strip, the row on an opened day — where it is the only thing
   saying which. A frame sits on a card that already names the activity twice.
 
+**v1.69.0 — extras under Done, and a tick of their own.** He went looking for
+Wednesday's walk under Done on the Plan tab and reported it as a possible bug.
+It was not a bug and it was not right either: every Plan segment listed the
+workbook's own rows, so an extra lived on Today for a day and after that only
+on `extrasScreen`, which is a reasonable place for it and not the place anybody
+looks for *what have I done*.
+
+- **Done and All, never Upcoming or Missed.** Done is the one segment whose
+  question an extra answers; the other two are about the plan, which an extra
+  is never part of. All has to include them or All holds less than Done does.
+  Merged into the existing day groups (`extrasHere` in `renderPlan()`), then
+  the groups are re-sorted, because a day that holds only extras is appended
+  after the workouts and would otherwise sit out of sequence.
+- **`extraCard(extra, { compact: true })`** in the list: `photoMarks()` instead
+  of `photoBlock()`. The full block is an 86px strip, an Add tile and — on an
+  extra with no pictures — two lines of explanation, about 700px of card. Fine
+  on Today with one day of them; absurd down a month of Done.
+- 🚨 **The tick is on extras now, and he asked for it knowing the argument
+  against.** v1.68.0 left it off on the v1.64.0 rule that a mark appearing on
+  everything congratulates you for nothing. His answer: "I think the extras are
+  done by default, but I still would like this nice round ring with a checkbox
+  in." It is his screen. What `tests/logging.js` guards is no longer its
+  absence but its **colour** — `.done-tick.is-extra` in `--extra-edge`, because
+  a green tick on an extra run undoes exactly what the yellow frame prevents.
+- 🪤 **`tests/new-writes.js` had the `road.js` weekday trap in a second place.**
+  It spoke "9 km" at whichever session the calendar put second in the list and
+  then asserted the cell read 9. On a Saturday that session is a **swim**, whose
+  distance box is metres (`DEFAULT_DISTANCE_UNIT`), so 9 correctly reached a
+  kilometre column as 0.009 and the test called the app wrong. It now picks a
+  sport whose box is in kilometres and prints which, so the next failure says
+  what it means. The app was right both times.
+
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking
 informative. Progress answers three questions now. Do not propose it again. The

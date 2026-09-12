@@ -1754,12 +1754,22 @@ const AmsUi = (function () {
         const pending = !!extra.pending;
 
         /*
-         * Framed like a done session and in the extras' own yellow. No tick:
-         * the tick means "you did what the plan asked", and an extra is
-         * always done, so one on every card would congratulate you for
-         * nothing — the v1.64.0 rule, arriving by another door.
+         * Framed like a done session and in the extras' own yellow, with the
+         * same tick. It was left off at first on the v1.64.0 rule — a mark
+         * that appears on everything congratulates you for nothing, and every
+         * extra is done. He knows that and wants it anyway: "I think the
+         * extras are done by default, but I still would like this nice round
+         * ring with a checkbox in." It is his screen, and on it the tick is
+         * the part that is pleased about the work rather than the part that
+         * reports it.
+         *
+         * Yellow, not green. Green is what a completed *planned* session is
+         * marked with, and a green tick on an extra run would undo exactly
+         * what the yellow frame is there to prevent.
          */
         return '<div class="card workout-card is-extra-card" style="--sport: ' + activity.color + '">'
+            + '<span class="done-tick is-extra" aria-hidden="true">'
+            + '<svg class="icon"><use href="#icon-check"></use></svg></span>'
             + '<div class="workout-card-titles">'
             + '<p class="workout-card-sport">' + esc(AmsExtras.labelOf(extra)) + '</p>'
             + (extra.what ? '<p class="workout-card-title">' + esc(extra.what) + '</p>' : '')
@@ -1772,7 +1782,16 @@ const AmsUi = (function () {
                        : '<span class="pill done">Logged</span>')
             + '</div>'
             + (extra.notes ? '<p class="section-text" style="margin-top:0.5rem">' + esc(extra.notes) + '</p>' : '')
-            + photoBlock(owner)
+            /*
+             * In a list, the pictures only — the same small marks a planned
+             * session carries there. The full block is a strip at 86px, an Add
+             * tile and, on an extra with no pictures yet, two lines of
+             * explanation: about 700px of card, which is fine on Today where
+             * there is one day of them and absurd down a month of Done. Adding
+             * one still happens on Today and on the extras screen, which is
+             * where you are when you have just done the thing.
+             */
+            + (opts.compact ? photoMarks(owner) : photoBlock(owner))
             + '</div>';
     }
 
@@ -2246,6 +2265,24 @@ const AmsUi = (function () {
             workouts = AmsSync.visiblePlan();
         }
 
+        /*
+         * Extras belong on Done, and on All, and on neither of the other two.
+         *
+         * He looked for Wednesday's walk under Done and it was not there. The
+         * Plan tab had only ever listed the workbook's own rows, so an extra
+         * lived on Today for one day and then only on its own screen — which
+         * is a reasonable place for it and not the place anybody looks for
+         * "what have I done".
+         *
+         * Done is the one segment whose question an extra can answer. Upcoming
+         * and Missed are about the plan: an extra is never either, because it
+         * is logged at the moment it is created. All means everything there
+         * is, so leaving them out of it would make All smaller than Done.
+         */
+        const extrasHere = (currentRange === 'past' || currentRange === 'all')
+            ? (state.pendingExtras || []).concat(state.extras || [])
+            : [];
+
         const overview = blockCard();
 
         const outstandingHtml = outstandingFirst.length
@@ -2254,7 +2291,7 @@ const AmsUi = (function () {
                 + outstandingFirst.map((w) => workoutCard(w, { showDate: true })).join('')
             : '';
 
-        if (!workouts.length && !outstandingFirst.length) {
+        if (!workouts.length && !outstandingFirst.length && !extrasHere.length) {
             body.innerHTML = overview + emptyState('icon-today', 'Nothing here',
                 currentRange === 'upcoming'
                     ? 'Nothing left to do from today onwards — everything scheduled has been recorded.'
@@ -2270,20 +2307,49 @@ const AmsUi = (function () {
         let lastKey = null;
         for (const workout of workouts) {
             if (workout.dayKey !== lastKey) {
-                groups.push({ dayKey: workout.dayKey, date: workout.date, workouts: [] });
+                groups.push({ dayKey: workout.dayKey, date: workout.date, workouts: [], extras: [] });
                 lastKey = workout.dayKey;
             }
             groups[groups.length - 1].workouts.push(workout);
+        }
+
+        /*
+         * An extra goes into the day it happened, beside the sessions from
+         * that day, rather than into a block of its own. The day is the unit
+         * this tab is read in, and a walk on Wednesday is part of Wednesday.
+         *
+         * Days that hold only extras are new groups, and the whole list is
+         * re-sorted afterwards — the workouts arrive in the segment's order
+         * and a day appended at the end would otherwise sit out of sequence.
+         */
+        if (extrasHere.length) {
+            const byDay = new Map(groups.map((g) => [g.dayKey, g]));
+            for (const extra of extrasHere) {
+                const dayKey = extra.date || extra.dayKey || '';
+                if (!dayKey) continue;
+                let group = byDay.get(dayKey);
+                if (!group) {
+                    group = { dayKey: dayKey, date: AmsPlan.parseDayKey(dayKey),
+                              workouts: [], extras: [] };
+                    byDay.set(dayKey, group);
+                    groups.push(group);
+                }
+                group.extras.push(extra);
+            }
+            // Done reads newest first; every other segment reads forwards.
+            const back = currentRange === 'past' ? -1 : 1;
+            groups.sort((a, b) => (a.dayKey < b.dayKey ? -back : a.dayKey > b.dayKey ? back : 0));
         }
 
         const today = AmsSync.todayKey();
         body.innerHTML = overview + outstandingHtml + groups.map((group) => {
             const relative = relativeDay(group.dayKey);
             return '<div class="day-heading' + (group.dayKey === today ? ' is-today' : '') + '">'
-                + '<h2>' + esc(longDay(group.date)) + '</h2>'
+                + '<h2>' + esc(group.date ? longDay(group.date) : 'Undated') + '</h2>'
                 + (relative ? '<span>' + esc(relative) + '</span>' : '')
                 + '</div>'
-                + group.workouts.map((w) => workoutCard(w)).join('');
+                + group.workouts.map((w) => workoutCard(w)).join('')
+                + group.extras.map((e) => extraCard(e, { compact: true })).join('');
         }).join('');
 
     }

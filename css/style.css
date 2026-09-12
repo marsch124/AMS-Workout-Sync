@@ -316,10 +316,21 @@ body {
     box-shadow: 0 1px 4px color-mix(in srgb, var(--color-success) 45%, transparent);
 }
 
+/*
+ * The same tick on an extra, in the extras' own yellow. Green would say "a
+ * planned session you completed", which is the one thing the yellow frame on
+ * that card exists to deny.
+ */
+.done-tick.is-extra {
+    background: var(--extra-edge);
+    box-shadow: 0 1px 4px color-mix(in srgb, var(--extra-edge) 45%, transparent);
+}
+
 .done-tick .icon { width: 1rem; height: 1rem; }
 
 /* A long title must wrap before it reaches the tick rather than run under it. */
-.workout-card.is-done .workout-card-titles { padding-right: 1.9rem; }
+.workout-card.is-done .workout-card-titles,
+.workout-card.is-extra-card .workout-card-titles { padding-right: 1.9rem; }
 
 /* Offered on a card that has shrunk to one line, so it has to sit quietly on
    it rather than reopen the card. Full width would read as a decision to make;

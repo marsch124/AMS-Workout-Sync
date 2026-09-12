@@ -323,7 +323,7 @@ without looking wrong — **the height scale takes the extras in**. Scaling
 against the biggest *planned* day lets a two-hour hike draw a bar taller than
 the column that holds it, so the test measures it with a 2h extra in a week
 whose biggest day is 65m. The same rule on the Plan tab is guarded in
-`plan-overview.js`, where a long extra must not flatten the block.
+`plan-overview.js`, where a long extra must not flatten the block. Since v1.69.0 a last step follows an extra to the **Plan tab**: it must be listed under Done and under All, under the day heading it belongs to, and on neither Upcoming nor Missed — an extra is logged the moment it exists, so it is never either of those.
 
 **`correcting.js`** — coming back to a log to fix a number you got wrong.
 Mostly one assertion, and it is a negative one: **the boxes stay empty**. An

@@ -302,6 +302,66 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
     errors.push('the key still explains a mark the week no longer has');
   }
 
+  /*
+   * Where an extra can be found a week later.
+   *
+   * He went looking for Wednesday's walk under Done on the Plan tab and it was
+   * not there. It never had been: every segment listed the workbook's own rows
+   * and an extra is not one of those, so it lived on Today for a day and then
+   * only on its own screen. Done is the one segment whose question an extra
+   * answers; Upcoming and Missed are about the plan, which an extra is never
+   * part of.
+   */
+  console.log('');
+  console.log('AND FOUND AGAIN ON THE PLAN TAB, UNDER DONE');
+
+  const filed = await page.evaluate(async () => {
+    const day = AmsSync.todayKey();
+    await AmsSync.logExtra({ activity: 'walk', minutes: 55, date: day, notes: '' });
+    await new Promise(r => setTimeout(r, 400));
+
+    const seen = {};
+    for (const range of ['upcoming', 'past', 'missed', 'all']) {
+      document.querySelector('.tab[data-tab="plan"]').click();
+      const seg = document.querySelector('.segment[data-range="' + range + '"]');
+      seg.click();
+      await new Promise(r => setTimeout(r, 500));
+      seen[range] = document.querySelectorAll('#planBody .workout-card.is-extra-card').length;
+    }
+    // and it must land under its own day rather than in a block of its own
+    document.querySelector('.segment[data-range="past"]').click();
+    await new Promise(r => setTimeout(r, 500));
+    const card = document.querySelector('#planBody .workout-card.is-extra-card');
+    let heading = null;
+    for (let n = card; n; n = n.previousElementSibling) {
+      if (n.classList && n.classList.contains('day-heading')) {
+        heading = n.querySelector('h2').textContent.trim();
+        break;
+      }
+    }
+    return { seen: seen, heading: heading, todayReads: AmsSync.todayKey() };
+  });
+
+  line('extras listed on Upcoming', filed.seen.upcoming);
+  line('on Done', filed.seen.past);
+  line('on Missed', filed.seen.missed);
+  line('on All', filed.seen.all);
+  line('filed under the heading', '"' + filed.heading + '"');
+
+  if (!filed.seen.past) {
+    errors.push('an extra does not appear under Done, which is where he went looking for it');
+  }
+  if (!filed.seen.all) {
+    errors.push('an extra is missing from All, so All holds less than Done does');
+  }
+  if (filed.seen.upcoming || filed.seen.missed) {
+    errors.push('an extra is listed under Upcoming or Missed — it is neither, it is logged '
+      + 'the moment it exists');
+  }
+  if (!filed.heading) {
+    errors.push('the extra on Done is not under a day heading at all');
+  }
+
   console.log('');
   console.log(errors.length ? 'errors:' : 'errors: none');
   errors.forEach(e => console.log('   ! ' + e));

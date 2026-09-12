@@ -357,10 +357,23 @@ const gap = () => console.log('');
 
     const upcoming = state.plan.filter(w => w.discipline.id !== 'rest' && w.dayKey >= today);
     const used = new Set();
-    const take = () => { const w = upcoming.find(x => !used.has(x.key)); used.add(w.key); return w; };
+    const take = (fits) => {
+      const w = upcoming.find(x => !used.has(x.key) && (!fits || fits(x)));
+      used.add(w.key);
+      return w;
+    };
 
     const tapped = take();
-    const spoken = take();
+    /*
+     * The spoken sentence says "9 km", and the cell is checked for 9 further
+     * down — so it has to be a sport whose distance box is kilometres. Take
+     * whatever comes next and the weekday decides: a swim measures distance in
+     * metres, so a queued 9 correctly reaches a kilometre column as 0.009 and
+     * the assertion below fails on a fixture regenerated on the wrong day.
+     * That is the road.js weekday trap in a second place, and the app was
+     * right both times.
+     */
+    const spoken = take(w => AmsPlan.DEFAULT_DISTANCE_UNIT[w.discipline.id] === 'km');
     const photographed = take();
     const moved = take();
     const missed = take();
@@ -420,6 +433,8 @@ const gap = () => console.log('');
       photos: AmsPhotos.all().length,
       tapped: text(tapped.row, 'done'),
       spoken: text(spoken.row, 'actualDistance'),
+      spokenSport: spoken.discipline.id,
+      spokenUnit: AmsPlan.DEFAULT_DISTANCE_UNIT[spoken.discipline.id] || 'km',
       hasNotesColumn: !!mapping.columns.notes,
       photographedNote: text(photographed.row, 'notes'),
       photographedDuration: text(photographed.row, 'actualDuration'),
@@ -438,7 +453,8 @@ const gap = () => console.log('');
   line('entries applied to the file', mixed.applied);
   line('rows before and after', mixed.beforeRows + ' / ' + mixed.afterRows);
   line('one tap marked done', JSON.stringify(mixed.tapped));
-  line('spoken distance in the sheet', JSON.stringify(mixed.spoken));
+  line('spoken distance in the sheet', JSON.stringify(mixed.spoken)
+       + ' (a ' + mixed.spokenSport + ', box in ' + mixed.spokenUnit + ')');
   line('the photographed session', 'duration ' + JSON.stringify(mixed.photographedDuration)
        + ' · note ' + JSON.stringify(mixed.photographedNote)
        + ' · photos held ' + mixed.photos);
@@ -454,7 +470,11 @@ const gap = () => console.log('');
   if (mixed.applied < 6) errors.push('only ' + mixed.applied + ' of six actions reached the file');
   if (mixed.afterRows !== mixed.beforeRows) errors.push('the plan sheet changed length');
   if (!mixed.tapped) errors.push('the tapped session was not marked done in the file');
-  if (mixed.spoken !== '9') errors.push('the spoken distance did not survive the mixed save: ' + mixed.spoken);
+  if (mixed.spoken !== '9') {
+    errors.push('the spoken distance did not survive the mixed save: ' + mixed.spoken
+      + ' (spoken onto a ' + mixed.spokenSport + ', whose box is in '
+      + mixed.spokenUnit + ')');
+  }
   if (mixed.photographedDuration !== '30') {
     errors.push('a session logged alongside a photo lost its duration: ' + mixed.photographedDuration);
   }

@@ -127,8 +127,19 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
       todoEdge: todo.length ? edge(todo[0]) : null,
       extraEdge: extra.length ? edge(extra[0]) : null,
       extraBar: extra.length ? getComputedStyle(extra[0]).getPropertyValue('--sport').trim() : null,
-      // an extra is always done, so a tick on one congratulates you for nothing
+      /*
+       * The tick was left off extras at first, on the v1.64.0 rule that a mark
+       * appearing on everything congratulates you for nothing. He asked for it
+       * anyway, knowing that: "I think the extras are done by default, but I
+       * still would like this nice round ring with a checkbox in." So what is
+       * guarded now is the colour — a green tick on an extra run would undo
+       * what the yellow frame is there to prevent.
+       */
       ticksOnExtras: extra.filter(c => c.querySelector('.done-tick')).length,
+      extraTickColour: extra.length && extra[0].querySelector('.done-tick')
+        ? getComputedStyle(extra[0].querySelector('.done-tick')).backgroundColor : null,
+      doneTickColour: done.length && done[0].querySelector('.done-tick')
+        ? getComputedStyle(done[0].querySelector('.done-tick')).backgroundColor : null,
       // the border must not have replaced the pill
       doneKeepsPill: done.length
         ? !!done[0].querySelector('.pill.done, .pill.pending') : false,
@@ -169,9 +180,14 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
     errs.push('the extra frame took the activity\u2019s own colour, so the card no longer says '
       + 'which activity separately from saying it is an extra');
   }
-  if (glance.ticksOnExtras) {
-    errs.push(glance.ticksOnExtras + ' extra activities carry the done tick — every extra is done, '
-      + 'so a tick on one says nothing');
+  line('the tick on an extra', glance.extraTickColour
+    + (glance.doneTickColour ? ' against ' + glance.doneTickColour + ' on a planned one' : ''));
+  if (glance.extras && glance.ticksOnExtras !== glance.extras) {
+    errs.push('an extra activity has no tick on it — he asked for the ring on those too');
+  }
+  if (glance.extraTickColour && glance.extraTickColour === glance.doneTickColour) {
+    errs.push('the tick on an extra is the same colour as the one on a completed session ('
+      + glance.extraTickColour + ') — an extra run would read as a planned run you did');
   }
   line('ticks on done / on still-to-do', glance.ticksOnDone + ' / ' + glance.ticksElsewhere);
   if (glance.ticksOnDone !== glance.done) {
