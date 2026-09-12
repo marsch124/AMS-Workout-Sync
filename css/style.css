@@ -1515,15 +1515,17 @@ body.detail-open .tab-bar { display: none; }
  * outstanding one for hollow to mean), never plain solid (that is a planned
  * session he did). The dots are in the ink, which at night is the fill itself
  * and in daylight the same hue dark enough to be seen on a pale tint, so the
- * pattern reads on white for a yellow ride as well as for a grey hike. A 4px
- * grid puts two or three columns of dots on an 11px bar, which is enough to
- * read as a pattern and not as dirt.
+ * pattern reads on white for a yellow ride as well as for a grey hike. One
+ * column of dots down the middle of the bar, at his request (v1.71.1): a 4px
+ * grid put two or three columns on an 11px bar and read as texture; a single
+ * column of slightly larger dots reads as dots. The tile is the bar's full
+ * width and 4.5px tall, so the column stays centred whatever the bar's width.
  */
 .week-bar-seg.is-extra {
     background-color: color-mix(in srgb, var(--sport, var(--accent)) 40%, var(--color-surface));
-    background-image: radial-gradient(circle, var(--sport-ink) 1.1px, transparent 1.6px);
-    background-size: 4px 4px;
-    background-position: 1px 1px;
+    background-image: radial-gradient(circle at 50% 50%, var(--sport-ink) 1.45px, transparent 1.95px);
+    background-size: 100% 4.5px;
+    background-position: 0 0.5px;
 }
 
 .week-bar-seg.is-missed {
@@ -2574,15 +2576,15 @@ body.is-viewing-photo .tab-bar { display: none; }
 
 .block-bar.is-missed { background: var(--sport, var(--accent)); opacity: 0.35; }
 
-/* Outside the plan, dotted as on Today and for the same reason. These bars
-   are 3–7px wide, so the grid is tighter and the dots smaller; at this size
-   it reads as a texture rather than as dots, which is still not solid and
-   still not hollow. */
+/* Outside the plan, dotted as on Today and for the same reason: one column
+   of dots down the middle. These bars are 3–7px wide, so the dots are smaller
+   and closer; at this size it is a stitched line rather than dots, which is
+   still not solid and still not hollow. */
 .block-bar.is-extra {
     background-color: color-mix(in srgb, var(--sport, var(--accent)) 40%, var(--color-surface));
-    background-image: radial-gradient(circle, var(--sport-ink) 0.75px, transparent 1.15px);
-    background-size: 3px 3px;
-    background-position: 0.5px 0.5px;
+    background-image: radial-gradient(circle at 50% 50%, var(--sport-ink) 0.95px, transparent 1.35px);
+    background-size: 100% 3px;
+    background-position: 0 0.5px;
     box-shadow: none;
 }
 

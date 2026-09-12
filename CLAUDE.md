@@ -9,7 +9,7 @@ step, no framework, no server. Live at
 ## Where things stand
 
 **Nothing outstanding.** Everything below is on `main` and published, up to
-**v1.71.0** (extras dotted in their own colour; v1.70.0's palette merged and
+**v1.71.1** (extras dotted in their own colour, one column of dots; v1.70.0's palette merged and
 published at his request on 2026-09-12, the grass green confirmed "absolutely
 fantastic"). Confirmed
 working on his phone up to **v1.37.0** by report, and by his eye since;
@@ -772,6 +772,9 @@ drawing of the dotted bar.
   `#f2a33a`, which he had already confirmed; the palette was not changed.
 - The key's extra swatch is drawn in the text colour like the other shapes,
   because the colour of an extra is now whatever its activity is.
+- **v1.71.1: one column of dots**, at his request after seeing the grid. The
+  tile is `100% × 4.5px` with the dot at `50%`, so the column stays centred
+  at any bar width; the block's bars use `100% × 3px`.
 
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking

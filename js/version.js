@@ -8,13 +8,21 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.71.0';
+    const CURRENT = '1.71.1';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.71.1',
+            date: '2026-09-12',
+            headline: 'One column of dots',
+            items: [
+                '**The dotted bars carry a single column of dots** down the middle, as you asked, rather than a grid. The dots are a little larger to make up for it, and the bars on the eight-week block follow suit.',
+            ]
+        },
         {
             version: '1.71.0',
             date: '2026-09-12',
