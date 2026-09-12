@@ -134,7 +134,12 @@ it had been typed into.
 storage persistence is requested at boot, the reset confirm counts the queued
 sessions it would delete, the sport colours hold contrast in light mode, and
 the small controls are tappable at thumb size without their halos stealing
-taps from the day columns.
+taps from the day columns. Since v1.70.0 the palette is bright in both themes
+and the text ink is derived from it (`--sport-ink`, OKLCH lightness clamped
+per theme), so the contrast step reads every colour back through a canvas —
+`getComputedStyle` reports the derived ink as `oklch(...)`, and a digit
+regex over that string measures nothing. It also fails if a label is ever
+drawn in the raw fill.
 
 **`week-wash.js`** — the tint that crosses the week card as the week passes.
 Driven at three frozen moments of the current week — Monday 00:30, Thursday

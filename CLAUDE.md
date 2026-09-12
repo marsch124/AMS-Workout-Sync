@@ -138,6 +138,7 @@ five different places, and it was not the wording:
   `where: true` to have it prepended).
 - Mobility joined strength at `#eab308` / `#854d0e`. The light variant is
   chosen for the 4.5:1 the august audit enforces — do not "brighten" it.
+  (Superseded by v1.70.0: separate colours, and ink derived from fill.)
 - "Log something else" is **Extra activities** throughout. The activity *called*
   "Something else" in `DEFAULT_ACTIVITIES` was deliberately left alone: its
   label goes into the Extras sheet and into `AmsExtras.keyFor()`, so renaming it
@@ -658,6 +659,7 @@ green one for swim."
 - `--extra-edge`: `#eab308` dark, `#a16207` light. 🪤 `#eab308` on white is
   **1.9:1** and vanishes as an edge; the light variant is the same hue with
   more ink, at 4.9:1 against the 3:1 a border needs. Do not brighten it back.
+  (Pink since v1.70.0, same two-strength treatment.)
 - Not pink. `--sport-extra` is the colour of extras as *marks on a drawing* —
   bars in the week strip, the row on an opened day — where it is the only thing
   saying which. A frame sits on a card that already names the activity twice.
@@ -693,6 +695,44 @@ looks for *what have I done*.
   kilometre column as 0.009 and the test called the app wrong. It now picks a
   sport whose box is in kilometres and prints which, so the next failure says
   what it means. The app was right both times.
+
+**v1.70.0 — his colours, everywhere.** He sent a picture: five swatches on a
+light ground (blue swim, yellow bike, lime run, orange strength, purple
+mobility) and one line, extras light pink. Sampled from the picture and used
+as given, in **both** themes — the picture was drawn on a light ground, so the
+light theme is the one it has to match.
+
+- 🚨 **Fill and ink are two different things now, and only the fill is the
+  palette.** The bright yellow is 1.55:1 on white; the audit needs 4.5:1 for
+  a label. Until now that was solved by giving light mode a second, darker
+  table of sport colours — which is exactly the thing that made every bar
+  look grey in daylight and forced v1.51.0. Instead `--sport-ink` is
+  **derived** from `--sport` in CSS: `oklch(from var(--sport) clamp(floor, l,
+  ceiling) c h)`, the same hue with its lightness clamped per theme (light
+  ceiling 0.52, dark floor 0.74; both measured — every sport clears 5:1 in
+  daylight, blue and purple clear 5.5:1 at night). It is declared on `*`
+  because a custom property resolves where it is declared; a single copy on
+  `:root` would hand every card the accent. Text rules (`.workout-card-sport`,
+  `.sport-badge` icon, `.pill.strong`, `.week-expanded-sport`) and the edges
+  of hollow and moved bars use the ink; every fill, dot, stripe and badge
+  tint uses the raw colour. Anything new that puts a sport colour on *words
+  or a thin line* uses `--sport-ink`. The `@supports` fallback hands an old
+  browser the fill as ink.
+- `august-audit` reads colours back through a **canvas** now — the derived ink
+  comes out of `getComputedStyle` as `oklch(...)`, and the old digit regex
+  would have measured garbage and passed. It also fails if any label is drawn
+  in its raw fill.
+- **The extra frame and tick are pink**, not yellow: yellow is the bike now,
+  and a yellow frame round a ride logged as an extra is the v1.68.0 confusion
+  by another door. `--extra-edge` is the bars' `#f9a8d4` at night and
+  `#db2777` by day (4.6:1 — a border and a white check need it; the bars stay
+  light pink because a bar is a shape and a frame is a line). `tests/logging.js`
+  still asserts the frame is not the activity's colour.
+- **Mobility and strength are two colours again** (the v1.45.0 merge is
+  undone by the picture). `--sport-other` is cyan, the one clear hue left.
+- Not touched: `--accent`, success/warning/danger, the teal ground. The picture
+  showed sports, and the warning orange is close to strength's orange; if he
+  ever says the pending pill looks like a strength label, that is the place.
 
 **Answered and done:** *which day slips* is gone (v1.40.0) — Martin said he was
 not interested and never would be, so it came off rather than sit there looking

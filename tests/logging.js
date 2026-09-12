@@ -102,7 +102,7 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
     /*
      * An extra as well, because the third edge is the one that has to differ
      * from both: green means done and red means missed, which are states an
-     * extra does not have. Yellow reports a kind instead. A run logged as an
+     * extra does not have. Pink reports a kind instead. A run logged as an
      * extra is the case that matters — it carries the run's green bar, and a
      * green frame round it would read as a planned session completed.
      */
@@ -133,7 +133,7 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(38) + v);
        * anyway, knowing that: "I think the extras are done by default, but I
        * still would like this nice round ring with a checkbox in." So what is
        * guarded now is the colour — a green tick on an extra run would undo
-       * what the yellow frame is there to prevent.
+       * what the pink frame is there to prevent.
        */
       ticksOnExtras: extra.filter(c => c.querySelector('.done-tick')).length,
       extraTickColour: extra.length && extra[0].querySelector('.done-tick')

@@ -1754,7 +1754,7 @@ const AmsUi = (function () {
         const pending = !!extra.pending;
 
         /*
-         * Framed like a done session and in the extras' own yellow, with the
+         * Framed like a done session and in the extras' own pink, with the
          * same tick. It was left off at first on the v1.64.0 rule — a mark
          * that appears on everything congratulates you for nothing, and every
          * extra is done. He knows that and wants it anyway: "I think the
@@ -1763,9 +1763,11 @@ const AmsUi = (function () {
          * the part that is pleased about the work rather than the part that
          * reports it.
          *
-         * Yellow, not green. Green is what a completed *planned* session is
+         * Pink, not green. Green is what a completed *planned* session is
          * marked with, and a green tick on an extra run would undo exactly
-         * what the yellow frame is there to prevent.
+         * what the pink frame is there to prevent. The frame was yellow until
+         * v1.70.0, when yellow became the bike's colour — the same argument,
+         * now against a bike ride logged as an extra.
          */
         return '<div class="card workout-card is-extra-card" style="--sport: ' + activity.color + '">'
             + '<span class="done-tick is-extra" aria-hidden="true">'
@@ -4848,17 +4850,18 @@ const AmsUi = (function () {
                 + 'would be a line of pixels beside a three-hour ride.</p>'
 
                 + '<p><strong>Colour is which sport</strong>, and the same colours are used everywhere '
-                + 'else in the app. Mobility and strength deliberately share one: they are the same kind '
-                + 'of work, they are read together, and telling two gym sessions apart by hue was never a '
-                + 'question anybody asks of a drawing this size.</p>'
+                + 'else in the app: blue is swim, yellow is bike, green is run, orange is strength and '
+                + 'purple is mobility, in daylight and at night alike. Where a colour has to carry '
+                + 'words — the sport’s name on a card, say — it is drawn a shade darker on a light '
+                + 'screen, because a yellow that reads as a bar does not read as a word. It is the same '
+                + 'yellow, with more ink in it.</p>'
 
                 + '<p><strong>Shape is what happened to it.</strong> Solid means recorded. Hollow means '
                 + 'still to do. A dashed outline means moved to another day, and a hatched bar means you '
-                + 'marked it missed. Hollow used to be an outline and nothing more, which was a mistake '
-                + 'in daylight: the light-mode sport colours are deliberately dark, because they also '
-                + 'have to carry text, and an outline of a dark colour reads as grey. It is now tinted '
-                + 'inside a full-strength edge — plainly not solid, and the week finally has the colour '
-                + 'of the sports in it.</p>'
+                + 'marked it missed. Hollow is tinted inside an edge rather than left as an outline, '
+                + 'so it is plainly not solid and the week still has the colour of the sports in it. '
+                + 'The edge is the darker shade the words use, so a hollow yellow bar on a white '
+                + 'screen is still a bar and not a smudge.</p>'
 
                 + '<p><strong>A rest day is a flat line</strong> rather than an empty column. Planned '
                 + 'nothing and nothing planned are different things, and only one of them is an '

@@ -31,30 +31,52 @@
     --color-danger: #dc2626;
     --color-danger-text: #ff6b6b;
 
-    /* One colour per discipline, kept far apart in hue so a week of training
-       can be read as a stripe of colour without labels. */
-    --sport-swim: #06b6d4;
-    --sport-bike: #84cc16;
-    --sport-run: #22c55e;
-    /* Mobility and strength are one colour on purpose: they are the same
-       kind of work, they are read together in the week strip, and telling two
-       gym sessions apart by hue was never the question anybody asks of it. */
-    --sport-mobility: #eab308;
-    --sport-strength: #eab308;
-    --sport-other: #8b5cf6;
+    /*
+     * One colour per discipline: his palette, given as a picture (v1.70.0)
+     * and used as given, in both themes. Blue swim, yellow bike, lime run,
+     * orange strength, purple mobility. The same five values paint a bar in
+     * the week strip, a dot in the key, the stripe down a card, the badge
+     * behind an icon, in daylight and at night.
+     *
+     * They are bright by design, which is fine for a fill and not for text:
+     * this yellow on white is 1.55:1 against the 4.5:1 a label needs. So a
+     * sport's colour is never used as text directly. `--sport-ink` below is
+     * the same hue with more ink in it (or, at night, more light) and it is
+     * derived from the fill rather than kept as a second table, so a colour
+     * changed here gets legible text without anybody remembering to.
+     */
+    --sport-swim: #4f87f8;
+    --sport-bike: #f7cb44;
+    --sport-run: #a3fa55;
+    --sport-strength: #f2a33a;
+    --sport-mobility: #8650fe;
+    /* Anything the plan calls something else. Cyan because it is the one
+       clear hue the five above leave free that is not the extras' pink. */
+    --sport-other: #22d3ee;
     --sport-rest: #64748b;   /* deliberately quiet — a rest day is not a session */
     --sport-race: #ef4444;
     /* Anything done outside the plan. Not a discipline — a walk and an
        unplanned run are both this — so it is deliberately outside the range
-       the sports occupy, and pink was free. Its whole job is to be told apart
-       from all of them at a glance, in a column 11 pixels wide. */
-    --sport-extra: #f472b6;
+       the sports occupy. Light pink, by his request, and the same in both
+       themes: its whole job is to be told apart from all of the sports at a
+       glance, in a column 11 pixels wide. */
+    --sport-extra: #f9a8d4;
 
-    /* The frame round anything logged outside the plan. Yellow because he
-       asked for yellow, and because green is taken: a run logged as an extra
-       carries a green bar already, and a green frame round it would make it
-       look like a planned session he completed. */
-    --extra-edge: #eab308;
+    /* The frame round anything logged outside the plan, and the tick on it.
+       The extras' own pink, so a card and a bar say "outside the plan" in one
+       word. It used to be yellow, and yellow now means bike: a yellow frame
+       round a bike ride logged as an extra would have read as a planned ride
+       completed, which is exactly the confusion the frame exists to prevent. */
+    --extra-edge: #f9a8d4;
+
+    /*
+     * Text and edges drawn in a sport's colour clamp its lightness (OKLCH) so
+     * they can be read on the surface behind them. At night the floor lifts
+     * the darker fills (blue, purple) towards the light; the bright ones are
+     * already past it and are used as they are.
+     */
+    --ink-floor: 0.74;
+    --ink-ceiling: 1;
 
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -73,27 +95,36 @@
         --color-text-secondary: #5c7373;
         --color-border: #dce6e6;
         --accent: #00875A;
-        /* The dark theme's sport colours are bright by design, and on white
-           they wash out to half the contrast standard — the RUN label measured
-           2.3:1 against the 4.5 it needs. Strength was given a darker light
-           variant from the start; these finish the job. Same hue, more ink. */
-        --sport-swim: #155e75;
-        --sport-bike: #3f6212;
-        --sport-run: #166534;
-        --sport-mobility: #854d0e;
-        --sport-strength: #854d0e;
-        --sport-other: #5b21b6;
-        --sport-rest: #475569;
-        --sport-race: #991b1b;
-        /* Same treatment as the sports above, and for the same reason: it
-           labels a row on the opened day, so it carries text. 6.0:1 on white.
-           Do not brighten it back towards the dark theme's pink. */
-        --sport-extra: #be185d;
-        /* #eab308 is 1.9:1 on white — invisible as an edge. Same hue with more
-           ink in it: 4.9:1, well past the 3:1 a border needs. */
-        --extra-edge: #a16207;
+        /* The fills stay exactly as at night — the palette was given on a
+           light ground and is meant to look like that. Only the ink moves:
+           on white a label has to be darker than any of these, and 0.52 is
+           the lightness at which every one of them clears 5:1 (measured;
+           the august audit fails the moment one does not). */
+        --ink-floor: 0;
+        --ink-ceiling: 0.52;
+        /* The frame is a border and the tick carries a white check, and
+           #f9a8d4 on white is 1.8:1 — invisible as an edge. Same hue with
+           more ink: 4.6:1, past the 3:1 a border needs. The bars keep the
+           light pink; a bar is a shape, a frame is a line. */
+        --extra-edge: #db2777;
         --color-danger-text: #c81e1e;
     }
+}
+
+/*
+ * `--sport` is set inline on a card, a bar or a row and inherited below it;
+ * `--sport-ink` is the readable version of the same colour, recomputed on
+ * every element from whatever `--sport` it inherits. Declared on `*` on
+ * purpose: a custom property is resolved where it is declared, so a single
+ * copy on :root would resolve against :root's `--sport` (there is none) and
+ * hand every card the accent. The plain rule is the fallback for a browser
+ * without relative colour syntax, which gets the fill as its ink — legible at
+ * night, and in daylight exactly what the app did before v1.70.0 for a bright
+ * colour, which is to say not well.
+ */
+* { --sport-ink: var(--sport, var(--accent)); }
+@supports (color: oklch(from red clamp(0, l, 1) c h)) {
+    * { --sport-ink: oklch(from var(--sport, var(--accent)) clamp(var(--ink-floor), l, var(--ink-ceiling)) c h); }
 }
 
 html { background: var(--color-bg); }
@@ -356,7 +387,7 @@ body {
     place-items: center;
     border-radius: 50%;
     background: color-mix(in srgb, var(--sport, var(--accent)) 18%, transparent);
-    color: var(--sport, var(--accent));
+    color: var(--sport-ink);
 }
 
 .sport-badge .icon { width: 1.3rem; height: 1.3rem; }
@@ -368,7 +399,7 @@ body {
     font-weight: 700;
     letter-spacing: 0.09em;
     text-transform: uppercase;
-    color: var(--sport, var(--accent));
+    color: var(--sport-ink);
 }
 
 .workout-card-title {
@@ -399,7 +430,7 @@ body {
 .pill.done { color: var(--color-success); border-color: var(--color-success); }
 .pill.pending { color: var(--color-warning); border-color: var(--color-warning); }
 .pill.missed { color: var(--color-danger-text); border-color: var(--color-danger-text); }
-.pill.strong { color: var(--sport, var(--accent)); border-color: var(--sport, var(--accent)); }
+.pill.strong { color: var(--sport-ink); border-color: var(--sport-ink); }
 
 /* ---------- sections of a workout ---------- */
 
@@ -426,7 +457,7 @@ body {
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--sport, var(--accent));
+    color: var(--sport-ink);
     margin-bottom: 0.2rem;
 }
 
@@ -1464,17 +1495,20 @@ body.detail-open .tab-bar { display: none; }
  * Outstanding work is hollow; recorded work is solid. That difference has to
  * stay legible without reading anything — but hollow used to mean an outline
  * and nothing else, and on a week with nothing logged yet the whole strip was
- * four thin rules on white. Since the light-mode sport colours are dark by
- * design (they have to carry text contrast), an outline of one reads as grey.
+ * four thin rules on white.
  *
- * So hollow is now tinted rather than empty: the sport's own colour at low
- * strength, inside a full-strength edge of it. Still plainly not solid, and
- * the week finally has the colour of the sports in it.
+ * So hollow is tinted rather than empty: the sport's own colour at low
+ * strength, inside an edge of it. Still plainly not solid, and the week has
+ * the colour of the sports in it. The edge is drawn in the sport's *ink*
+ * rather than its fill: since v1.70.0 the fills are bright in daylight too,
+ * and a 1.5px line of this yellow on white is 1.55:1 — a hollow bike ride
+ * would be a pale smudge. The ink is the same hue dark enough to be a line.
+ * At night ink and fill are the same colour for every bright sport.
  */
 .week-bar-seg.is-todo {
     background: var(--sport, var(--accent));
     background: color-mix(in srgb, var(--sport, var(--accent)) 26%, transparent);
-    border: 1.5px solid var(--sport, var(--accent));
+    border: 1.5px solid var(--sport-ink);
 }
 
 /*
@@ -1497,7 +1531,7 @@ body.detail-open .tab-bar { display: none; }
 
 .week-bar-seg.is-moved {
     background: color-mix(in srgb, var(--sport, var(--accent)) 14%, transparent);
-    border: 1.5px dashed var(--sport, var(--accent));
+    border: 1.5px dashed var(--sport-ink);
 }
 
 /* A rest day is a flat line rather than an empty column — planned nothing and
@@ -1755,7 +1789,7 @@ body.detail-open .tab-bar { display: none; }
     font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: var(--sport, var(--accent));
+    color: var(--sport-ink);
     min-width: 4.4rem;
 }
 
@@ -2522,12 +2556,12 @@ body.is-viewing-photo .tab-bar { display: none; }
    empty, for the same reason. */
 .block-bar.is-todo {
     background: color-mix(in srgb, var(--sport, var(--accent)) 26%, transparent);
-    box-shadow: inset 0 0 0 1.5px var(--sport, var(--accent));
+    box-shadow: inset 0 0 0 1.5px var(--sport-ink);
 }
 
 .block-bar.is-moved {
     background: color-mix(in srgb, var(--sport, var(--accent)) 14%, transparent);
-    box-shadow: inset 0 0 0 1.5px var(--sport, var(--accent));
+    box-shadow: inset 0 0 0 1.5px var(--sport-ink);
     opacity: 0.7;
 }
 

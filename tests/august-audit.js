@@ -89,8 +89,25 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
       }
       return getComputedStyle(document.body).backgroundColor;
     };
+    /*
+     * Since v1.70.0 a sport's text colour is derived in OKLCH from its fill,
+     * and getComputedStyle reports it as `oklch(...)` rather than `rgb(...)`.
+     * Reading digits out of that string would measure nonsense, so every
+     * colour is painted onto a canvas and read back as the pixel it becomes —
+     * which is also the only reading that includes the browser's own gamut
+     * mapping, the thing that decides what the phone actually shows.
+     */
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 1;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const toRgb = (c) => {
+      ctx.clearRect(0, 0, 1, 1);
+      ctx.fillStyle = c;
+      ctx.fillRect(0, 0, 1, 1);
+      return ctx.getImageData(0, 0, 1, 1).data;
+    };
     const lum = (c) => {
-      const [r, g, b] = c.match(/\d+/g).map(Number).map(v => {
+      const [r, g, b] = [...toRgb(c)].slice(0, 3).map(v => {
         v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
       });
       return 0.2126 * r + 0.7152 * g + 0.0722 * b;
@@ -100,7 +117,9 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
       return +(((Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05)).toFixed(2));
     };
     const out = [];
-    document.querySelectorAll('.workout-card-sport').forEach(n => {
+    // Every kind of text drawn in a sport's colour: the sport's name on a
+    // card and the small headings inside one (Purpose, Photos, ...).
+    document.querySelectorAll('.workout-card-sport, .section-label').forEach(n => {
       out.push([n.innerText.trim(), ratio(getComputedStyle(n).color, paintedBg(n))]);
     });
     const pill = document.querySelector('.pill');
@@ -111,6 +130,23 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(46) + v);
     line(name, r + ':1' + (r < 4.5 ? '  FAILS' : ''));
     if (r < 4.5) errs.push(name + ' still at ' + r + ':1 in light mode');
   });
+  /*
+   * And the ink must actually be derived: since v1.70.0 the fill is bright in
+   * daylight too, so a label drawn in the raw `--sport` would be the yellow
+   * that measures 1.55:1. Read as pixels, because the two are reported in
+   * different colour spaces.
+   */
+  const leaked = await lp.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 1;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const px = (c) => { ctx.fillStyle = c; ctx.fillRect(0, 0, 1, 1); return [...ctx.getImageData(0, 0, 1, 1).data].join(','); };
+    return [...document.querySelectorAll('.workout-card-sport, .section-label')]
+      .filter(n => px(getComputedStyle(n).color) === px(getComputedStyle(n).getPropertyValue('--sport').trim()))
+      .map(n => n.innerText.trim());
+  });
+  line('labels drawn in the raw fill', leaked.length ? leaked.join(', ') : 'none');
+  if (leaked.length) errs.push('sport labels drawn in the fill colour rather than the ink: ' + leaked.join(', '));
 
   // ---- hit areas ----
   console.log('');
