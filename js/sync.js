@@ -747,30 +747,46 @@ const AmsSync = (function () {
             .filter((entry) => entry.extra)
             .map((entry) => Object.assign({ pending: true }, entry.values.extra));
 
-        const byKey = new Map();
-        for (const entry of queued) byKey.set(entry.workoutKey, entry);
+        const last = (list) => (list.length ? list[list.length - 1] : null);
 
+        /*
+         * A queued move and a queued record are kept apart: `pending` is only
+         * ever something that records the session (logged, or marked missed),
+         * and `pendingMove` is a date change on its way. Until v1.72.0 one
+         * field held whichever came last, so a move waiting to sync wiped out
+         * the fact that the session was done: a logged run moved to another
+         * day drew as not done, offered its log buttons again and opened
+         * "Adjust logged data" empty — and then turned solid the moment the
+         * sync finished, which looked exactly as though syncing had logged it.
+         */
         for (const workout of state.plan) {
-            const entry = matchEntry(queued, workout);
+            const entries = matchEntries(queued, workout);
             workout.pending = null;
+            workout.pendingMove = null;
             workout.movedTo = null;
             // Back to what the sheet itself says before any queued entry is
             // applied on top, so discarding one takes its effect away with it.
             workout.logged = !!workout.loggedInSheet;
-            if (!entry) continue;
+            if (!entries.length) continue;
 
-            workout.pending = entry;
+            const isMove = (entry) => !!(entry.values && entry.values.moveTo);
+            const move = last(entries.filter(isMove));
+            const record = last(entries.filter((entry) => !isMove(entry)));
 
             // A queued move should show on the day it was moved to, not the day
             // the sheet still says, or the app would look like it ignored you.
-            if (entry.values && entry.values.moveTo) {
-                const moved = AmsPlan.parseDayKey(entry.values.moveTo);
+            if (move) {
+                workout.pendingMove = move;
+                const moved = AmsPlan.parseDayKey(move.values.moveTo);
                 if (moved) {
                     workout.date = moved;
-                    workout.dayKey = entry.values.moveTo;
-                    workout.movedTo = entry.values.moveTo;
+                    workout.dayKey = move.values.moveTo;
+                    workout.movedTo = move.values.moveTo;
                 }
-            } else {
+            }
+
+            if (record) {
+                workout.pending = record;
                 workout.logged = true;
             }
         }
@@ -790,16 +806,18 @@ const AmsSync = (function () {
      * first meant the screen and the file could disagree: mark a session
      * missed and then log it, and the app went on calling it missed while the
      * workbook took the log.
+     *
+     * All of a session's entries come back, in queue order, because a move and
+     * a record are two different facts and neither may hide the other.
      */
-    function matchEntry(queued, workout) {
+    function matchEntries(queued, workout) {
         queued = queued.filter((entry) => !entry.extra);
 
-        const last = (list) => (list.length ? list[list.length - 1] : null);
-        return last(queued.filter((entry) => entry.workoutKey === workout.key))
-            || last(queued.filter((entry) => entry.dayKey === workout.dayKey
-                && entry.disciplineId === workout.discipline.id
-                && entry.sheet === workout.sheet))
-            || null;
+        const byKey = queued.filter((entry) => entry.workoutKey === workout.key);
+        if (byKey.length) return byKey;
+        return queued.filter((entry) => entry.dayKey === workout.dayKey
+            && entry.disciplineId === workout.discipline.id
+            && entry.sheet === workout.sheet);
     }
 
     /*
@@ -1209,9 +1227,11 @@ const AmsSync = (function () {
      * do cannot count among the ones you did.
      */
     function isMissed(workout) {
+        // `pending` never holds a move (see overlayQueue), so a session moved
+        // while it waits falls through to what the sheet says about it.
         if (workout.pending) {
             const values = workout.pending.values || {};
-            return !values.moveTo && !!values.missed;
+            return !!values.missed;
         }
         const done = workout.results && workout.results.done;
         // The same fallback the writer uses, so a workbook whose own formulas
@@ -1221,11 +1241,7 @@ const AmsSync = (function () {
     }
 
     function isRecorded(workout) {
-        if (workout.pending) {
-            const values = workout.pending.values || {};
-            return !values.moveTo;
-        }
-        return !!workout.logged;
+        return !!workout.pending || !!workout.logged;
     }
 
     /*

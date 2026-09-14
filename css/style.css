@@ -1536,11 +1536,6 @@ body.detail-open .tab-bar { display: none; }
     opacity: 0.7;
 }
 
-.week-bar-seg.is-moved {
-    background: color-mix(in srgb, var(--sport, var(--accent)) 14%, transparent);
-    border: 1.5px dashed var(--sport-ink);
-}
-
 /* A rest day is a flat line rather than an empty column — planned nothing and
    nothing planned are different things. */
 .week-rest {
@@ -2566,12 +2561,6 @@ body.is-viewing-photo .tab-bar { display: none; }
 .block-bar.is-todo {
     background: color-mix(in srgb, var(--sport, var(--accent)) 26%, transparent);
     box-shadow: inset 0 0 0 1.5px var(--sport-ink);
-}
-
-.block-bar.is-moved {
-    background: color-mix(in srgb, var(--sport, var(--accent)) 14%, transparent);
-    box-shadow: inset 0 0 0 1.5px var(--sport-ink);
-    opacity: 0.7;
 }
 
 .block-bar.is-missed { background: var(--sport, var(--accent)); opacity: 0.35; }

@@ -193,18 +193,33 @@ const AmsUi = (function () {
      * missed marker in its completed column, so it is recognised on the way
      * back in as well as on the way out.
      */
+    /*
+     * A move is not a state of its own. Until v1.72.0 a move waiting to sync
+     * drew dashed and took the place of whatever the session really was, so a
+     * done run moved to another day looked undone for the few seconds before
+     * the sync and then turned solid — as though syncing had logged it. A
+     * moved session now shows what it is, and only the label mentions the
+     * move while it is on its way.
+     */
     function statusOf(workout) {
         if (workout.pending) {
             const values = workout.pending.values || {};
-            if (values.moveTo) return { kind: 'moved', pending: true, label: 'Moved — waiting to sync' };
             return values.missed
                 ? { kind: 'missed', pending: true, label: 'Missed — waiting to sync' }
                 : { kind: 'logged', pending: true, label: 'Waiting to sync' };
         }
 
-        if (AmsSync.isMissed(workout)) return { kind: 'missed', pending: false, label: 'Missed' };
+        const moving = !!workout.pendingMove;
 
-        if (workout.logged) return { kind: 'logged', pending: false, label: 'Logged' };
+        if (AmsSync.isMissed(workout)) {
+            return { kind: 'missed', pending: moving, label: moving ? 'Missed · move waiting to sync' : 'Missed' };
+        }
+
+        if (workout.logged) {
+            return { kind: 'logged', pending: moving, label: moving ? 'Logged · move waiting to sync' : 'Logged' };
+        }
+
+        if (moving) return { kind: 'todo', pending: true, label: 'Moved — waiting to sync' };
         return null;
     }
 
@@ -701,10 +716,15 @@ const AmsUi = (function () {
     /*
      * Tap the slate itself and the week explains its own drawing.
      *
-     * The strip says four different things with the same shape — solid,
-     * hollow, dashed, hatched — and a shape carries no label. That is the
-     * point of it, and also the one place it can be misread, so the key lives
-     * one tap away rather than taking up room it does not need to.
+     * The strip says three different things with the same shape — solid,
+     * hollow, hatched — and a shape carries no label. That is the point of it,
+     * and also the one place it can be misread, so the key lives one tap away
+     * rather than taking up room it does not need to.
+     *
+     * There was a fourth, dashed for "moved", until v1.72.0. It only ever
+     * meant a move still waiting to sync — seconds, usually — and it hid
+     * whether the session was done. Martin asked why it was there; nobody
+     * could say, so it went.
      *
      * The sports listed are the ones this week actually contains: a legend for
      * a week with no swim in it would be a legend for somebody else’s week.
@@ -715,7 +735,6 @@ const AmsUi = (function () {
         const shapes = [
             { cls: '', text: 'Recorded' },
             { cls: 'is-todo', text: 'Still to do' },
-            { cls: 'is-moved', text: 'Moved to another day' },
             { cls: 'is-missed', text: 'Marked missed' }
         ];
 
@@ -4858,8 +4877,8 @@ const AmsUi = (function () {
                 + 'yellow, with more ink in it.</p>'
 
                 + '<p><strong>Shape is what happened to it.</strong> Solid means recorded. Hollow means '
-                + 'still to do. A dashed outline means moved to another day, and a hatched bar means you '
-                + 'marked it missed. Hollow is tinted inside an edge rather than left as an outline, '
+                + 'still to do, and a hatched bar means you marked it missed. A session you moved looks '
+                + 'like any other on its new day: hollow if it is still to do, solid if it is done. Hollow is tinted inside an edge rather than left as an outline, '
                 + 'so it is plainly not solid and the week still has the colour of the sports in it. '
                 + 'The edge is the darker shade the words use, so a hollow yellow bar on a white '
                 + 'screen is still a bar and not a smudge.</p>'

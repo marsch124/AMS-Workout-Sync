@@ -8,13 +8,24 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.71.2';
+    const CURRENT = '1.72.0';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.72.0',
+            date: '2026-09-14',
+            headline: 'No more dashed outline for a moved session',
+            items: [
+                '**A session you move now looks like any other on its new day**: hollow if it is still to do, solid if it is done. The dashed outline is gone from the week strip, the eight-week block and the key.',
+                'You asked what the dashed outline was for, and the honest answer was: not much. It only showed while a move was waiting to reach Dropbox, usually a few seconds. It also covered up whether the session was done, so a logged run you had just moved looked undone until the sync, then turned solid. That looked exactly as if syncing had logged it.',
+                'While a move is on its way, the session’s label says so (*Logged · move waiting to sync*), and the sync button shows it as waiting, as before.',
+                'The same fix reaches further in: a done session with a move waiting no longer offers its log buttons again, no longer opens *Adjust logged data* empty, and stays under Done rather than jumping to Upcoming.',
+            ]
+        },
         {
             version: '1.71.2',
             date: '2026-09-14',

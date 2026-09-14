@@ -9,7 +9,11 @@ step, no framework, no server. Live at
 ## Where things stand
 
 **Nothing outstanding.** Everything below is on `main` and published, up to
-**v1.71.2** (the swap list offers only sessions not yet done, future first on a tie —
+**v1.72.0** (no dashed "moved" state any more: a moved session shows what it is.
+`workout.pending` is now ONLY a queued record — log or missed — and a queued move lives
+in `workout.pendingMove`; before, whichever came last took the one slot, so a move hid
+a done session and even offered one-tap logging on it again. Guarded by
+`tests/moved-looks.js`, which fails 9 ways on v1.71.2. v1.71.2: the swap list offers only sessions not yet done, future first on a tie —
 `AmsSync.swapCandidates()`, guarded by `tests/swap-choices.js`; on 2026-09-14 a done
 long run two days back was listed above the run he meant, got swapped onto today
 with its results, and read as "the app logged a run for me". v1.71.1: extras dotted in their own colour, one column of dots; v1.70.0's palette merged and
@@ -872,7 +876,7 @@ node tests/failure-paths.js          # and the rest
 Repo tests: `failure-paths`, `column-collision`, `foreign-extras-sheet`,
 `edited-workbook`, `calendar-export`, `session-share`, `progress`, `logging`,
 `move-log`, `leaving-a-form`, `week-wash`, `august-audit`, `rest-day`,
-`photos`, `extra-photos`, `share-app`, `screen-wording`, `plan-overview`, `as-planned`, `voice` (no browser), `say-it`, `road`, `trends` (no browser), `load` (no browser), `is-it-working`, `new-writes`, `rough-input` (no browser), `extras-identity`, `conflict`, `waiting`, `extra-bars`, `correcting`, `send-done`, `swap-choices` — **34 of them**. What each
+`photos`, `extra-photos`, `share-app`, `screen-wording`, `plan-overview`, `as-planned`, `voice` (no browser), `say-it`, `road`, `trends` (no browser), `load` (no browser), `is-it-working`, `new-writes`, `rough-input` (no browser), `extras-identity`, `conflict`, `waiting`, `extra-bars`, `correcting`, `send-done`, `swap-choices`, `moved-looks` — **35 of them**. What each
 one covers is written up in `tests/README.md`; keep it current, the run list
 included. Fixtures are synthetic and gitignored — **no real
 training data in this repository**.

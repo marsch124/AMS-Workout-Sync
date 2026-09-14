@@ -41,6 +41,7 @@ node tests/waiting.js
 node tests/extra-bars.js
 node tests/correcting.js
 node tests/swap-choices.js
+node tests/moved-looks.js
 
 node tests/voice.js          # no browser, no server — pure parser
 node tests/trends.js         # no browser, no server — pure arithmetic
@@ -365,6 +366,17 @@ of what it tests is the silence: nothing with an empty queue, nothing for
 something logged seconds ago, and nothing left behind once the queue goes up.
 A warning that appears on an ordinary day is one he would learn to ignore, so
 it says nothing until something has been stuck for a full day.
+
+**`swap-choices.js`** — what "Or swap it with" offers. Re-creates 14 September
+2026: a done run two days back and an undone one two days ahead. The done one
+(in the sheet, or logged and waiting) must not be offered, and on a tie the
+session still to come is listed first. Also checks the screen shows exactly
+what `swapCandidates()` returns.
+
+**`moved-looks.js`** — a move is not a state. Logged then moved, done in the
+sheet then moved, moved then logged, and moved alone: the first three must stay
+done (no "Log details", no one-tap), the queued log must survive the move, and
+nothing on screen may still be drawn as "moved".
 
 ## Fixtures
 

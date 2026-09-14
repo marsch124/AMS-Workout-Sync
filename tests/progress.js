@@ -95,8 +95,11 @@ const line = (l, v) => console.log('   ' + String(l).padEnd(34) + v);
   const moved = await page.evaluate(async () => {
     const plan = AmsSync.getState().plan;
     // A past session: a move only counts once the day it moved to has come.
+    // And not one marked missed — a session moved and missed anyway is a miss.
+    // (This used to read `!plan.missed`, which is always true, and passed only
+    // because a waiting move hid the missed mark; v1.72.0 stopped that.)
     const target = plan.find(w => w.discipline.id !== 'rest'
-      && w.dayKey < AmsSync.todayKey() && !AmsSync.getState().plan.missed);
+      && w.dayKey < AmsSync.todayKey() && !AmsSync.isMissed(w));
     if (!target) return { error: 'no past session to move' };
     const from = target.dayKey;
     const to = new Date(Date.parse(from + 'T00:00:00Z') + 86400000).toISOString().slice(0, 10);
