@@ -4021,14 +4021,8 @@ const AmsUi = (function () {
 
         $('rescheduleEyebrow').textContent = workout.discipline.label + ' · ' + shortDay(workout.date);
 
-        // Candidates to swap with: nearby sessions, nearest first.
-        const here = Date.parse(workout.dayKey + 'T00:00:00Z');
-        const nearby = state.plan
-            .filter((w) => w.key !== workout.key && w.discipline.id !== 'rest')
-            .map((w) => ({ w: w, gap: Math.round((Date.parse(w.dayKey + 'T00:00:00Z') - here) / 86400000) }))
-            .filter((c) => Math.abs(c.gap) <= 10)
-            .sort((a, b) => Math.abs(a.gap) - Math.abs(b.gap) || a.gap - b.gap)
-            .slice(0, 12);
+        // Nearby sessions not yet done, nearest first — see swapCandidates().
+        const nearby = AmsSync.swapCandidates(workout);
 
         $('rescheduleBody').innerHTML =
             '<div class="card workout-card" ' + sportStyle(workout) + '>'

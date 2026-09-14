@@ -9,7 +9,10 @@ step, no framework, no server. Live at
 ## Where things stand
 
 **Nothing outstanding.** Everything below is on `main` and published, up to
-**v1.71.1** (extras dotted in their own colour, one column of dots; v1.70.0's palette merged and
+**v1.71.2** (the swap list offers only sessions not yet done, future first on a tie —
+`AmsSync.swapCandidates()`, guarded by `tests/swap-choices.js`; on 2026-09-14 a done
+long run two days back was listed above the run he meant, got swapped onto today
+with its results, and read as "the app logged a run for me". v1.71.1: extras dotted in their own colour, one column of dots; v1.70.0's palette merged and
 published at his request on 2026-09-12, the grass green confirmed "absolutely
 fantastic"). Confirmed
 working on his phone up to **v1.37.0** by report, and by his eye since;
@@ -869,7 +872,7 @@ node tests/failure-paths.js          # and the rest
 Repo tests: `failure-paths`, `column-collision`, `foreign-extras-sheet`,
 `edited-workbook`, `calendar-export`, `session-share`, `progress`, `logging`,
 `move-log`, `leaving-a-form`, `week-wash`, `august-audit`, `rest-day`,
-`photos`, `extra-photos`, `share-app`, `screen-wording`, `plan-overview`, `as-planned`, `voice` (no browser), `say-it`, `road`, `trends` (no browser), `load` (no browser), `is-it-working`, `new-writes`, `rough-input` (no browser), `extras-identity`, `conflict`, `waiting`, `extra-bars`, `correcting`, `send-done` — **33 of them**. What each
+`photos`, `extra-photos`, `share-app`, `screen-wording`, `plan-overview`, `as-planned`, `voice` (no browser), `say-it`, `road`, `trends` (no browser), `load` (no browser), `is-it-working`, `new-writes`, `rough-input` (no browser), `extras-identity`, `conflict`, `waiting`, `extra-bars`, `correcting`, `send-done`, `swap-choices` — **34 of them**. What each
 one covers is written up in `tests/README.md`; keep it current, the run list
 included. Fixtures are synthetic and gitignored — **no real
 training data in this repository**.

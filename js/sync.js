@@ -647,6 +647,32 @@ const AmsSync = (function () {
         return [first, second];
     }
 
+    /*
+     * The sessions offered under "Or swap it with".
+     *
+     * A session that already carries a result is never offered. A swap moves
+     * the whole row, results included, so exchanging a planned swim with a run
+     * done two days ago puts that run's figures on today and sends the swim
+     * into last week. That happened on 14 September 2026: the done long run
+     * from Saturday sat first in the list, right above the Wednesday run he
+     * meant, and the app looked as though it had logged a run for him with an
+     * earlier day's numbers. A logged session can still be moved by date; it
+     * is just never one tap away in this list.
+     *
+     * Nearest first, and where two are equally far the one still to come goes
+     * first: a swap is almost always with the days ahead, and the old order
+     * put the past one on top.
+     */
+    function swapCandidates(workout) {
+        const here = Date.parse(workout.dayKey + 'T00:00:00Z');
+        return state.plan
+            .filter((w) => w.key !== workout.key && w.discipline.id !== 'rest' && !w.logged)
+            .map((w) => ({ w: w, gap: Math.round((Date.parse(w.dayKey + 'T00:00:00Z') - here) / 86400000) }))
+            .filter((c) => Math.abs(c.gap) <= 10)
+            .sort((a, b) => Math.abs(a.gap) - Math.abs(b.gap) || b.gap - a.gap)
+            .slice(0, 12);
+    }
+
     async function weekdayNamesFor(sheetName) {
         if (!state.workbook || !state.mapping) return {};
         try {
@@ -1393,6 +1419,7 @@ const AmsSync = (function () {
         markMissed,
         rescheduleWorkout,
         swapWorkouts,
+        swapCandidates,
         overlayQueue,
         sync,
         persistWorkbookEdits,

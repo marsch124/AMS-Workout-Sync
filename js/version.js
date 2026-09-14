@@ -8,13 +8,21 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.71.1';
+    const CURRENT = '1.71.2';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.71.2',
+            date: '2026-09-14',
+            headline: 'Swap only with sessions still to do',
+            items: [
+                '**"Or swap it with" no longer offers a session you have already done.** This morning you swapped today’s swim with what should have been Wednesday’s run, and the list had Saturday’s long run first, already done and just as close. That run moved to today with its figures, and the swim went back to last Saturday. Nothing was logged for you; the swap simply picked the wrong run.',
+                '**When two sessions are equally close, the one still ahead is listed first.**',            ]
+        },
         {
             version: '1.71.1',
             date: '2026-09-12',

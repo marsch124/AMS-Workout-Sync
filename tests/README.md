@@ -40,6 +40,7 @@ node tests/conflict.js
 node tests/waiting.js
 node tests/extra-bars.js
 node tests/correcting.js
+node tests/swap-choices.js
 
 node tests/voice.js          # no browser, no server — pure parser
 node tests/trends.js         # no browser, no server — pure arithmetic
