@@ -42,6 +42,7 @@ node tests/extra-bars.js
 node tests/correcting.js
 node tests/swap-choices.js
 node tests/moved-looks.js
+node tests/far-title.js
 
 node tests/voice.js          # no browser, no server — pure parser
 node tests/trends.js         # no browser, no server — pure arithmetic
@@ -377,6 +378,11 @@ what `swapCandidates()` returns.
 sheet then moved, moved then logged, and moved alone: the first three must stay
 done (no "Log details", no one-tap), the queued log must survive the move, and
 nothing on screen may still be drawn as "moved".
+
+**`far-title.js`** — a waiting log whose row changed in Excel may follow its
+session within a week, never further. The logged run becomes a swim; with the
+only same-worded run eight or more days away nothing is written and the log
+waits with a reason; with one three days away the log goes there.
 
 ## Fixtures
 

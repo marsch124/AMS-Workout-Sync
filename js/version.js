@@ -8,13 +8,23 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.72.0';
+    const CURRENT = '1.72.1';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.72.1',
+            date: '2026-09-14',
+            headline: 'A waiting log never jumps weeks ahead',
+            items: [
+                '**A log still waiting to sync now only follows its session a few days.** If the row it belongs to was changed in Excel before the sync (turned into another sport, say), the app used to look for the same session by its wording. Your plan repeats sessions word for word, so it could find the same test seven weeks later and write your numbers there.',
+                'Now a match elsewhere must be within a week of the day you logged. Further than that, nothing is written: the log stays waiting in Settings with the reason, so you can put it on the right session.',
+                'Found by the new iPhone app\u2019s sync tests, which run the same rules.',
+            ]
+        },
         {
             version: '1.72.0',
             date: '2026-09-14',

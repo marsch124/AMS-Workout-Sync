@@ -858,6 +858,16 @@ const AmsSync = (function () {
         return workout.dayKey === entry.dayKey || titlesAgree(workout.title, entry.title);
     }
 
+    const NEARBY_DAYS = 7;
+
+    function withinAWeek(workout, entry) {
+        if (!entry.dayKey) return true;
+        const a = AmsPlan.parseDayKey(workout.dayKey);
+        const b = AmsPlan.parseDayKey(entry.dayKey);
+        if (!a || !b) return false;
+        return Math.abs(a - b) <= NEARBY_DAYS * 86400000;
+    }
+
     function findWorkoutFor(entry, plan) {
         const here = entry.sheet ? plan.filter((w) => w.sheet === entry.sheet) : plan;
 
@@ -870,7 +880,18 @@ const AmsSync = (function () {
          * was. Rows that already carry a result are passed over first: writing
          * into a session someone has already recorded is its own kind of wrong.
          */
-        const sameSession = here.filter((w) => stillTheSameSession(w, entry));
+        /*
+         * And only nearby. A plan repeats its sessions word for word — the
+         * LTHR test on 16 September and again on 4 November, a long run every
+         * Sunday — so "the same wording" alone found a session seven weeks
+         * away: a log for 16 September, whose row had been turned into a swim
+         * in Excel before it synced, was written into 4 November (found
+         * 2026-09-14 by the iPhone app's sync test, confirmed here). A session
+         * moved in Excel moves by days, not by months, so a match elsewhere
+         * must be within a week of the day it was logged against. Anything
+         * further is reported and kept rather than guessed at.
+         */
+        const sameSession = here.filter((w) => stillTheSameSession(w, entry) && withinAWeek(w, entry));
         if (!sameSession.length) return null;
         if (sameSession.length === 1) return sameSession[0];
 
