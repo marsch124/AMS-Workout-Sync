@@ -9,7 +9,7 @@ step, no framework, no server. Live at
 ## Where things stand
 
 **Nothing outstanding.** Everything below is on `main` and published, up to
-**v1.72.1** (findWorkoutFor's search elsewhere is bounded to ±7 days of the logged day — `withinAWeek()`; a log whose row became another sport in Excel had been written into the same-titled session seven weeks later. Found by the native app's sync-check, guarded by `tests/far-title.js`. v1.72.0: no dashed "moved" state any more: a moved session shows what it is.
+**v1.72.2** (`--sport-bike` #ffd60a brighter, `--sport-strength` #ff8c1a stronger: he found the two alike in the native app's week bars and rejected a quieter pair on sight — colour changes are shown as simulator screenshots first; the native `Theme.sportHex` carries the same two, 1.1 build 23). v1.72.1 (findWorkoutFor's search elsewhere is bounded to ±7 days of the logged day — `withinAWeek()`; a log whose row became another sport in Excel had been written into the same-titled session seven weeks later. Found by the native app's sync-check, guarded by `tests/far-title.js`. v1.72.0: no dashed "moved" state any more: a moved session shows what it is.
 `workout.pending` is now ONLY a queued record — log or missed — and a queued move lives
 in `workout.pendingMove`; before, whichever came last took the one slot, so a move hid
 a done session and even offered one-tap logging on it again. Guarded by

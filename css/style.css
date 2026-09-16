@@ -48,9 +48,9 @@
      * changed here gets legible text without anybody remembering to.
      */
     --sport-swim: #4f87f8;
-    --sport-bike: #f7cb44;
+    --sport-bike: #ffd60a;      /* v1.72.2: brighter — it read like strength */
     --sport-run: #85ce6c;
-    --sport-strength: #f2a33a;
+    --sport-strength: #ff8c1a;  /* v1.72.2: stronger — it read like the bike */
     --sport-mobility: #8650fe;
     /* A planned row whose sport the app cannot read. Cyan because it is the
        one clear hue the five above leave free. Extras never use it: an extra

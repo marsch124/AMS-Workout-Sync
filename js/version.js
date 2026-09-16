@@ -8,13 +8,21 @@
 const AmsVersion = (function () {
     'use strict';
 
-    const CURRENT = '1.72.1';
+    const CURRENT = '1.72.2';
 
     /*
      * Newest first. Written for the person using the app rather than as a
      * mirror of the commit log — several commits often make one release.
      */
     const CHANGELOG = [
+        {
+            version: '1.72.2',
+            date: '2026-09-16',
+            headline: 'Bike and strength told apart',
+            items: [
+                '**The bike\u2019s yellow is brighter and the strength orange stronger**, so the two no longer look alike in the week bars and on the badges. The iPhone app (1.1, build 23) uses the same two colours.',
+            ]
+        },
         {
             version: '1.72.1',
             date: '2026-09-14',
